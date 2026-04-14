@@ -1,4 +1,5 @@
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
+using ECommerce.Shared.Observability.Metrics;
 using Order.Service.ApiModels;
 using Order.Service.Infrastructure.Data;
 using Order.Service.IntegrationEvents.Events;
@@ -14,7 +15,7 @@ public static class OrderApiEndpoint
     }
 
     internal static async Task<IResult> CreateOrder(IEventBus eventBus,
-        IOrderStore orderStore,
+        IOrderStore orderStore, MetricFactory metricFactory,
         string customerId, CreateOrderRequest request)
     {
         var order = new Models.Order
@@ -28,6 +29,12 @@ public static class OrderApiEndpoint
         }
 
         await orderStore.CreateOrder(order);
+
+        var orderCounter = metricFactory.Counter("total-orders", "Orders");
+        orderCounter.Add(1);
+
+        var productsPerOrderHistogram = metricFactory.Histogram("products-per-order", "Products");
+        productsPerOrderHistogram.Record(order.OrderProducts.DistinctBy(p => p.ProductId).Count());
 
         await eventBus.PublishAsync(new OrderCreatedEvent(customerId));
 

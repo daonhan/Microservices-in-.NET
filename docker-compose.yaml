@@ -55,3 +55,18 @@ services:
     image: redis:6.2-alpine
     ports:
       - "6379:6379"
+
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:1.58
+    ports:
+      - "4317:4317"
+      - "16686:16686"
+
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus-config.yaml:/etc/prometheus/prometheus.yml
