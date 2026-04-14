@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: basketservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: basketservice
+  template:
+    metadata:
+      labels:
+        app: basketservice
+    spec:
+      containers:
+        - name: basketservice
+          image: <USERNAME>/basketservice:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Development
+            - name: RabbitMq__HostName
+              value: rabbitmq-clusterip-service
+            - name: Redis__Configuration
+              value: redis-clusterip-service:6379
+            - name: OpenTelemetry__OtlpExporterEndpoint
+              value: http://jaeger-clusterip-service:4317
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: basket-clusterip-service
+spec:
+  type: ClusterIP
+  selector:
+    app: basketservice
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: basketservice-loadbalancer
+spec:
+  type: LoadBalancer
+  selector:
+    app: basketservice
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8080

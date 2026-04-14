@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+        - name: jaeger
+          image: jaegertracing/all-in-one:1.58
+          ports:
+            - name: otlp
+              containerPort: 4317
+            - name: ui
+              containerPort: 16686
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-clusterip-service
+spec:
+  type: ClusterIP
+  selector:
+    app: jaeger
+  ports:
+    - name: otlp
+      port: 4317
+      targetPort: 4317
+    - name: ui
+      port: 16686
+      targetPort: 16686
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger-loadbalancer
+spec:
+  type: LoadBalancer
+  selector:
+    app: jaeger
+  ports:
+    - name: otlp
+      protocol: TCP
+      port: 4317
+      targetPort: 4317
+    - name: ui
+      protocol: TCP
+      port: 16686
+      targetPort: 16686
