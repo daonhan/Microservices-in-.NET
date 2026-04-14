@@ -10,6 +10,7 @@ services:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "RabbitMq__HostName=host.docker.internal"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Product;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
+      - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
 
   order:
     container_name: order
@@ -33,6 +34,28 @@ services:
     environment:
       - "RabbitMq__HostName=host.docker.internal"
       - "Redis__Configuration=host.docker.internal:6379"
+
+  auth:
+    container_name: auth
+    build:
+      context: .
+      dockerfile: ./auth-microservice/Auth.Service/Dockerfile
+    ports:
+      - "8003:8080"
+    environment:
+      - "ASPNETCORE_ENVIRONMENT=Development"
+      - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Auth;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
+      - "Authentication__AuthMicroserviceBaseAddress=http://localhost:8003"
+
+  gateway:
+    container_name: gateway
+    build:
+      context: .
+      dockerfile: ./api-gateway/ApiGateway/Dockerfile
+    ports:
+      - "8004:8080"
+    environment:
+      - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
 
   rabbitmq:
     image: rabbitmq:3-management
