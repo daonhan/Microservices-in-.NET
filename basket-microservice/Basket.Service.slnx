@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Basket.Service/Basket.Service.csproj" />
+  <Project Path="Basket.Tests/Basket.Tests.csproj" />
+</Solution>
