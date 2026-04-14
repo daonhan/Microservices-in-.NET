@@ -1,6 +1,40 @@
-@Basket.Service_HostAddress = http://localhost:5216
+@Basket.Service_HostAddress = https://localhost:8000
 
-GET {{Basket.Service_HostAddress}}/weatherforecast/
+### Get customer basket
+GET {{Basket.Service_HostAddress}}/customer-1
 Accept: application/json
+
+###
+
+### Create basket
+POST {{Basket.Service_HostAddress}}/customer-1
+Content-Type: application/json
+
+{
+  "productId": "1",
+  "productName": "Test Product"
+}
+
+###
+
+### Add product to basket
+PUT {{Basket.Service_HostAddress}}/customer-1
+Content-Type: application/json
+
+{
+  "productId": "2",
+  "productName": "Another Product",
+  "quantity": 2
+}
+
+###
+
+### Delete product from basket
+DELETE {{Basket.Service_HostAddress}}/customer-1/1
+
+###
+
+### Delete basket
+DELETE {{Basket.Service_HostAddress}}/customer-1
 
 ###

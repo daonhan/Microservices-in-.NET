@@ -1,6 +1,26 @@
-@Order.Service_HostAddress = http://localhost:5191
+@Order.Service_HostAddress = https://localhost:8001
 
-GET {{Order.Service_HostAddress}}/weatherforecast/
+### Create order
+POST {{Order.Service_HostAddress}}/customer-1
+Content-Type: application/json
+
+{
+  "orderProducts": [
+    {
+      "productId": "1",
+      "quantity": 2
+    },
+    {
+      "productId": "2",
+      "quantity": 1
+    }
+  ]
+}
+
+###
+
+### Get order
+GET {{Order.Service_HostAddress}}/customer-1/{{orderId}}
 Accept: application/json
 
 ###
