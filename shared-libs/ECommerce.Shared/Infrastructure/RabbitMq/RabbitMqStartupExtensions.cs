@@ -17,8 +17,9 @@ public static class RabbitMqStartupExtensions
         return services;
     }
 
-    public static IServiceCollection AddRabbitMqEventPublisher(this IServiceCollection services)
+    public static IServiceCollection AddRabbitMqEventPublisher(this IServiceCollection services, IConfigurationManager configuration)
     {
+        services.Configure<EventBusOptions>(configuration.GetSection(EventBusOptions.EventBusSectionName));
         services.AddScoped<IEventBus, RabbitMqEventBus>();
 
         return services;

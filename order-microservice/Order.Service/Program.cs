@@ -1,3 +1,4 @@
+using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
 using OpenTelemetry.Metrics;
@@ -10,11 +11,13 @@ const string serviceName = "Order";
 
 builder.Services.AddSqlServerDatastore(builder.Configuration);
 
+builder.Services.AddOutbox(builder.Configuration);
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddRabbitMqEventBus(builder.Configuration)
-    .AddRabbitMqEventPublisher();
+    .AddRabbitMqEventPublisher(builder.Configuration);
 
 builder.Services.AddOpenTelemetryTracing(serviceName, builder.Configuration,
     traceBuilder => traceBuilder.WithSqlInstrumentation())
@@ -32,6 +35,7 @@ app.UsePrometheusExporter();
 if (app.Environment.IsDevelopment())
 {
     app.MigrateDatabase();
+    app.ApplyOutboxMigrations();
 }
 
 app.UseSwagger();
