@@ -35,11 +35,11 @@ public class ProductApiTests : IntegrationTestBase
         response.EnsureSuccessStatusCode();
 
         var locationHeader = response.Headers.FirstOrDefault(h =>
-            string.Equals(h.Key, "Location")).Value.FirstOrDefault();
+            string.Equals(h.Key, "Location", StringComparison.Ordinal)).Value.FirstOrDefault();
 
         Assert.NotNull(locationHeader);
 
-        var productId = int.Parse(locationHeader);
+        var productId = int.Parse(locationHeader, System.Globalization.CultureInfo.InvariantCulture);
 
         var product = ProductContext.Products.FirstOrDefault(p => p.Id == productId);
         Assert.NotNull(product);

@@ -9,8 +9,8 @@ internal class OrderContext : DbContext, IOrderStore
     {
     }
 
-    public DbSet<Models.Order> Orders { get; set; }
-    public DbSet<Models.OrderProduct> OrderProducts { get; set; }
+    public DbSet<Models.Order> Orders { get; set; } = null!;
+    public DbSet<Models.OrderProduct> OrderProducts { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

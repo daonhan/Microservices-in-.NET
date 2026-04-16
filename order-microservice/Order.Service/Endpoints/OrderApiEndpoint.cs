@@ -1,10 +1,10 @@
+using System.Transactions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.EntityFrameworkCore;
 using Order.Service.ApiModels;
 using Order.Service.Infrastructure.Data;
 using Order.Service.IntegrationEvents.Events;
-using System.Transactions;
 
 namespace Order.Service.Endpoints;
 

@@ -10,8 +10,8 @@ internal class ProductContext : DbContext, IProductStore
     {
     }
 
-    public DbSet<Models.Product> Products { get; set; }
-    public DbSet<ProductType> ProductTypes { get; set; }
+    public DbSet<Models.Product> Products { get; set; } = null!;
+    public DbSet<ProductType> ProductTypes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

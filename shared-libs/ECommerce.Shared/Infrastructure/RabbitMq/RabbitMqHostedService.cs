@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Observability;
@@ -7,9 +10,6 @@ using Microsoft.Extensions.Options;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
 using RabbitMQ.Client.Events;
-using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
 
 namespace ECommerce.Shared.Infrastructure.RabbitMq;
 

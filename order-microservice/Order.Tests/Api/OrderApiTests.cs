@@ -54,7 +54,7 @@ public class OrderApiTests : IntegrationTestBase
         response.EnsureSuccessStatusCode();
 
         var locationHeader = response.Headers.FirstOrDefault(h =>
-            string.Equals(h.Key, "Location")).Value.FirstOrDefault();
+            string.Equals(h.Key, "Location", StringComparison.Ordinal)).Value.FirstOrDefault();
 
         Assert.NotNull(locationHeader);
 

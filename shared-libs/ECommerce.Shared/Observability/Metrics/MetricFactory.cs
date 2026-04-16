@@ -2,7 +2,7 @@ using System.Diagnostics.Metrics;
 
 namespace ECommerce.Shared.Observability.Metrics;
 
-public class MetricFactory
+public class MetricFactory : IDisposable
 {
     private readonly Meter _meter;
     private readonly Dictionary<string, Counter<int>> _cachedCounters = new();
@@ -37,5 +37,11 @@ public class MetricFactory
         _cachedHistograms.Add(name, histogram);
 
         return histogram;
+    }
+
+    public void Dispose()
+    {
+        _meter.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

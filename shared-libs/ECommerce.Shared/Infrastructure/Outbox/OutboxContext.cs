@@ -1,19 +1,19 @@
+using System.Text.Json;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using System.Text.Json;
 
 namespace ECommerce.Shared.Infrastructure.Outbox;
 
-internal class OutboxContext : DbContext, IOutboxStore
+internal sealed class OutboxContext : DbContext, IOutboxStore
 {
     public OutboxContext(DbContextOptions<OutboxContext> options)
         : base(options)
     {
     }
 
-    public DbSet<OutboxEvent> OutboxEvents { get; set; }
+    public DbSet<OutboxEvent> OutboxEvents { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -24,7 +24,10 @@ internal class OutboxContext : DbContext, IOutboxStore
     {
         var existingEvent = await OutboxEvents.FindAsync(@event.Id);
 
-        if (existingEvent is not null) return;
+        if (existingEvent is not null)
+        {
+            return;
+        }
 
         OutboxEvents.Add(new OutboxEvent
         {

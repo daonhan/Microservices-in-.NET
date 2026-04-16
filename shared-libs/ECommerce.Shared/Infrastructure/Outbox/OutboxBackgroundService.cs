@@ -1,14 +1,14 @@
+using System.Text.Json;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Text.Json;
 
 namespace ECommerce.Shared.Infrastructure.Outbox;
 
-public class OutboxBackgroundService : BackgroundService
+public partial class OutboxBackgroundService : BackgroundService
 {
     private readonly TimeSpan _period;
     private readonly IServiceScopeFactory _serviceScopeFactory;
@@ -29,7 +29,7 @@ public class OutboxBackgroundService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
         {
-            _logger.LogInformation("Retrieving unpublished outbox events");
+            LogRetrievingEvents(_logger);
 
             using var serviceScope = _serviceScopeFactory.CreateScope();
 
@@ -48,14 +48,23 @@ public class OutboxBackgroundService : BackgroundService
                 await outboxStore.MarkOutboxEventAsPublished(unpublishedEvent.Id);
             }
 
-            if (unpublishedEvents.Any())
+            if (unpublishedEvents.Count != 0)
             {
-                _logger.LogInformation("Unpublished outbox events sent");
+                LogEventsSent(_logger);
             }
             else
             {
-                _logger.LogInformation("No unpublished events to send");
+                LogNoEvents(_logger);
             }
         }
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Retrieving unpublished outbox events")]
+    private static partial void LogRetrievingEvents(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Unpublished outbox events sent")]
+    private static partial void LogEventsSent(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "No unpublished events to send")]
+    private static partial void LogNoEvents(ILogger logger);
 }

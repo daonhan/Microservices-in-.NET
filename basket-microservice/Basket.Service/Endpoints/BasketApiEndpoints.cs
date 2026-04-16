@@ -26,7 +26,7 @@ public static class BasketApiEndpoints
 
         var cachedPrice = await cache.GetStringAsync(createBasketRequest.ProductId)
             ?? throw new InvalidOperationException($"Product price not found in cache for product {createBasketRequest.ProductId}");
-        var cachedProductPrice = decimal.Parse(cachedPrice);
+        var cachedProductPrice = decimal.Parse(cachedPrice, System.Globalization.CultureInfo.InvariantCulture);
 
         customerBasket.AddBasketProduct(
             new BasketProduct(createBasketRequest.ProductId,
@@ -44,7 +44,7 @@ public static class BasketApiEndpoints
 
         var cachedPrice = await cache.GetStringAsync(addProductRequest.ProductId)
             ?? throw new InvalidOperationException($"Product price not found in cache for product {addProductRequest.ProductId}");
-        var cachedProductPrice = decimal.Parse(cachedPrice);
+        var cachedProductPrice = decimal.Parse(cachedPrice, System.Globalization.CultureInfo.InvariantCulture);
 
         customerBasket.AddBasketProduct(new BasketProduct(addProductRequest.ProductId,
             addProductRequest.ProductName, cachedProductPrice, addProductRequest.Quantity));

@@ -1,6 +1,6 @@
+using System.Text.Json;
 using Basket.Service.Models;
 using Microsoft.Extensions.Caching.Distributed;
-using System.Text.Json;
 
 namespace Basket.Service.Infrastructure.Data.Redis;
 

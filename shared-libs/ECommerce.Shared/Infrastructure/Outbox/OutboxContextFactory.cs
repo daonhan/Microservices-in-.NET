@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace ECommerce.Shared.Infrastructure.Outbox;
 
-internal class OutboxContextFactory : IDesignTimeDbContextFactory<OutboxContext>
+internal sealed class OutboxContextFactory : IDesignTimeDbContextFactory<OutboxContext>
 {
     public OutboxContext CreateDbContext(string[] args)
     {

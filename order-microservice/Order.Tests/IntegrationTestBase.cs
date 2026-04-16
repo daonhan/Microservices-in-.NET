@@ -60,5 +60,7 @@ public class IntegrationTestBase : IClassFixture<OrderWebApplicationFactory>, ID
             _model.QueueDelete(QueueName);
             _model.ExchangeDelete(ExchangeName);
         }
+
+        GC.SuppressFinalize(this);
     }
 }

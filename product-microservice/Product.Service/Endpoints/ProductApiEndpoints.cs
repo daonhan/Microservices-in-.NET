@@ -1,10 +1,10 @@
+using System.Transactions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Product.Service.ApiModels;
 using Product.Service.Infrastructure.Data;
 using Product.Service.IntegrationEvents;
-using System.Transactions;
 
 namespace Product.Service.Endpoints;
 
@@ -33,7 +33,7 @@ public static class ProductApiEndpoints
 
             await productStore.CreateProduct(product);
 
-            return TypedResults.Created(product.Id.ToString());
+            return TypedResults.Created(product.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }).RequireAuthorization();
 
         routeBuilder.MapPut("/{productId}", async Task<IResult> ([FromServices] IProductStore productStore,

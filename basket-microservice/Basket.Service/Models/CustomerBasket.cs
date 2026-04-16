@@ -7,17 +7,17 @@ internal class CustomerBasket
     public IEnumerable<BasketProduct> Products => _products;
     public required string CustomerId { get; init; }
 
-    public decimal BasketTotal 
-    { 
+    public decimal BasketTotal
+    {
         get
         {
             return _products.Select(p => p.Quantity * p.ProductPrice).Sum();
-        } 
+        }
     }
 
     public void AddBasketProduct(BasketProduct basketProduct)
     {
-        var existingProduct = _products.FirstOrDefault(i => i.ProductId.Equals(basketProduct.ProductId));
+        var existingProduct = _products.FirstOrDefault(i => i.ProductId.Equals(basketProduct.ProductId, StringComparison.Ordinal));
 
         if (existingProduct is null)
         {
@@ -31,5 +31,5 @@ internal class CustomerBasket
         }
     }
 
-    public void RemoveBasketProduct(string productId) => _products.RemoveWhere(r => r.ProductId.Equals(productId));
+    public void RemoveBasketProduct(string productId) => _products.RemoveWhere(r => r.ProductId.Equals(productId, StringComparison.Ordinal));
 }

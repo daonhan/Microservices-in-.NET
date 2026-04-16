@@ -1,0 +1,23 @@
+{
+  "$schema": "https://alirezanet.github.io/Husky.Net/schema.json",
+  "tasks": [
+    {
+      "name": "dotnet-format-check",
+      "group": "pre-commit",
+      "command": "dotnet",
+      "args": ["format", "--verify-no-changes", "--verbosity", "minimal"]
+    },
+    {
+      "name": "dotnet-build",
+      "group": "pre-commit",
+      "command": "dotnet",
+      "args": ["build", "--no-restore"]
+    },
+    {
+      "name": "dotnet-test-basket",
+      "group": "pre-commit",
+      "command": "dotnet",
+      "args": ["test", "basket-microservice/Basket.Service.slnx", "--no-build", "--no-restore"]
+    }
+  ]
+}

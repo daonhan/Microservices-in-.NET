@@ -19,11 +19,11 @@ public class ProductPriceUpdatedEventHandler : IEventHandler<ProductPriceUpdated
 
     public async Task Handle(ProductPriceUpdatedEvent @event)
     {
-        var existingProductPrice = await _cache.GetStringAsync(@event.ProductId.ToString());
+        var existingProductPrice = await _cache.GetStringAsync(@event.ProductId.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
-        if (existingProductPrice is null || !string.Equals(existingProductPrice, @event.NewPrice.ToString()))
+        if (existingProductPrice is null || !string.Equals(existingProductPrice, @event.NewPrice.ToString(System.Globalization.CultureInfo.InvariantCulture), StringComparison.Ordinal))
         {
-            await _cache.SetStringAsync(@event.ProductId.ToString(), @event.NewPrice.ToString(), _cacheEntryOptions);
+            await _cache.SetStringAsync(@event.ProductId.ToString(System.Globalization.CultureInfo.InvariantCulture), @event.NewPrice.ToString(System.Globalization.CultureInfo.InvariantCulture), _cacheEntryOptions);
         }
     }
 }

@@ -1,0 +1,17 @@
+<Project>
+
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+  </PropertyGroup>
+
+  <!-- Suppress NuGet dependency warnings and false-positive naming rules -->
+  <!-- CA1711: *EventHandler suffix is intentional (implements IEventHandler<T>) -->
+  <!-- CA1707: Underscores in test method names (Given_When_Then convention) -->
+  <!-- CA1716: "Shared" in namespace is by design (ECommerce.Shared library) -->
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);NU1603;NU1902;NU1903;CA1711;CA1707;CA1716</NoWarn>
+  </PropertyGroup>
+
+</Project>
