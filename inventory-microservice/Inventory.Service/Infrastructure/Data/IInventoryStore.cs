@@ -7,4 +7,6 @@ internal interface IInventoryStore
     Task<StockItem?> GetStockItem(int productId);
 
     Task<IReadOnlyList<StockLevel>> GetStockLevels(int productId);
+
+    Task ProvisionStockItem(int productId);
 }

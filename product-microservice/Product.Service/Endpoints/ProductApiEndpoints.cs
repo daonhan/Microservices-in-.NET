@@ -21,7 +21,9 @@ public static class ProductApiEndpoints
                 : TypedResults.Ok(new GetProductResponse(product.Id, product.Name, product.Price, product.ProductType!.Type, product.Description));
         });
 
-        routeBuilder.MapPost("/", async ([FromServices] IProductStore productStore, CreateProductRequest request) =>
+        routeBuilder.MapPost("/", async ([FromServices] IProductStore productStore,
+            [FromServices] IOutboxStore outboxStore,
+            CreateProductRequest request) =>
         {
             var product = new Models.Product
             {
@@ -31,7 +33,16 @@ public static class ProductApiEndpoints
                 ProductTypeId = request.ProductTypeId
             };
 
-            await productStore.CreateProduct(product);
+            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            {
+                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+
+                await productStore.CreateProduct(product);
+
+                await outboxStore.AddOutboxEvent(new ProductCreatedEvent(product.Id, product.Name, product.Price));
+
+                scope.Complete();
+            });
 
             return TypedResults.Created(product.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }).RequireAuthorization();

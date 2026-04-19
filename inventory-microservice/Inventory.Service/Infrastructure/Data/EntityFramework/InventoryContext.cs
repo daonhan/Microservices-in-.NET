@@ -33,4 +33,33 @@ internal class InventoryContext : DbContext, IInventoryStore
             .Where(l => l.ProductId == productId)
             .ToListAsync();
     }
+
+    public async Task ProvisionStockItem(int productId)
+    {
+        var existing = await StockItems.FirstOrDefaultAsync(s => s.ProductId == productId);
+        if (existing is not null)
+        {
+            return;
+        }
+
+        var defaultWarehouse = await Warehouses.FirstAsync(w => w.Code == "DEFAULT");
+
+        StockItems.Add(new StockItem
+        {
+            ProductId = productId,
+            TotalOnHand = 0,
+            TotalReserved = 0,
+            LowStockThreshold = 0
+        });
+
+        StockLevels.Add(new StockLevel
+        {
+            ProductId = productId,
+            WarehouseId = defaultWarehouse.Id,
+            OnHand = 0,
+            Reserved = 0
+        });
+
+        await SaveChangesAsync();
+    }
 }
