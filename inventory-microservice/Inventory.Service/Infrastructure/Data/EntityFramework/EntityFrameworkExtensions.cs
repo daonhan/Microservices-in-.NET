@@ -1,0 +1,21 @@
+using Microsoft.EntityFrameworkCore;
+
+namespace Inventory.Service.Infrastructure.Data.EntityFramework;
+
+public static class EntityFrameworkExtensions
+{
+    public static void AddSqlServerDatastore(this IServiceCollection services, IConfigurationManager configuration)
+    {
+        services.AddDbContext<InventoryContext>(options =>
+            options.UseSqlServer(configuration.GetConnectionString("Default"),
+                sqlServerOptionsAction: sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(40),
+                        errorNumbersToAdd: [0]);
+                }));
+
+        services.AddScoped<IInventoryStore, InventoryContext>();
+    }
+}
