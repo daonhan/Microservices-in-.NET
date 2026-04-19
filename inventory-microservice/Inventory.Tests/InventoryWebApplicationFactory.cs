@@ -1,4 +1,6 @@
 using Inventory.Service.Infrastructure.Data.EntityFramework;
+using Inventory.Tests.Authentication;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -28,7 +30,11 @@ public class InventoryWebApplicationFactory : WebApplicationFactory<Program>, IA
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.ConfigureTestServices(ApplyMigrations);
+        builder.ConfigureTestServices(services =>
+        {
+            ApplyMigrations(services);
+            ConfigureTestAuthentication(services);
+        });
     }
 
     private void ApplyMigrations(IServiceCollection services)
@@ -37,6 +43,19 @@ public class InventoryWebApplicationFactory : WebApplicationFactory<Program>, IA
         var scope = serviceProvider.CreateScope();
         _inventoryContext = scope.ServiceProvider.GetRequiredService<InventoryContext>();
         _inventoryContext.Database.Migrate();
+    }
+
+    private static void ConfigureTestAuthentication(IServiceCollection services)
+    {
+        services.Configure<AuthenticationOptions>(options =>
+        {
+            options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+            options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+        });
+
+        services.AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                TestAuthHandler.SchemeName, _ => { });
     }
 
     public Task InitializeAsync() => Task.CompletedTask;

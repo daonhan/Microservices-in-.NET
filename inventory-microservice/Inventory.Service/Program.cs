@@ -24,6 +24,12 @@ builder.Services.AddOpenTelemetryTracing("Inventory", builder.Configuration,
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("Administrator", policy =>
+        policy.RequireClaim("user_role", "Administrator"));
+});
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

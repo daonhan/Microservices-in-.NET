@@ -78,6 +78,25 @@
       }
     },
     {
+      "UpstreamPathTemplate": "/inventory",
+      "UpstreamHttpMethod": [ "Get" ],
+      "DownstreamPathTemplate": "/",
+      "DownstreamScheme": "http",
+      "DangerousAcceptAnyServerCertificateValidator": true,
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventory-clusterip-service",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      },
+      "RouteClaimsRequirement": {
+        "user_role": "Administrator"
+      }
+    },
+    {
       "UpstreamPathTemplate": "/inventory/{everything}",
       "UpstreamHttpMethod": [ "Get" ],
       "DownstreamPathTemplate": "/{everything}",

@@ -3,6 +3,7 @@ using System.Text.Json;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
+using Inventory.Tests.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -16,6 +17,7 @@ public class IntegrationTestBase : IClassFixture<InventoryWebApplicationFactory>
 
     private IModel? _model;
 
+    internal readonly InventoryWebApplicationFactory Factory;
     internal readonly InventoryContext InventoryContext;
     internal readonly HttpClient HttpClient;
     internal readonly IRabbitMqConnection RabbitMqConnection;
@@ -23,10 +25,19 @@ public class IntegrationTestBase : IClassFixture<InventoryWebApplicationFactory>
 
     public IntegrationTestBase(InventoryWebApplicationFactory webApplicationFactory)
     {
+        Factory = webApplicationFactory;
+
         var scope = webApplicationFactory.Services.CreateScope();
         InventoryContext = scope.ServiceProvider.GetRequiredService<InventoryContext>();
         HttpClient = webApplicationFactory.CreateClient();
         RabbitMqConnection = scope.ServiceProvider.GetRequiredService<IRabbitMqConnection>();
+    }
+
+    protected HttpClient CreateAuthenticatedClient(string role = "Administrator")
+    {
+        var client = Factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, role);
+        return client;
     }
 
     public void Subscribe<TEvent>() where TEvent : Event
