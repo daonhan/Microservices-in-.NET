@@ -35,7 +35,12 @@ public static class OrderApiEndpoint
             using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
 
             await orderStore.CreateOrder(order);
-            await outboxStore.AddOutboxEvent(new OrderCreatedEvent(customerId));
+
+            var items = order.OrderProducts
+                .Select(p => new OrderItem(p.ProductId, p.Quantity))
+                .ToList();
+
+            await outboxStore.AddOutboxEvent(new OrderCreatedEvent(order.OrderId, customerId, items));
 
             scope.Complete();
         });
@@ -58,6 +63,6 @@ public static class OrderApiEndpoint
             return TypedResults.NotFound("Order not found for customer");
         }
 
-        return TypedResults.Ok(new GetOrderResponse(order.OrderId, order.CustomerId, order.OrderDate));
+        return TypedResults.Ok(new GetOrderResponse(order.OrderId, order.CustomerId, order.OrderDate, order.Status.ToString()));
     }
 }

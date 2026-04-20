@@ -13,6 +13,9 @@ internal class OrderConfiguration : IEntityTypeConfiguration<Models.Order>
             .IsRequired()
             .HasMaxLength(100);
 
+        builder.Property(o => o.Status)
+            .HasConversion<int>();
+
         builder.HasMany(o => o.OrderProducts)
             .WithOne()
             .HasForeignKey(op => op.OrderId);

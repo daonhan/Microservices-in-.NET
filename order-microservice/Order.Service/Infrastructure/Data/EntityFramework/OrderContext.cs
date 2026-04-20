@@ -30,4 +30,16 @@ internal class OrderContext : DbContext, IOrderStore
             .Include(o => o.OrderProducts)
             .FirstOrDefaultAsync(o => o.OrderId == Guid.Parse(orderId) && o.CustomerId == customerId);
     }
+
+    public async Task<Models.Order?> GetOrderById(Guid orderId)
+    {
+        return await Orders
+            .Include(o => o.OrderProducts)
+            .FirstOrDefaultAsync(o => o.OrderId == orderId);
+    }
+
+    public async Task Commit()
+    {
+        await SaveChangesAsync(acceptAllChangesOnSuccess: false);
+    }
 }

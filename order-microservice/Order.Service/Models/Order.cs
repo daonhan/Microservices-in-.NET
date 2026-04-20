@@ -11,10 +11,13 @@ internal class Order
     public Guid OrderId { get; init; }
     public DateTime OrderDate { get; private set; }
 
+    public OrderStatus Status { get; private set; }
+
     public Order()
     {
         OrderId = Guid.NewGuid();
         OrderDate = DateTime.UtcNow;
+        Status = OrderStatus.PendingStock;
     }
 
     public void AddOrderProduct(string productId, int quantity)
@@ -32,5 +35,25 @@ internal class Order
 
             _orderProducts.Add(orderProduct);
         }
+    }
+
+    public bool TryConfirm()
+    {
+        if (Status != OrderStatus.PendingStock)
+        {
+            return false;
+        }
+        Status = OrderStatus.Confirmed;
+        return true;
+    }
+
+    public bool TryCancel()
+    {
+        if (Status == OrderStatus.Cancelled)
+        {
+            return false;
+        }
+        Status = OrderStatus.Cancelled;
+        return true;
     }
 }

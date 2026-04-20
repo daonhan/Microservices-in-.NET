@@ -193,6 +193,56 @@ public static class InventoryApiEndpoints
             return TypedResults.Ok(new SetThresholdResponse(productId, result.ThresholdAfter));
         }).RequireAuthorization("Administrator");
 
+        routeBuilder.MapPost("/{productId:int}/reserve", async Task<IResult> (
+            [FromServices] IInventoryStore inventoryStore,
+            [FromServices] IOutboxStore outboxStore,
+            int productId,
+            ReserveRequest request) =>
+        {
+            if (request.Quantity <= 0)
+            {
+                return TypedResults.BadRequest("Quantity must be greater than zero.");
+            }
+
+            if (request.OrderId == Guid.Empty)
+            {
+                return TypedResults.BadRequest("OrderId is required.");
+            }
+
+            ReserveResult? outcome = null;
+
+            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            {
+                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+
+                outcome = await inventoryStore.Reserve(
+                    request.OrderId,
+                    [new ReserveLine(productId, request.Quantity)]);
+
+                if (outcome.Reserved && !outcome.AlreadyProcessed)
+                {
+                    var published = outcome.Lines
+                        .Select(l => new ReservedItem(l.ProductId, l.WarehouseId, l.Quantity))
+                        .ToList();
+
+                    await outboxStore.AddOutboxEvent(new StockReservedEvent(request.OrderId, published));
+                }
+
+                scope.Complete();
+            });
+
+            if (outcome is null || !outcome.Reserved)
+            {
+                return TypedResults.Conflict("Insufficient stock or unknown product.");
+            }
+
+            var lines = outcome.Lines
+                .Select(l => new ReservedLineDto(l.ProductId, l.WarehouseId, l.Quantity))
+                .ToList();
+
+            return TypedResults.Ok(new ReserveResponse(request.OrderId, lines));
+        }).RequireAuthorization("Administrator");
+
         routeBuilder.MapGet("/health", () => TypedResults.Ok(new { status = "healthy" }));
     }
 }

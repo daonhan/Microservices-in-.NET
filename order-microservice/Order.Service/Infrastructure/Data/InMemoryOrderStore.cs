@@ -12,4 +12,9 @@ internal class InMemoryOrderStore : IOrderStore
 
     public Task<Models.Order?> GetCustomerOrderById(string customerId, string orderId) =>
         Task.FromResult(Orders.TryGetValue($"{customerId}-{orderId}", out var order) ? order : null);
+
+    public Task<Models.Order?> GetOrderById(Guid orderId) =>
+        Task.FromResult(Orders.Values.FirstOrDefault(o => o.OrderId == orderId));
+
+    public Task Commit() => Task.CompletedTask;
 }
