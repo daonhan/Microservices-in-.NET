@@ -15,6 +15,19 @@ internal interface IInventoryStore
     Task ProvisionStockItem(int productId);
 
     Task<RestockResult?> Restock(int productId, int quantity);
+
+    Task<SetThresholdResult?> SetThreshold(int productId, int threshold);
 }
 
-internal record RestockResult(int WarehouseId, int NewOnHand);
+internal record RestockResult(
+    int WarehouseId,
+    int NewOnHand,
+    int AvailableBefore,
+    int AvailableAfter,
+    int Threshold);
+
+internal record SetThresholdResult(
+    int WarehouseId,
+    int Available,
+    int ThresholdBefore,
+    int ThresholdAfter);

@@ -106,6 +106,8 @@ internal class InventoryContext : DbContext, IInventoryStore
             StockLevels.Add(stockLevel);
         }
 
+        var availableBefore = stockItem.Available;
+
         stockLevel.OnHand += quantity;
         stockItem.TotalOnHand += quantity;
 
@@ -120,6 +122,33 @@ internal class InventoryContext : DbContext, IInventoryStore
 
         await SaveChangesAsync();
 
-        return new RestockResult(defaultWarehouse.Id, stockLevel.OnHand);
+        return new RestockResult(
+            defaultWarehouse.Id,
+            stockLevel.OnHand,
+            availableBefore,
+            stockItem.Available,
+            stockItem.LowStockThreshold);
+    }
+
+    public async Task<SetThresholdResult?> SetThreshold(int productId, int threshold)
+    {
+        var stockItem = await StockItems.FirstOrDefaultAsync(s => s.ProductId == productId);
+        if (stockItem is null)
+        {
+            return null;
+        }
+
+        var defaultWarehouse = await Warehouses.FirstAsync(w => w.Code == "DEFAULT");
+
+        var thresholdBefore = stockItem.LowStockThreshold;
+        stockItem.LowStockThreshold = threshold;
+
+        await SaveChangesAsync();
+
+        return new SetThresholdResult(
+            defaultWarehouse.Id,
+            stockItem.Available,
+            thresholdBefore,
+            threshold);
     }
 }

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Inventory.Tests.Authentication;
 
-internal class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
+internal sealed class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     public const string SchemeName = "Test";
     public const string RoleHeader = "X-Test-Role";

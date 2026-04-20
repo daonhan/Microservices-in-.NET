@@ -3,6 +3,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Inventory.Service.ApiModels;
 using Inventory.Service.Infrastructure.Data;
 using Inventory.Service.IntegrationEvents;
+using Inventory.Service.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -112,6 +113,28 @@ public static class InventoryApiEndpoints
                     request.Quantity,
                     result.NewOnHand));
 
+                var lowStock = StockLevelMonitor.TryLowStockCrossing(
+                    productId,
+                    result.WarehouseId,
+                    result.AvailableBefore,
+                    result.AvailableAfter,
+                    result.Threshold,
+                    result.Threshold);
+                if (lowStock is not null)
+                {
+                    await outboxStore.AddOutboxEvent(lowStock);
+                }
+
+                var depleted = StockLevelMonitor.TryDepletedCrossing(
+                    productId,
+                    result.WarehouseId,
+                    result.AvailableBefore,
+                    result.AvailableAfter);
+                if (depleted is not null)
+                {
+                    await outboxStore.AddOutboxEvent(depleted);
+                }
+
                 scope.Complete();
             });
 
@@ -121,6 +144,53 @@ public static class InventoryApiEndpoints
             }
 
             return TypedResults.Ok(new RestockResponse(productId, result.WarehouseId, result.NewOnHand));
+        }).RequireAuthorization("Administrator");
+
+        routeBuilder.MapPut("/{productId:int}/threshold", async Task<IResult> (
+            [FromServices] IInventoryStore inventoryStore,
+            [FromServices] IOutboxStore outboxStore,
+            int productId,
+            SetThresholdRequest request) =>
+        {
+            if (request.Threshold < 0)
+            {
+                return TypedResults.BadRequest("Threshold must be zero or greater.");
+            }
+
+            SetThresholdResult? result = null;
+
+            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            {
+                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+
+                result = await inventoryStore.SetThreshold(productId, request.Threshold);
+
+                if (result is null)
+                {
+                    return;
+                }
+
+                var lowStock = StockLevelMonitor.TryLowStockCrossing(
+                    productId,
+                    result.WarehouseId,
+                    result.Available,
+                    result.Available,
+                    result.ThresholdBefore,
+                    result.ThresholdAfter);
+                if (lowStock is not null)
+                {
+                    await outboxStore.AddOutboxEvent(lowStock);
+                }
+
+                scope.Complete();
+            });
+
+            if (result is null)
+            {
+                return TypedResults.NotFound($"Stock item for product {productId} not found");
+            }
+
+            return TypedResults.Ok(new SetThresholdResponse(productId, result.ThresholdAfter));
         }).RequireAuthorization("Administrator");
 
         routeBuilder.MapGet("/health", () => TypedResults.Ok(new { status = "healthy" }));
