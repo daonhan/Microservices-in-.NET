@@ -16,6 +16,7 @@ public class IntegrationTestBase : IClassFixture<OrderWebApplicationFactory>, ID
 
     private IModel? _model;
 
+    internal readonly OrderWebApplicationFactory Factory;
     internal readonly OrderContext OrderContext;
     internal readonly HttpClient HttpClient;
     internal readonly IRabbitMqConnection RabbitMqConnection;
@@ -23,6 +24,7 @@ public class IntegrationTestBase : IClassFixture<OrderWebApplicationFactory>, ID
 
     public IntegrationTestBase(OrderWebApplicationFactory webApplicationFactory)
     {
+        Factory = webApplicationFactory;
         var scope = webApplicationFactory.Services.CreateScope();
         OrderContext = scope.ServiceProvider.GetRequiredService<OrderContext>();
         HttpClient = webApplicationFactory.CreateClient();

@@ -166,7 +166,7 @@ internal class InventoryContext : DbContext, IInventoryStore
                 .Select(r => new ReservedLine(r.ProductId, r.WarehouseId, r.Quantity))
                 .ToList();
 
-            return new ReserveResult(Reserved: true, AlreadyProcessed: true, already);
+            return new ReserveResult(Reserved: true, AlreadyProcessed: true, already, []);
         }
 
         var defaultWarehouse = await Warehouses.FirstAsync(w => w.Code == "DEFAULT");
@@ -181,18 +181,25 @@ internal class InventoryContext : DbContext, IInventoryStore
             .Where(l => productIds.Contains(l.ProductId) && l.WarehouseId == defaultWarehouse.Id)
             .ToDictionaryAsync(l => l.ProductId);
 
+        var failedLines = new List<FailedReserveLine>();
         foreach (var line in lines)
         {
             if (!stockItems.TryGetValue(line.ProductId, out var item) ||
-                !stockLevels.TryGetValue(line.ProductId, out var level))
+                !stockLevels.TryGetValue(line.ProductId, out _))
             {
-                return new ReserveResult(Reserved: false, AlreadyProcessed: false, []);
+                failedLines.Add(new FailedReserveLine(line.ProductId, line.Quantity, 0));
+                continue;
             }
 
             if (item.Available < line.Quantity)
             {
-                return new ReserveResult(Reserved: false, AlreadyProcessed: false, []);
+                failedLines.Add(new FailedReserveLine(line.ProductId, line.Quantity, item.Available));
             }
+        }
+
+        if (failedLines.Count > 0)
+        {
+            return new ReserveResult(Reserved: false, AlreadyProcessed: false, [], failedLines);
         }
 
         var now = DateTime.UtcNow;
@@ -231,7 +238,7 @@ internal class InventoryContext : DbContext, IInventoryStore
 
         await SaveChangesAsync();
 
-        return new ReserveResult(Reserved: true, AlreadyProcessed: false, reservedLines);
+        return new ReserveResult(Reserved: true, AlreadyProcessed: false, reservedLines, []);
     }
 
     public async Task<CommitResult> CommitReservations(Guid orderId)
@@ -245,9 +252,10 @@ internal class InventoryContext : DbContext, IInventoryStore
             return new CommitResult(Committed: false, AlreadyProcessed: false, []);
         }
 
-        if (reservations.All(r => r.Status == ReservationStatus.Committed))
+        if (reservations.All(r => r.Status != ReservationStatus.Held))
         {
             var already = reservations
+                .Where(r => r.Status == ReservationStatus.Committed)
                 .Select(r => new CommittedLine(r.ProductId, r.WarehouseId, r.Quantity))
                 .ToList();
             return new CommitResult(Committed: true, AlreadyProcessed: true, already);
@@ -300,5 +308,79 @@ internal class InventoryContext : DbContext, IInventoryStore
         await SaveChangesAsync();
 
         return new CommitResult(Committed: true, AlreadyProcessed: false, committedLines);
+    }
+
+    public async Task<ReleaseResult> ReleaseReservations(Guid orderId)
+    {
+        var reservations = await StockReservations
+            .Where(r => r.OrderId == orderId)
+            .ToListAsync();
+
+        if (reservations.Count == 0)
+        {
+            return new ReleaseResult(Released: false, AlreadyProcessed: false, []);
+        }
+
+        if (reservations.All(r => r.Status == ReservationStatus.Released))
+        {
+            var already = reservations
+                .Select(r => new ReleasedLine(r.ProductId, r.WarehouseId, r.Quantity))
+                .ToList();
+            return new ReleaseResult(Released: true, AlreadyProcessed: true, already);
+        }
+
+        var productIds = reservations.Select(r => r.ProductId).Distinct().ToArray();
+
+        var stockItems = await StockItems
+            .Where(s => productIds.Contains(s.ProductId))
+            .ToDictionaryAsync(s => s.ProductId);
+
+        var stockLevels = await StockLevels
+            .Where(l => productIds.Contains(l.ProductId))
+            .ToListAsync();
+        var stockLevelsByKey = stockLevels.ToDictionary(l => (l.ProductId, l.WarehouseId));
+
+        var now = DateTime.UtcNow;
+        var releasedLines = new List<ReleasedLine>();
+
+        foreach (var reservation in reservations)
+        {
+            if (reservation.Status == ReservationStatus.Released)
+            {
+                continue;
+            }
+
+            var item = stockItems[reservation.ProductId];
+            var level = stockLevelsByKey[(reservation.ProductId, reservation.WarehouseId)];
+
+            if (reservation.Status == ReservationStatus.Held)
+            {
+                level.Reserved -= reservation.Quantity;
+                item.TotalReserved -= reservation.Quantity;
+            }
+            else if (reservation.Status == ReservationStatus.Committed)
+            {
+                level.OnHand += reservation.Quantity;
+                item.TotalOnHand += reservation.Quantity;
+            }
+
+            reservation.Status = ReservationStatus.Released;
+
+            StockMovements.Add(new StockMovement
+            {
+                ProductId = reservation.ProductId,
+                WarehouseId = reservation.WarehouseId,
+                Type = MovementType.Release,
+                Quantity = reservation.Quantity,
+                OccurredAt = now,
+                OrderId = orderId
+            });
+
+            releasedLines.Add(new ReleasedLine(reservation.ProductId, reservation.WarehouseId, reservation.Quantity));
+        }
+
+        await SaveChangesAsync();
+
+        return new ReleaseResult(Released: true, AlreadyProcessed: false, releasedLines);
     }
 }

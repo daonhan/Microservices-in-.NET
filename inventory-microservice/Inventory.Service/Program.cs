@@ -19,7 +19,8 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqSubscriberService(builder.Configuration)
     .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>()
     .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
-    .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>();
+    .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
+    .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>();
 
 builder.Services.AddOpenTelemetryTracing("Inventory", builder.Configuration,
     traceBuilder => traceBuilder.WithSqlInstrumentation());

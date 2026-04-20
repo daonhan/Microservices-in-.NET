@@ -35,13 +35,20 @@ internal class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
 
             var result = await _inventoryStore.Reserve(@event.OrderId, lines);
 
-            if (!result.Reserved)
+            if (result.AlreadyProcessed)
             {
+                scope.Complete();
                 return;
             }
 
-            if (result.AlreadyProcessed)
+            if (!result.Reserved)
             {
+                var failed = result.FailedLines
+                    .Select(l => new FailedItem(l.ProductId, l.Requested, l.Available))
+                    .ToList();
+
+                await _outboxStore.AddOutboxEvent(new StockReservationFailedEvent(@event.OrderId, failed));
+
                 scope.Complete();
                 return;
             }

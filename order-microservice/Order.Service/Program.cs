@@ -22,7 +22,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqEventPublisher(builder.Configuration)
     .AddRabbitMqSubscriberService(builder.Configuration)
-    .AddEventHandler<StockReservedEvent, StockReservedEventHandler>();
+    .AddEventHandler<StockReservedEvent, StockReservedEventHandler>()
+    .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>();
 
 builder.Services.AddOpenTelemetryTracing(serviceName, builder.Configuration,
     traceBuilder => traceBuilder.WithSqlInstrumentation())
