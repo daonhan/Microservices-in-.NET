@@ -243,6 +243,36 @@ public static class InventoryApiEndpoints
             return TypedResults.Ok(new ReserveResponse(request.OrderId, lines));
         }).RequireAuthorization("Administrator");
 
+        routeBuilder.MapPost("/{productId:int}/backorder", async Task<IResult> (
+            [FromServices] IInventoryStore inventoryStore,
+            int productId,
+            BackorderRequestDto request) =>
+        {
+            if (request.Quantity <= 0)
+            {
+                return TypedResults.BadRequest("Quantity must be greater than zero.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.CustomerId))
+            {
+                return TypedResults.BadRequest("CustomerId is required.");
+            }
+
+            var result = await inventoryStore.CreateBackorder(request.CustomerId, productId, request.Quantity);
+
+            if (result is null)
+            {
+                return TypedResults.NotFound($"Stock item for product {productId} not found");
+            }
+
+            return TypedResults.Ok(new BackorderResponse(
+                result.Id,
+                result.CustomerId,
+                result.ProductId,
+                result.Quantity,
+                result.CreatedAt));
+        }).RequireAuthorization();
+
         routeBuilder.MapGet("/health", () => TypedResults.Ok(new { status = "healthy" }));
     }
 }

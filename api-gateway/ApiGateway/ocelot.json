@@ -113,6 +113,22 @@
       }
     },
     {
+      "UpstreamPathTemplate": "/inventory/{productId}/backorder",
+      "UpstreamHttpMethod": [ "Post" ],
+      "DownstreamPathTemplate": "/{productId}/backorder",
+      "DownstreamScheme": "http",
+      "DangerousAcceptAnyServerCertificateValidator": true,
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "inventory-clusterip-service",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      }
+    },
+    {
       "UpstreamPathTemplate": "/inventory/{everything}",
       "UpstreamHttpMethod": [ "Post", "Put" ],
       "DownstreamPathTemplate": "/{everything}",

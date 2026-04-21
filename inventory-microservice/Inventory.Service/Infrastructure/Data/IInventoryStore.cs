@@ -23,6 +23,8 @@ internal interface IInventoryStore
     Task<CommitResult> CommitReservations(Guid orderId);
 
     Task<ReleaseResult> ReleaseReservations(Guid orderId);
+
+    Task<BackorderResult?> CreateBackorder(string customerId, int productId, int quantity);
 }
 
 internal record RestockResult(
@@ -30,7 +32,12 @@ internal record RestockResult(
     int NewOnHand,
     int AvailableBefore,
     int AvailableAfter,
-    int Threshold);
+    int Threshold,
+    IReadOnlyList<FulfilledBackorder> FulfilledBackorders);
+
+internal record FulfilledBackorder(long Id, string CustomerId, int Quantity);
+
+internal record BackorderResult(long Id, string CustomerId, int ProductId, int Quantity, DateTime CreatedAt);
 
 internal record SetThresholdResult(
     int WarehouseId,

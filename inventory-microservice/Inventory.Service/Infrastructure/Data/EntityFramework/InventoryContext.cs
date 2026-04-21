@@ -15,6 +15,7 @@ internal class InventoryContext : DbContext, IInventoryStore
     public DbSet<StockLevel> StockLevels { get; set; } = null!;
     public DbSet<StockMovement> StockMovements { get; set; } = null!;
     public DbSet<StockReservation> StockReservations { get; set; } = null!;
+    public DbSet<BackorderRequest> BackorderRequests { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -23,6 +24,7 @@ internal class InventoryContext : DbContext, IInventoryStore
         modelBuilder.ApplyConfiguration(new StockLevelConfiguration());
         modelBuilder.ApplyConfiguration(new StockMovementConfiguration());
         modelBuilder.ApplyConfiguration(new StockReservationConfiguration());
+        modelBuilder.ApplyConfiguration(new BackorderRequestConfiguration());
     }
 
     public async Task<StockItem?> GetStockItem(int productId)
@@ -113,14 +115,36 @@ internal class InventoryContext : DbContext, IInventoryStore
         stockLevel.OnHand += quantity;
         stockItem.TotalOnHand += quantity;
 
+        var now = DateTime.UtcNow;
+
         StockMovements.Add(new StockMovement
         {
             ProductId = productId,
             WarehouseId = defaultWarehouse.Id,
             Type = MovementType.Restock,
             Quantity = quantity,
-            OccurredAt = DateTime.UtcNow
+            OccurredAt = now
         });
+
+        var pending = await BackorderRequests
+            .Where(b => b.ProductId == productId && b.FulfilledAt == null)
+            .OrderBy(b => b.CreatedAt)
+            .ThenBy(b => b.Id)
+            .ToListAsync();
+
+        var fulfilled = new List<FulfilledBackorder>();
+        var remaining = stockItem.Available;
+        foreach (var request in pending)
+        {
+            if (remaining < request.Quantity)
+            {
+                break;
+            }
+
+            request.FulfilledAt = now;
+            remaining -= request.Quantity;
+            fulfilled.Add(new FulfilledBackorder(request.Id, request.CustomerId, request.Quantity));
+        }
 
         await SaveChangesAsync();
 
@@ -129,7 +153,8 @@ internal class InventoryContext : DbContext, IInventoryStore
             stockLevel.OnHand,
             availableBefore,
             stockItem.Available,
-            stockItem.LowStockThreshold);
+            stockItem.LowStockThreshold,
+            fulfilled);
     }
 
     public async Task<SetThresholdResult?> SetThreshold(int productId, int threshold)
@@ -308,6 +333,30 @@ internal class InventoryContext : DbContext, IInventoryStore
         await SaveChangesAsync();
 
         return new CommitResult(Committed: true, AlreadyProcessed: false, committedLines);
+    }
+
+    public async Task<BackorderResult?> CreateBackorder(string customerId, int productId, int quantity)
+    {
+        var stockItem = await StockItems.FirstOrDefaultAsync(s => s.ProductId == productId);
+        if (stockItem is null)
+        {
+            return null;
+        }
+
+        var request = new BackorderRequest
+        {
+            CustomerId = customerId,
+            ProductId = productId,
+            Quantity = quantity,
+            CreatedAt = DateTime.UtcNow,
+            FulfilledAt = null
+        };
+
+        BackorderRequests.Add(request);
+
+        await SaveChangesAsync();
+
+        return new BackorderResult(request.Id, request.CustomerId, request.ProductId, request.Quantity, request.CreatedAt);
     }
 
     public async Task<ReleaseResult> ReleaseReservations(Guid orderId)
