@@ -38,6 +38,14 @@ data:
       scrape_interval: 10s
       evaluation_interval: 10s
 
+    rule_files:
+      - /etc/prometheus/alerts.yaml
+
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ["alertmanager:9093"]
+
     scrape_configs:
       - job_name: "kubernetes-pods"
         kubernetes_sd_configs:
@@ -61,6 +69,74 @@ data:
             target_label: pod
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: app
+  alerts.yaml: |
+    groups:
+      - name: microservice-http
+        rules:
+          - alert: HighHttpErrorRate
+            expr: |
+              (
+                sum by (service_name) (
+                  rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m])
+                )
+                /
+                sum by (service_name) (
+                  rate(http_server_request_duration_seconds_count[5m])
+                )
+              ) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High 5xx error rate on {{ $labels.service_name }}"
+              description: "{{ $labels.service_name }} is serving more than 5% 5xx responses over the last 5 minutes (current: {{ $value | humanizePercentage }})."
+
+          - alert: HighHttpLatencyP95
+            expr: |
+              histogram_quantile(
+                0.95,
+                sum by (service_name, le) (
+                  rate(http_server_request_duration_seconds_bucket[5m])
+                )
+              ) > 1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High p95 latency on {{ $labels.service_name }}"
+              description: "{{ $labels.service_name }} p95 request duration is above 1s for 5 minutes (current: {{ $value }}s)."
+
+      - name: platform-infra
+        rules:
+          - alert: RabbitMqQueueBacklog
+            expr: rabbitmq_queue_messages_ready > 1000
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "RabbitMQ queue backlog on {{ $labels.queue }}"
+              description: "Queue {{ $labels.queue }} (vhost {{ $labels.vhost }}) has more than 1000 ready messages for 5 minutes (current: {{ $value }})."
+
+          - alert: ServiceDown
+            expr: up == 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Target {{ $labels.job }}/{{ $labels.instance }} is down"
+              description: "Prometheus has been unable to scrape {{ $labels.instance }} (job {{ $labels.job }}) for 2 minutes."
+
+      - name: inventory-business
+        rules:
+          - alert: LowStockAlert
+            expr: sum(rate(stock_reservations_failed_total[5m])) > 0
+            for: 5m
+            labels:
+              severity: warning
+              service: inventory
+            annotations:
+              summary: "Inventory stock reservations are failing"
+              description: "Inventory has been rejecting stock reservations for 5 minutes (current rate: {{ $value }}/s). Likely low/depleted stock."
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -86,6 +162,9 @@ spec:
             - name: prometheus-config
               mountPath: /etc/prometheus/prometheus.yml
               subPath: prometheus.yml
+            - name: prometheus-config
+              mountPath: /etc/prometheus/alerts.yaml
+              subPath: alerts.yaml
       volumes:
         - name: prometheus-config
           configMap:

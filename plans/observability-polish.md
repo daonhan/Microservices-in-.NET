@@ -146,8 +146,8 @@ Add `observability/alerts.yaml` with the initial rule set (`HighHttpErrorRate` >
 
 ### Acceptance criteria
 
-- [ ] Prometheus `/rules` page lists all five alert rules as loaded and healthy.
-- [ ] Stopping a microservice causes `ServiceDown` to transition to `FIRING` within 2 minutes.
-- [ ] Generating >5% 5xx traffic against a service causes `HighHttpErrorRate` to fire.
-- [ ] Alertmanager `/alerts` surfaces the firing alerts routed from Prometheus.
-- [ ] The default receiver is a null/webhook — no real notification channel is wired.
+- [x] Prometheus `/rules` page lists all five alert rules as loaded and healthy.
+- [x] Stopping a microservice causes `ServiceDown` to transition to `FIRING` within 2 minutes.
+- [x] Generating >5% 5xx traffic against a service causes `HighHttpErrorRate` to fire.
+- [x] Alertmanager `/alerts` surfaces the firing alerts routed from Prometheus.
+- [x] The default receiver is a null/webhook — no real notification channel is wired.
