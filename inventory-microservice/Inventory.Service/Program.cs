@@ -8,6 +8,7 @@ using Inventory.Service.Endpoints;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
 using Inventory.Service.IntegrationEvents;
 using Inventory.Service.IntegrationEvents.EventHandlers;
+using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +25,9 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>();
 
 builder.AddPlatformObservability("Inventory",
-    customTracing: t => t.WithSqlInstrumentation());
+    customTracing: t => t.WithSqlInstrumentation(),
+    customMetrics: m => m.AddView("reservation-latency-ms",
+        new ExplicitBucketHistogramConfiguration { Boundaries = [5, 25, 100, 500, 2000] }));
 
 builder.Services.AddPlatformHealthChecks()
     .AddSqlServerProbe(builder.Configuration.GetConnectionString("Default") ?? "")

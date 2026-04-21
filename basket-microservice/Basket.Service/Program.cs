@@ -7,6 +7,7 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
+using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +19,9 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
 
 builder.Services.AddRedisCache(builder.Configuration);
 
-builder.AddPlatformObservability("Basket");
+builder.AddPlatformObservability("Basket",
+    customMetrics: m => m.AddView("basket-size",
+        new ExplicitBucketHistogramConfiguration { Boundaries = [0, 1, 3, 5, 10, 25] }));
 
 builder.Services.AddPlatformHealthChecks()
     .AddRedisProbe(builder.Configuration["Redis:Configuration"] ?? "localhost:6379")

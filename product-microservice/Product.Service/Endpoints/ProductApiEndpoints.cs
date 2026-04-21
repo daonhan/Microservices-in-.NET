@@ -1,5 +1,6 @@
 using System.Transactions;
 using ECommerce.Shared.Infrastructure.Outbox;
+using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Product.Service.ApiModels;
@@ -23,6 +24,7 @@ public static class ProductApiEndpoints
 
         routeBuilder.MapPost("/", async ([FromServices] IProductStore productStore,
             [FromServices] IOutboxStore outboxStore,
+            [FromServices] MetricFactory metricFactory,
             CreateProductRequest request) =>
         {
             var product = new Models.Product
@@ -44,11 +46,14 @@ public static class ProductApiEndpoints
                 scope.Complete();
             });
 
+            metricFactory.Counter("products-created", "products").Add(1);
+
             return TypedResults.Created(product.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }).RequireAuthorization();
 
         routeBuilder.MapPut("/{productId}", async Task<IResult> ([FromServices] IProductStore productStore,
             [FromServices] IOutboxStore outboxStore,
+            [FromServices] MetricFactory metricFactory,
             int productId, UpdateProductRequest request) =>
         {
             var product = await productStore.GetById(productId);
@@ -65,19 +70,26 @@ public static class ProductApiEndpoints
             product.ProductTypeId = request.ProductTypeId;
             product.Description = request.Description;
 
+            var priceChanged = !decimal.Equals(existingPrice, request.Price);
+
             await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
             {
                 using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
 
                 await productStore.UpdateProduct(product);
 
-                if (!decimal.Equals(existingPrice, request.Price))
+                if (priceChanged)
                 {
                     await outboxStore.AddOutboxEvent(new ProductPriceUpdatedEvent(productId, request.Price));
                 }
 
                 scope.Complete();
             });
+
+            if (priceChanged)
+            {
+                metricFactory.Counter("product-price-updates", "updates").Add(1);
+            }
 
             return TypedResults.NoContent();
         }).RequireAuthorization();

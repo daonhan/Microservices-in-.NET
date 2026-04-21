@@ -81,7 +81,7 @@ public class ObservabilityTests : IntegrationTestBase
         {
             InstrumentPublished = (instrument, l) =>
             {
-                if (instrument.Meter.Name == "Inventory" && instrument.Name == "reservation-latency")
+                if (instrument.Meter.Name == "Inventory" && instrument.Name == "reservation-latency-ms")
                 {
                     l.EnableMeasurementEvents(instrument);
                 }
@@ -107,8 +107,9 @@ public class ObservabilityTests : IntegrationTestBase
         var metricFactory = Factory.Services.GetRequiredService<MetricFactory>();
         metricFactory.Counter("stock-movements", "movements")
             .Add(1, new KeyValuePair<string, object?>("movement_type", nameof(MovementType.Restock)));
-        metricFactory.Histogram("reservation-latency", "ms").Record(1);
+        metricFactory.Histogram("reservation-latency-ms", "ms").Record(1);
         metricFactory.Counter("stock-depleted", "events").Add(1);
+        metricFactory.Counter("stock-reservations-failed", "reservations").Add(1);
 
         // Act
         var response = await HttpClient.GetAsync("/metrics");
@@ -118,7 +119,8 @@ public class ObservabilityTests : IntegrationTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("stock_movements", body);
         Assert.Contains("movement_type=\"Restock\"", body);
-        Assert.Contains("reservation_latency", body);
+        Assert.Contains("reservation_latency_ms", body);
         Assert.Contains("stock_depleted", body);
+        Assert.Contains("stock_reservations_failed", body);
     }
 }

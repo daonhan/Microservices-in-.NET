@@ -126,12 +126,14 @@ public class ProductApiTests : IntegrationTestBase
         // Assert
         response.EnsureSuccessStatusCode();
 
-        SpinWait.SpinUntil(() => ReceivedEvents.Count > 0, TimeSpan.FromSeconds(5));
+        SpinWait.SpinUntil(() =>
+            ReceivedEvents.OfType<ProductPriceUpdatedEvent>().Any(e => e.ProductId == product.Id && e.NewPrice == 75.00M),
+            TimeSpan.FromSeconds(5));
 
-        Assert.NotEmpty(ReceivedEvents);
-
-        var receivedEvent = ReceivedEvents.First();
-        Assert.IsType<ProductPriceUpdatedEvent>(receivedEvent);
-        Assert.Equal(75.00M, (receivedEvent as ProductPriceUpdatedEvent)!.NewPrice);
+        var receivedEvent = ReceivedEvents
+            .OfType<ProductPriceUpdatedEvent>()
+            .FirstOrDefault(e => e.ProductId == product.Id);
+        Assert.NotNull(receivedEvent);
+        Assert.Equal(75.00M, receivedEvent.NewPrice);
     }
 }
