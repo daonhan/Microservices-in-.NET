@@ -1,0 +1,324 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    deleteDatasources:
+      - name: Prometheus
+        orgId: 1
+      - name: Loki
+        orgId: 1
+      - name: Jaeger
+        orgId: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        url: http://prometheus-loadbalancer:9090
+        access: proxy
+        isDefault: true
+        version: 1
+        editable: false
+        jsonData:
+          httpMethod: POST
+          timeInterval: 10s
+      - name: Loki
+        type: loki
+        uid: loki
+        url: http://loki:3100
+        access: proxy
+        version: 1
+        editable: false
+        jsonData:
+          derivedFields:
+            - datasourceUid: jaeger
+              matcherType: label
+              matcherRegex: traceid
+              name: TraceID
+              url: "${__value.raw}"
+              urlDisplayLabel: Open in Jaeger
+      - name: Jaeger
+        type: jaeger
+        uid: jaeger
+        url: http://jaeger:16686
+        access: proxy
+        version: 1
+        editable: false
+        jsonData:
+          tracesToLogsV2:
+            datasourceUid: loki
+            spanStartTimeShift: "-1m"
+            spanEndTimeShift: "1m"
+            filterByTraceID: false
+            filterBySpanID: false
+            customQuery: true
+            query: '{service_name!=""} | traceid = "${__trace.traceId}"'
+          tracesToMetrics:
+            datasourceUid: prometheus
+            spanStartTimeShift: "-2m"
+            spanEndTimeShift: "2m"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-config
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        type: file
+        disableDeletion: true
+        updateIntervalSeconds: 10
+        allowUiUpdates: false
+        options:
+          path: /etc/grafana/dashboards
+          foldersFromFilesStructure: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+data:
+  red-per-service.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Rate / Error / Duration for a single microservice instance",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "reqps" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 }, "id": 1,
+          "options": { "legend": { "calcs": ["mean","max"], "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single" } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(http_server_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "req/s", "refId": "A" }],
+          "title": "Request Rate", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "red" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "max": 100, "min": 0, "unit": "percent" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 }, "id": 2,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single" } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "100 * sum(rate(http_server_request_duration_seconds_count{instance=~\"$instance\", http_response_status_code=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "5xx %", "refId": "A" }],
+          "title": "5xx Error Rate", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "s" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }, "id": 3,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "histogram_quantile(0.5, sum(rate(http_server_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])) by (le))", "legendFormat": "p50", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])) by (le))", "legendFormat": "p95", "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "histogram_quantile(0.99, sum(rate(http_server_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])) by (le))", "legendFormat": "p99", "refId": "C" }
+          ],
+          "title": "Request Latency (p50/p95/p99)", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "reqps" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 }, "id": 4,
+          "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))", "legendFormat": "{{http_route}} [{{http_response_status_code}}]", "refId": "A" }],
+          "title": "Request Rate by Route", "type": "timeseries"
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "tags": ["microservices","RED"],
+      "templating": {
+        "list": [
+          { "current": {}, "datasource": { "type": "prometheus", "uid": "prometheus" }, "definition": "label_values(up{job=\"microservices\"}, instance)", "hide": 0, "includeAll": false, "label": "Service Instance", "multi": false, "name": "instance", "options": [], "query": { "qryType": 1, "query": "label_values(up{job=\"microservices\"}, instance)", "refId": "PrometheusVariableQueryEditor-VariableQuery" }, "refresh": 2, "regex": "", "sort": 1, "type": "query" }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Service RED — Rate, Errors, Duration",
+      "uid": "service-red-v1",
+      "version": 1
+    }
+  platform-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Platform-wide view: all microservices + infra on one screen",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "panels": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [{ "options": { "0": { "color": "red", "index": 0, "text": "DOWN" }, "1": { "color": "green", "index": 1, "text": "UP" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }, "unit": "none" }, "overrides": [] },
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 }, "id": 1,
+          "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "up{job=\"microservices\"}", "instant": true, "legendFormat": "{{instance}}", "refId": "A" }],
+          "title": "Service Status", "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "reqps" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 }, "id": 2,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (instance) (rate(http_server_request_duration_seconds_count{job=\"microservices\"}[$__rate_interval]))", "legendFormat": "{{instance}}", "refId": "A" }],
+          "title": "Request Rate — All Services", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "max": 100, "min": 0, "unit": "percent" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }, "id": 3,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "100 * sum by (instance) (rate(http_server_request_duration_seconds_count{job=\"microservices\", http_response_status_code=~\"5..\"}[$__rate_interval])) / sum by (instance) (rate(http_server_request_duration_seconds_count{job=\"microservices\"}[$__rate_interval]))", "legendFormat": "{{instance}}", "refId": "A" }],
+          "title": "5xx Error Rate — All Services", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "s" }, "overrides": [] },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 }, "id": 4,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "histogram_quantile(0.95, sum by (instance, le) (rate(http_server_request_duration_seconds_bucket{job=\"microservices\"}[$__rate_interval])))", "legendFormat": "p95 {{instance}}", "refId": "A" }],
+          "title": "P95 Latency — All Services", "type": "timeseries"
+        },
+        { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 }, "id": 10, "title": "Business Metrics", "type": "row" },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 21 }, "id": 5,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(basket_updates_total[$__rate_interval]))", "legendFormat": "basket updates", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(basket_products_added_total[$__rate_interval]))", "legendFormat": "products added", "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(basket_products_removed_total[$__rate_interval]))", "legendFormat": "products removed", "refId": "C" }
+          ],
+          "title": "Basket Activity", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 21 }, "id": 6,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(total_orders_total[$__rate_interval]))", "legendFormat": "orders placed", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(products_created_total[$__rate_interval]))", "legendFormat": "products created", "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(product_price_updates_total[$__rate_interval]))", "legendFormat": "price updates", "refId": "C" }
+          ],
+          "title": "Order & Product Activity", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 21 }, "id": 7,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(login_success_total[$__rate_interval]))", "legendFormat": "login success", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rate(login_failure_total[$__rate_interval]))", "legendFormat": "login failure", "refId": "B" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum by (movement_type) (rate(stock_movements_total[$__rate_interval]))", "legendFormat": "stock {{movement_type}}", "refId": "C" }
+          ],
+          "title": "Auth & Inventory Activity", "type": "timeseries"
+        },
+        { "collapsed": false, "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 }, "id": 11, "title": "Infrastructure", "type": "row" },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "mappings": [{ "options": { "0": { "color": "red", "index": 0, "text": "DOWN" }, "1": { "color": "green", "index": 1, "text": "UP" } }, "type": "value" }], "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } }, "overrides": [] },
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 29 }, "id": 8,
+          "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "up{job=~\"rabbitmq|redis|mssql\"}", "instant": true, "legendFormat": "{{job}}", "refId": "A" }],
+          "title": "Infra Exporter Status", "type": "stat"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 33 }, "id": 9,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rabbitmq_queue_messages_ready)", "legendFormat": "messages ready", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(rabbitmq_queue_messages_unacknowledged)", "legendFormat": "messages unacked", "refId": "B" }
+          ],
+          "title": "RabbitMQ Queue Depth", "type": "timeseries"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "drawStyle": "line", "fillOpacity": 10, "lineWidth": 1, "showPoints": "never", "spanNulls": true }, "unit": "short" }, "overrides": [] },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 33 }, "id": 12,
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "mssql_connections{state=\"current\"}", "legendFormat": "SQL connections", "refId": "A" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "redis_connected_clients", "legendFormat": "Redis clients", "refId": "B" }
+          ],
+          "title": "SQL & Redis Connections", "type": "timeseries"
+        }
+      ],
+      "refresh": "10s",
+      "schemaVersion": 39,
+      "tags": ["microservices","overview"],
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Platform Overview",
+      "uid": "platform-overview-v1",
+      "version": 1
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.3.0
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: Admin
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: "true"
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-config
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /etc/grafana/dashboards
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboard-config
+          configMap:
+            name: grafana-dashboard-config
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+spec:
+  type: LoadBalancer
+  selector:
+    app: grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
