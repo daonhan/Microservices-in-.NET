@@ -3,6 +3,6 @@ obj/
 *.user
 *.suo
 .vs/
-ralph/.ghafk-prompt.md
+ralph/.ghafk-prompt-*.md
 *.DotSettings.user
 local-nuget-packages/

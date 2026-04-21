@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("ocelot.json", false, false);
 builder.Services.AddOcelot(builder.Configuration);
 builder.Services.AddJwtAuthentication(builder.Configuration);
-builder.Services.AddPlatformObservability("ApiGateway", builder.Configuration);
+builder.AddPlatformObservability("ApiGateway");
 builder.Services.AddPlatformHealthChecks();
 
 var app = builder.Build();

@@ -3,7 +3,10 @@ using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -12,6 +15,50 @@ namespace ECommerce.Shared.Observability;
 
 public static class OpenTelemetryStartupExtensions
 {
+    public static IHostApplicationBuilder AddPlatformObservability(
+        this IHostApplicationBuilder hostBuilder,
+        string serviceName,
+        Action<TracerProviderBuilder>? customTracing = null,
+        Action<MeterProviderBuilder>? customMetrics = null)
+    {
+        hostBuilder.Services.AddPlatformObservability(
+            serviceName, hostBuilder.Configuration, customTracing, customMetrics);
+
+        var opts = new OpenTelemetryOptions();
+        hostBuilder.Configuration
+            .GetSection(OpenTelemetryOptions.OpenTelemetrySectionName)
+            .Bind(opts);
+
+        var instanceId = System.Environment.GetEnvironmentVariable("HOSTNAME")
+            ?? System.Net.Dns.GetHostName();
+
+        hostBuilder.Logging.AddOpenTelemetry(logging =>
+        {
+            logging.IncludeFormattedMessage = true;
+            logging.IncludeScopes = true;
+            logging.ParseStateValues = true;
+
+            logging.SetResourceBuilder(ResourceBuilder.CreateDefault()
+                .AddService(serviceName, serviceVersion: opts.ServiceVersion, serviceInstanceId: instanceId)
+                .AddAttributes(new Dictionary<string, object>
+                {
+                    ["deployment.environment"] = opts.Environment
+                }));
+
+            if (!string.IsNullOrWhiteSpace(opts.LogsOtlpExporterEndpoint))
+            {
+                logging.AddOtlpExporter(o => o.Endpoint = new Uri(opts.LogsOtlpExporterEndpoint));
+            }
+
+            if (opts.EnableConsoleExporters)
+            {
+                logging.AddConsoleExporter();
+            }
+        });
+
+        return hostBuilder;
+    }
+
     public static OpenTelemetryBuilder AddPlatformObservability(
         this IServiceCollection services,
         string serviceName,

@@ -26,7 +26,7 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddEventHandler<StockReservedEvent, StockReservedEventHandler>()
     .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>();
 
-builder.Services.AddPlatformObservability(serviceName, builder.Configuration,
+builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation(),
     customMetrics: m => m.AddView("products-per-order",
         new ExplicitBucketHistogramConfiguration { Boundaries = [1, 2, 5, 10] }));

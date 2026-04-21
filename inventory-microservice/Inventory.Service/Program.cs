@@ -23,7 +23,7 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
     .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>();
 
-builder.Services.AddPlatformObservability("Inventory", builder.Configuration,
+builder.AddPlatformObservability("Inventory",
     customTracing: t => t.WithSqlInstrumentation());
 
 builder.Services.AddPlatformHealthChecks()

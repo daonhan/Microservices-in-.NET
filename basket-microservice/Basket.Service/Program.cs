@@ -18,7 +18,7 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
 
 builder.Services.AddRedisCache(builder.Configuration);
 
-builder.Services.AddPlatformObservability("Basket", builder.Configuration);
+builder.AddPlatformObservability("Basket");
 
 builder.Services.AddPlatformHealthChecks()
     .AddRedisProbe(builder.Configuration["Redis:Configuration"] ?? "localhost:6379")

@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.RegisterTokenService(builder.Configuration);
 
-builder.Services.AddPlatformObservability("Auth", builder.Configuration,
+builder.AddPlatformObservability("Auth",
     customTracing: t => t.WithSqlInstrumentation());
 
 builder.Services.AddPlatformHealthChecks()

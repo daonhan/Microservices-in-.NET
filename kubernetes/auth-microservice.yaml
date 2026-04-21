@@ -48,6 +48,8 @@ spec:
               value: http://auth-clusterip-service:8080
             - name: OpenTelemetry__OtlpExporterEndpoint
               value: http://jaeger-clusterip-service:4317
+            - name: OpenTelemetry__LogsOtlpExporterEndpoint
+              value: http://otel-collector:4317
             - name: OpenTelemetry__SamplingRatio
               value: "0.1"
             - name: OpenTelemetry__ServiceVersion

@@ -48,6 +48,8 @@ spec:
               value: Server=mssql-clusterip-service,1433;Database=Order;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True
             - name: OpenTelemetry__OtlpExporterEndpoint
               value: http://jaeger-clusterip-service:4317
+            - name: OpenTelemetry__LogsOtlpExporterEndpoint
+              value: http://otel-collector:4317
             - name: OpenTelemetry__SamplingRatio
               value: "0.1"
             - name: OpenTelemetry__ServiceVersion

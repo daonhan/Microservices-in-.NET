@@ -15,7 +15,7 @@ builder.Services.AddOutbox(builder.Configuration);
 builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqEventPublisher(builder.Configuration);
 
-builder.Services.AddPlatformObservability("Product", builder.Configuration,
+builder.AddPlatformObservability("Product",
     customTracing: t => t.WithSqlInstrumentation());
 
 builder.Services.AddPlatformHealthChecks()

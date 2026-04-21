@@ -12,6 +12,7 @@ services:
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Product;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
       - "OpenTelemetry__EnableConsoleExporters=false"
       - "OpenTelemetry__Environment=Development"
 
@@ -27,6 +28,7 @@ services:
       - "RabbitMq__HostName=host.docker.internal"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Order;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
       - "OpenTelemetry__EnableConsoleExporters=false"
       - "OpenTelemetry__Environment=Development"
 
@@ -42,6 +44,7 @@ services:
       - "RabbitMq__HostName=host.docker.internal"
       - "Redis__Configuration=host.docker.internal:6379"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
       - "OpenTelemetry__EnableConsoleExporters=false"
       - "OpenTelemetry__Environment=Development"
 
@@ -58,6 +61,7 @@ services:
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Inventory;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
       - "OpenTelemetry__EnableConsoleExporters=false"
       - "OpenTelemetry__Environment=Development"
 
@@ -73,6 +77,7 @@ services:
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Auth;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "Authentication__AuthMicroserviceBaseAddress=http://localhost:8003"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
       - "OpenTelemetry__EnableConsoleExporters=false"
       - "OpenTelemetry__Environment=Development"
 
@@ -86,6 +91,7 @@ services:
     environment:
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
       - "OpenTelemetry__EnableConsoleExporters=false"
       - "OpenTelemetry__Environment=Development"
 
@@ -165,3 +171,24 @@ services:
       - rabbitmq-exporter
       - redis-exporter
       - mssql-exporter
+
+  loki:
+    container_name: loki
+    image: grafana/loki:3.1.1
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki-config.yaml
+    volumes:
+      - ./observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml
+
+  otel-collector:
+    container_name: otel-collector
+    image: otel/opentelemetry-collector-contrib:0.112.0
+    command: ["--config=/etc/otel/otel-collector-config.yaml"]
+    ports:
+      - "4327:4317"
+      - "4328:4318"
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otel/otel-collector-config.yaml
+    depends_on:
+      - loki
