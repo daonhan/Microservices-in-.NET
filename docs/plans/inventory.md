@@ -180,8 +180,8 @@ Make Inventory observable end-to-end. Add custom OpenTelemetry metrics via the e
 
 ### Acceptance criteria
 
-- [ ] `stock-movements` counter increments on every appended `StockMovement`, correctly tagged by type.
-- [ ] `reservation-latency` histogram records a sample for every `OrderCreatedEvent` handled.
-- [ ] `stock-depleted` counter increments whenever `StockDepletedEvent` is published.
-- [ ] Traces for a reservation show the HTTP/event entry, EF Core spans, and RabbitMQ publish linked under a single trace ID.
-- [ ] A Prometheus-scrape integration test asserts the three custom metrics are exposed with expected label keys.
+- [x] `stock-movements` counter increments on every appended `StockMovement`, correctly tagged by type.
+- [x] `reservation-latency` histogram records a sample for every `OrderCreatedEvent` handled.
+- [x] `stock-depleted` counter increments whenever `StockDepletedEvent` is published.
+- [x] Traces for a reservation show the HTTP/event entry, EF Core spans, and RabbitMQ publish linked under a single trace ID.
+- [x] A Prometheus-scrape integration test asserts the three custom metrics are exposed with expected label keys.

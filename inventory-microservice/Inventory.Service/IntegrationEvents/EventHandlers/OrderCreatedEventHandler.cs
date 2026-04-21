@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Transactions;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
+using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,14 +13,31 @@ internal class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
 {
     private readonly IInventoryStore _inventoryStore;
     private readonly IOutboxStore _outboxStore;
+    private readonly MetricFactory _metricFactory;
 
-    public OrderCreatedEventHandler(IInventoryStore inventoryStore, IOutboxStore outboxStore)
+    public OrderCreatedEventHandler(IInventoryStore inventoryStore, IOutboxStore outboxStore, MetricFactory metricFactory)
     {
         _inventoryStore = inventoryStore;
         _outboxStore = outboxStore;
+        _metricFactory = metricFactory;
     }
 
     public async Task Handle(OrderCreatedEvent @event)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            await HandleCore(@event);
+        }
+        finally
+        {
+            stopwatch.Stop();
+            _metricFactory.Histogram("reservation-latency", "ms")
+                .Record((int)stopwatch.ElapsedMilliseconds);
+        }
+    }
+
+    private async Task HandleCore(OrderCreatedEvent @event)
     {
         if (@event.Items is null || @event.Items.Count == 0)
         {

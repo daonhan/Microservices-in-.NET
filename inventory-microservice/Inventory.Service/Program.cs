@@ -23,7 +23,8 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>();
 
 builder.Services.AddOpenTelemetryTracing("Inventory", builder.Configuration,
-    traceBuilder => traceBuilder.WithSqlInstrumentation());
+    traceBuilder => traceBuilder.WithSqlInstrumentation())
+    .AddOpenTelemetryMetrics("Inventory", builder.Services);
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 
@@ -34,6 +35,8 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+app.UsePrometheusExporter();
 
 if (app.Environment.IsDevelopment())
 {

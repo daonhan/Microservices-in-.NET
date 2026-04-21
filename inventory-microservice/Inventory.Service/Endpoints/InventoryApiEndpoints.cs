@@ -1,5 +1,6 @@
 using System.Transactions;
 using ECommerce.Shared.Infrastructure.Outbox;
+using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.ApiModels;
 using Inventory.Service.Infrastructure.Data;
 using Inventory.Service.IntegrationEvents;
@@ -86,6 +87,7 @@ public static class InventoryApiEndpoints
         routeBuilder.MapPost("/{productId:int}/restock", async Task<IResult> (
             [FromServices] IInventoryStore inventoryStore,
             [FromServices] IOutboxStore outboxStore,
+            [FromServices] MetricFactory metricFactory,
             int productId,
             RestockRequest request) =>
         {
@@ -133,6 +135,7 @@ public static class InventoryApiEndpoints
                 if (depleted is not null)
                 {
                     await outboxStore.AddOutboxEvent(depleted);
+                    metricFactory.Counter("stock-depleted", "events").Add(1);
                 }
 
                 scope.Complete();

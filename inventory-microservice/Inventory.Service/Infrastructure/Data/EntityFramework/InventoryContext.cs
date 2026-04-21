@@ -1,3 +1,4 @@
+using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -5,9 +6,12 @@ namespace Inventory.Service.Infrastructure.Data.EntityFramework;
 
 internal class InventoryContext : DbContext, IInventoryStore
 {
-    public InventoryContext(DbContextOptions<InventoryContext> options)
+    private readonly MetricFactory _metricFactory;
+
+    public InventoryContext(DbContextOptions<InventoryContext> options, MetricFactory metricFactory)
         : base(options)
     {
+        _metricFactory = metricFactory;
     }
 
     public DbSet<Warehouse> Warehouses { get; set; } = null!;
@@ -25,6 +29,13 @@ internal class InventoryContext : DbContext, IInventoryStore
         modelBuilder.ApplyConfiguration(new StockMovementConfiguration());
         modelBuilder.ApplyConfiguration(new StockReservationConfiguration());
         modelBuilder.ApplyConfiguration(new BackorderRequestConfiguration());
+    }
+
+    private void RecordStockMovement(StockMovement movement)
+    {
+        StockMovements.Add(movement);
+        _metricFactory.Counter("stock-movements", "movements")
+            .Add(1, new KeyValuePair<string, object?>("movement_type", movement.Type.ToString()));
     }
 
     public async Task<StockItem?> GetStockItem(int productId)
@@ -117,7 +128,7 @@ internal class InventoryContext : DbContext, IInventoryStore
 
         var now = DateTime.UtcNow;
 
-        StockMovements.Add(new StockMovement
+        RecordStockMovement(new StockMovement
         {
             ProductId = productId,
             WarehouseId = defaultWarehouse.Id,
@@ -248,7 +259,7 @@ internal class InventoryContext : DbContext, IInventoryStore
                 CreatedAt = now
             });
 
-            StockMovements.Add(new StockMovement
+            RecordStockMovement(new StockMovement
             {
                 ProductId = line.ProductId,
                 WarehouseId = defaultWarehouse.Id,
@@ -317,7 +328,7 @@ internal class InventoryContext : DbContext, IInventoryStore
 
             reservation.Status = ReservationStatus.Committed;
 
-            StockMovements.Add(new StockMovement
+            RecordStockMovement(new StockMovement
             {
                 ProductId = reservation.ProductId,
                 WarehouseId = reservation.WarehouseId,
@@ -415,7 +426,7 @@ internal class InventoryContext : DbContext, IInventoryStore
 
             reservation.Status = ReservationStatus.Released;
 
-            StockMovements.Add(new StockMovement
+            RecordStockMovement(new StockMovement
             {
                 ProductId = reservation.ProductId,
                 WarehouseId = reservation.WarehouseId,

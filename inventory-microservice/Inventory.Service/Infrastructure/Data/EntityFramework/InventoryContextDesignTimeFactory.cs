@@ -1,3 +1,4 @@
+using ECommerce.Shared.Observability.Metrics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -10,6 +11,6 @@ internal class InventoryContextDesignTimeFactory : IDesignTimeDbContextFactory<I
         var optionsBuilder = new DbContextOptionsBuilder<InventoryContext>();
         optionsBuilder.UseSqlServer("Server=localhost,1433;Database=Inventory;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True");
 
-        return new InventoryContext(optionsBuilder.Options);
+        return new InventoryContext(optionsBuilder.Options, new MetricFactory("Inventory"));
     }
 }
