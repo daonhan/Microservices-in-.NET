@@ -1,3 +1,4 @@
+using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
@@ -30,9 +31,14 @@ builder.Services.AddPlatformObservability(serviceName, builder.Configuration,
     customMetrics: m => m.AddView("products-per-order",
         new ExplicitBucketHistogramConfiguration { Boundaries = [1, 2, 5, 10] }));
 
+builder.Services.AddPlatformHealthChecks()
+    .AddSqlServerProbe(builder.Configuration.GetConnectionString("Default") ?? "")
+    .AddRabbitMqProbe(builder.Configuration["RabbitMq:HostName"] ?? "localhost");
+
 var app = builder.Build();
 
 app.UsePrometheusExporter();
+app.MapPlatformHealthChecks();
 
 if (app.Environment.IsDevelopment())
 {

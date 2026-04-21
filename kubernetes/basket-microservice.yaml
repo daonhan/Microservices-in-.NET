@@ -17,6 +17,20 @@ spec:
           image: <USERNAME>/basketservice:latest
           ports:
             - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
           env:
             - name: ASPNETCORE_ENVIRONMENT
               value: Development

@@ -1,4 +1,5 @@
 using ECommerce.Shared.Authentication;
+using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
@@ -25,6 +26,10 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
 builder.Services.AddPlatformObservability("Inventory", builder.Configuration,
     customTracing: t => t.WithSqlInstrumentation());
 
+builder.Services.AddPlatformHealthChecks()
+    .AddSqlServerProbe(builder.Configuration.GetConnectionString("Default") ?? "")
+    .AddRabbitMqProbe(builder.Configuration["RabbitMq:HostName"] ?? "localhost");
+
 builder.Services.AddJwtAuthentication(builder.Configuration);
 
 builder.Services.AddAuthorization(options =>
@@ -36,6 +41,7 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 
 app.UsePrometheusExporter();
+app.MapPlatformHealthChecks();
 
 if (app.Environment.IsDevelopment())
 {
