@@ -12,53 +12,78 @@ graph TD
     GW --> Order["Order<br/>:8001"]
     GW --> Product["Product<br/>:8002"]
     GW --> Auth["Auth<br/>:8003"]
+    GW --> Inventory["Inventory<br/>:8005"]
 
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL Server)]
     Product --- SQLProduct[(SQL Server)]
     Auth --- SQLAuth[(SQL Server)]
+    Inventory --- SQLInventory[(SQL Server)]
 
     Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>fanout exchange<br/>ecommerce-exchange"}}
     Product -- publishes --> RabbitMQ
+    Inventory -- publishes --> RabbitMQ
     RabbitMQ -- subscribes --> Basket
     RabbitMQ -- subscribes --> Order
+    RabbitMQ -- subscribes --> Inventory
 
     subgraph Observability
+        OTEL["OTEL Collector"]
         Jaeger["Jaeger<br/>(traces)"]
         Prometheus["Prometheus<br/>(metrics)"]
+        Loki["Loki<br/>(logs)"]
+        Grafana["Grafana<br/>(dashboards)"]
+        Alertmanager["Alertmanager"]
     end
 
-    Basket -.-> Jaeger
-    Order -.-> Jaeger
-    Product -.-> Jaeger
-    Order -.-> Prometheus
+    Basket -.-> OTEL
+    Order -.-> OTEL
+    Product -.-> OTEL
+    Auth -.-> OTEL
+    Inventory -.-> OTEL
+    OTEL -.-> Jaeger
+    OTEL -.-> Loki
+    Prometheus -.-> Alertmanager
+    Grafana --- Prometheus
+    Grafana --- Loki
+    Grafana --- Jaeger
 ```
+
+Order/Inventory coordinate via a saga-style flow: `OrderCreatedEvent` → Inventory reserves stock → `StockReservedEvent` / `StockReservationFailedEvent` → Order emits `OrderConfirmedEvent` / `OrderCancelledEvent` → Inventory commits or releases the reservation.
 
 ## Services
 
 | Service | Port | Datastore | Responsibility |
 |---------|------|-----------|----------------|
 | **Basket** | 8000 | Redis | Shopping cart CRUD, product price caching |
-| **Order** | 8001 | SQL Server | Order creation, publishes `OrderCreatedEvent` |
-| **Product** | 8002 | SQL Server | Product catalog, publishes `ProductPriceUpdatedEvent` |
+| **Order** | 8001 | SQL Server | Order creation, confirmation/cancellation, publishes `OrderCreatedEvent` / `OrderConfirmedEvent` / `OrderCancelledEvent` |
+| **Product** | 8002 | SQL Server | Product catalog, publishes `ProductCreatedEvent` / `ProductPriceUpdatedEvent` |
 | **Auth** | 8003 | SQL Server | User login, JWT token issuance (HMAC-SHA256) |
 | **API Gateway** | 8004 | — | Ocelot routing, centralized auth, role-based access |
+| **Inventory** | 8005 | SQL Server | Stock levels, reservations, backorders, low-stock monitoring; publishes `StockReserved`/`StockCommitted`/`StockReleased`/`StockAdjusted`/`StockDepleted`/`LowStock` events |
 
 ## Project Structure
 
 ```
 ├── api-gateway/              Ocelot API Gateway
 ├── auth-microservice/        JWT authentication service
+│   └── Auth.Tests/           Endpoint tests
 ├── basket-microservice/      Shopping basket + Redis cache
 │   └── Basket.Tests/         Unit & integration tests
 ├── order-microservice/       Order management + event publishing
 │   └── Order.Tests/          Unit & integration tests
 ├── product-microservice/     Product catalog + EF Core
 │   └── Product.Tests/        Unit & integration tests
+├── inventory-microservice/   Stock, reservations, backorders
+│   └── Inventory.Tests/      Unit & integration tests
 ├── shared-libs/              ECommerce.Shared NuGet library
-├── kubernetes/               K8s deployment manifests
-├── observability/            Prometheus scrape config
+├── local-nuget-packages/     Local NuGet feed for ECommerce.Shared
+├── kubernetes/               K8s deployment manifests (services + observability)
+├── observability/            OTEL Collector, Prometheus, Alertmanager, Grafana, Loki config
 ├── docs/                     PRD and implementation plans
+├── plans/                    Active engineering plans
+├── ralph/                    Agent/automation scripts
+├── Directory.Build.props     Centralized MSBuild settings
 └── docker-compose.yaml       Full-stack local orchestration
 ```
 
@@ -90,7 +115,7 @@ Each microservice follows a consistent layout:
 docker compose up --build
 ```
 
-This starts all 10 containers: 5 microservices + SQL Server, RabbitMQ, Redis, Jaeger, and Prometheus.
+This starts the full stack: 6 microservices (Basket, Order, Product, Auth, Inventory, API Gateway) + infrastructure (SQL Server, RabbitMQ, Redis) + observability (OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki) + Prometheus exporters for RabbitMQ, Redis, and SQL Server.
 
 ### Run Individual Services
 
@@ -111,6 +136,9 @@ dotnet run
 | RabbitMQ Management | http://localhost:15672 (guest/guest) |
 | Jaeger UI | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |
+| Alertmanager | http://localhost:9093 |
+| Grafana | http://localhost:3000 (anonymous admin) |
+| Loki | http://localhost:3100 |
 
 ## Shared Library
 
@@ -119,7 +147,8 @@ dotnet run
 - **RabbitMQ** — `IEventBus` publisher, `RabbitMqHostedService` subscriber, keyed DI event handler registration
 - **Transactional Outbox** — `OutboxBackgroundService` polls for unpublished events, preventing data/event inconsistency
 - **JWT Authentication** — `AddJwtAuthentication()` shared across all secured services
-- **OpenTelemetry** — Tracing (Jaeger export), metrics (Prometheus), RabbitMQ span propagation
+- **Observability** — `AddPlatformObservability()` wires OpenTelemetry traces (OTLP → Jaeger), metrics (Prometheus scrape), and logs (OTLP → Loki), plus `MetricFactory` for custom counters/histograms and RabbitMQ span context propagation
+- **Health Checks** — `AddPlatformHealthChecks()` with SQL Server / RabbitMQ / Redis probes, exposed via `MapPlatformHealthChecks()`
 
 ### Build and Publish
 
@@ -145,9 +174,11 @@ dotnet nuget push bin/Release/*.nupkg -s ../local-nuget-packages
 
 ```bash
 # Run all tests for a service
+cd auth-microservice && dotnet test
 cd basket-microservice && dotnet test
 cd order-microservice && dotnet test
 cd product-microservice && dotnet test
+cd inventory-microservice && dotnet test
 ```
 
 - **Unit tests** — xUnit + NSubstitute, `Given_When_Then` naming convention
@@ -163,14 +194,20 @@ kubectl apply -f kubernetes/rabbitmq.yaml
 kubectl apply -f kubernetes/redis.yaml
 
 # Deploy observability
+kubectl apply -f kubernetes/otel-collector.yaml
 kubectl apply -f kubernetes/jaeger.yaml
 kubectl apply -f kubernetes/prometheus.yaml
+kubectl apply -f kubernetes/alertmanager.yaml
+kubectl apply -f kubernetes/loki.yaml
+kubectl apply -f kubernetes/grafana.yaml
+kubectl apply -f kubernetes/exporters.yaml
 
 # Deploy microservices
 kubectl apply -f kubernetes/product-microservice.yaml
 kubectl apply -f kubernetes/order-microservice.yaml
 kubectl apply -f kubernetes/basket-microservice.yaml
 kubectl apply -f kubernetes/auth-microservice.yaml
+kubectl apply -f kubernetes/inventory-microservice.yaml
 kubectl apply -f kubernetes/api-gateway.yaml
 
 # Verify
@@ -188,7 +225,8 @@ Services discover each other via Kubernetes DNS (e.g., `rabbitmq-clusterip-servi
 | Messaging | RabbitMQ (fanout exchange, pub/sub) |
 | Data | EF Core (SQL Server), Redis (distributed cache) |
 | Testing | xUnit, NSubstitute, WebApplicationFactory |
-| Observability | OpenTelemetry, Jaeger, Prometheus |
-| Resilience | Polly, EF Core retries, Outbox pattern |
+| Observability | OpenTelemetry (traces + metrics + logs via OTLP), OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki |
+| Health | `Microsoft.Extensions.Diagnostics.HealthChecks` via shared `AddPlatformHealthChecks` |
+| Resilience | Polly, EF Core retries, Outbox pattern, saga-style order/inventory coordination |
 | Security | JWT (HMAC-SHA256), Ocelot API Gateway, role-based auth |
 | Deployment | Docker, Docker Compose, Kubernetes |
