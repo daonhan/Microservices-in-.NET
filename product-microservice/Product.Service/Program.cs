@@ -14,12 +14,14 @@ builder.Services.AddOutbox(builder.Configuration);
 builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqEventPublisher(builder.Configuration);
 
-builder.Services.AddOpenTelemetryTracing("Product", builder.Configuration,
-    traceBuilder => traceBuilder.WithSqlInstrumentation());
+builder.Services.AddPlatformObservability("Product", builder.Configuration,
+    customTracing: t => t.WithSqlInstrumentation());
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 
 var app = builder.Build();
+
+app.UsePrometheusExporter();
 
 if (app.Environment.IsDevelopment())
 {

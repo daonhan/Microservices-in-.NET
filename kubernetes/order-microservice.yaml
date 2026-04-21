@@ -20,12 +20,22 @@ spec:
           env:
             - name: ASPNETCORE_ENVIRONMENT
               value: Development
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: RabbitMq__HostName
               value: rabbitmq-clusterip-service
             - name: ConnectionStrings__Default
               value: Server=mssql-clusterip-service,1433;Database=Order;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True
             - name: OpenTelemetry__OtlpExporterEndpoint
               value: http://jaeger-clusterip-service:4317
+            - name: OpenTelemetry__SamplingRatio
+              value: "0.1"
+            - name: OpenTelemetry__ServiceVersion
+              value: "1.0.0"
+            - name: OpenTelemetry__Environment
+              value: Production
 ---
 apiVersion: v1
 kind: Service

@@ -17,12 +17,13 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
 
 builder.Services.AddRedisCache(builder.Configuration);
 
-builder.Services.AddOpenTelemetryTracing("Basket", builder.Configuration);
+builder.Services.AddPlatformObservability("Basket", builder.Configuration);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+app.UsePrometheusExporter();
 app.UseSwagger();
 app.UseSwaggerUI();
 

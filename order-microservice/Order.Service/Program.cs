@@ -25,14 +25,10 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddEventHandler<StockReservedEvent, StockReservedEventHandler>()
     .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>();
 
-builder.Services.AddOpenTelemetryTracing(serviceName, builder.Configuration,
-    traceBuilder => traceBuilder.WithSqlInstrumentation())
-    .AddOpenTelemetryMetrics(serviceName, builder.Services,
-        metricBuilder => metricBuilder.AddView("products-per-order",
-            new ExplicitBucketHistogramConfiguration
-            {
-                Boundaries = [1, 2, 5, 10]
-            }));
+builder.Services.AddPlatformObservability(serviceName, builder.Configuration,
+    customTracing: t => t.WithSqlInstrumentation(),
+    customMetrics: m => m.AddView("products-per-order",
+        new ExplicitBucketHistogramConfiguration { Boundaries = [1, 2, 5, 10] }));
 
 var app = builder.Build();
 

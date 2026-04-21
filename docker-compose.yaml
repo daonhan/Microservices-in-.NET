@@ -11,6 +11,9 @@ services:
       - "RabbitMq__HostName=host.docker.internal"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Product;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
+      - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__EnableConsoleExporters=false"
+      - "OpenTelemetry__Environment=Development"
 
   order:
     container_name: order
@@ -23,6 +26,9 @@ services:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "RabbitMq__HostName=host.docker.internal"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Order;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
+      - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__EnableConsoleExporters=false"
+      - "OpenTelemetry__Environment=Development"
 
   basket:
     container_name: basket
@@ -32,8 +38,12 @@ services:
     ports:
       - "8000:8080"
     environment:
+      - "ASPNETCORE_ENVIRONMENT=Development"
       - "RabbitMq__HostName=host.docker.internal"
       - "Redis__Configuration=host.docker.internal:6379"
+      - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__EnableConsoleExporters=false"
+      - "OpenTelemetry__Environment=Development"
 
   inventory:
     container_name: inventory
@@ -47,6 +57,9 @@ services:
       - "RabbitMq__HostName=host.docker.internal"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Inventory;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
+      - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__EnableConsoleExporters=false"
+      - "OpenTelemetry__Environment=Development"
 
   auth:
     container_name: auth
@@ -59,6 +72,9 @@ services:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Auth;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "Authentication__AuthMicroserviceBaseAddress=http://localhost:8003"
+      - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__EnableConsoleExporters=false"
+      - "OpenTelemetry__Environment=Development"
 
   gateway:
     container_name: gateway
@@ -69,6 +85,9 @@ services:
       - "8004:8080"
     environment:
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
+      - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__EnableConsoleExporters=false"
+      - "OpenTelemetry__Environment=Development"
 
   rabbitmq:
     image: rabbitmq:3-management

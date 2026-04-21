@@ -18,8 +18,22 @@ spec:
           ports:
             - containerPort: 8080
           env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Development
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: Authentication__AuthMicroserviceBaseAddress
               value: http://auth-clusterip-service:8080
+            - name: OpenTelemetry__OtlpExporterEndpoint
+              value: http://jaeger-clusterip-service:4317
+            - name: OpenTelemetry__SamplingRatio
+              value: "0.1"
+            - name: OpenTelemetry__ServiceVersion
+              value: "1.0.0"
+            - name: OpenTelemetry__Environment
+              value: Production
 ---
 apiVersion: v1
 kind: Service
