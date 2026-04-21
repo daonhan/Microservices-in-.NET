@@ -4,6 +4,7 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using Microsoft.Extensions.DependencyInjection;
 using Product.Service.Infrastructure.Data.EntityFramework;
+using Product.Tests.Authentication;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -16,6 +17,7 @@ public class IntegrationTestBase : IClassFixture<ProductWebApplicationFactory>, 
 
     private IModel? _model;
 
+    internal readonly ProductWebApplicationFactory Factory;
     internal readonly ProductContext ProductContext;
     internal readonly HttpClient HttpClient;
     internal readonly IRabbitMqConnection RabbitMqConnection;
@@ -23,10 +25,19 @@ public class IntegrationTestBase : IClassFixture<ProductWebApplicationFactory>, 
 
     public IntegrationTestBase(ProductWebApplicationFactory webApplicationFactory)
     {
+        Factory = webApplicationFactory;
+
         var scope = webApplicationFactory.Services.CreateScope();
         ProductContext = scope.ServiceProvider.GetRequiredService<ProductContext>();
         HttpClient = webApplicationFactory.CreateClient();
         RabbitMqConnection = scope.ServiceProvider.GetRequiredService<IRabbitMqConnection>();
+    }
+
+    protected HttpClient CreateAuthenticatedClient(string role = "Administrator")
+    {
+        var client = Factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, role);
+        return client;
     }
 
     public void Subscribe<TEvent>() where TEvent : Event

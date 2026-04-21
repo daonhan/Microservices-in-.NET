@@ -28,8 +28,10 @@ public class ProductApiTests : IntegrationTestBase
         // Arrange
         var createProductRequest = new CreateProductRequest("Test Shoe", 49.99M, 1, "A test shoe");
 
+        var client = CreateAuthenticatedClient();
+
         // Act
-        var response = await HttpClient.PostAsJsonAsync("/", createProductRequest);
+        var response = await client.PostAsJsonAsync("/", createProductRequest);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -89,8 +91,10 @@ public class ProductApiTests : IntegrationTestBase
 
         var updateRequest = new UpdateProductRequest("Updated Shoe", 75.00M, 1, "Updated description");
 
+        var client = CreateAuthenticatedClient();
+
         // Act
-        var response = await HttpClient.PutAsJsonAsync($"/{product.Id}", updateRequest);
+        var response = await client.PutAsJsonAsync($"/{product.Id}", updateRequest);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -114,8 +118,10 @@ public class ProductApiTests : IntegrationTestBase
 
         var updateRequest = new UpdateProductRequest("Event Test Shoe", 75.00M, 1);
 
+        var client = CreateAuthenticatedClient();
+
         // Act
-        var response = await HttpClient.PutAsJsonAsync($"/{product.Id}", updateRequest);
+        var response = await client.PutAsJsonAsync($"/{product.Id}", updateRequest);
 
         // Assert
         response.EnsureSuccessStatusCode();
