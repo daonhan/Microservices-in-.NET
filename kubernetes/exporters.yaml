@@ -1,0 +1,179 @@
+# RabbitMQ Exporter
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq-exporter
+  template:
+    metadata:
+      labels:
+        app: rabbitmq-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "9419"
+    spec:
+      containers:
+        - name: rabbitmq-exporter
+          image: kbudde/rabbitmq-exporter
+          ports:
+            - containerPort: 9419
+          env:
+            - name: RABBIT_URL
+              value: http://rabbitmq-clusterip-service:15672
+            - name: RABBIT_USER
+              value: guest
+            - name: RABBIT_PASSWORD
+              value: guest
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-exporter-clusterip-service
+spec:
+  type: ClusterIP
+  selector:
+    app: rabbitmq-exporter
+  ports:
+    - port: 9419
+      targetPort: 9419
+---
+# Redis Exporter
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-exporter
+  template:
+    metadata:
+      labels:
+        app: redis-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "9121"
+    spec:
+      containers:
+        - name: redis-exporter
+          image: oliver006/redis_exporter
+          ports:
+            - containerPort: 9121
+          env:
+            - name: REDIS_ADDR
+              value: redis://redis-clusterip-service:6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-exporter-clusterip-service
+spec:
+  type: ClusterIP
+  selector:
+    app: redis-exporter
+  ports:
+    - port: 9121
+      targetPort: 9121
+---
+# MSSQL Exporter
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mssql-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mssql-exporter
+  template:
+    metadata:
+      labels:
+        app: mssql-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "4000"
+    spec:
+      containers:
+        - name: mssql-exporter
+          image: awaragi/prometheus-mssql-exporter
+          ports:
+            - containerPort: 4000
+          env:
+            - name: SERVER
+              value: mssql-clusterip-service
+            - name: PORT
+              value: "1433"
+            - name: USERNAME
+              value: sa
+            - name: PASSWORD
+              value: "micR0S3rvice$"
+            - name: DATABASE
+              value: master
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mssql-exporter-clusterip-service
+spec:
+  type: ClusterIP
+  selector:
+    app: mssql-exporter
+  ports:
+    - port: 4000
+      targetPort: 4000
+---
+# Node Exporter (DaemonSet — one instance per node)
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "9100"
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+        - operator: Exists
+          effect: NoSchedule
+      containers:
+        - name: node-exporter
+          image: prom/node-exporter:latest
+          ports:
+            - containerPort: 9100
+              hostPort: 9100
+          args:
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys

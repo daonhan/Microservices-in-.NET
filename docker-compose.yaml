@@ -118,6 +118,42 @@ services:
       - "4317:4317"
       - "16686:16686"
 
+  rabbitmq-exporter:
+    container_name: rabbitmq-exporter
+    image: kbudde/rabbitmq-exporter
+    ports:
+      - "9419:9419"
+    environment:
+      - RABBIT_URL=http://rabbitmq:15672
+      - RABBIT_USER=guest
+      - RABBIT_PASSWORD=guest
+    depends_on:
+      - rabbitmq
+
+  redis-exporter:
+    container_name: redis-exporter
+    image: oliver006/redis_exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    depends_on:
+      - redis
+
+  mssql-exporter:
+    container_name: mssql-exporter
+    image: awaragi/prometheus-mssql-exporter
+    ports:
+      - "4000:4000"
+    environment:
+      - SERVER=sql
+      - PORT=1433
+      - USERNAME=sa
+      - PASSWORD=micR0S3rvice$
+      - DATABASE=master
+    depends_on:
+      - sql
+
   prometheus:
     container_name: prometheus
     image: prom/prometheus:latest
@@ -125,3 +161,7 @@ services:
       - "9090:9090"
     volumes:
       - ./observability/prometheus-config.yaml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - rabbitmq-exporter
+      - redis-exporter
+      - mssql-exporter

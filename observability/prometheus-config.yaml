@@ -3,6 +3,24 @@ global:
   evaluation_interval: 10s
 
 scrape_configs:
-  - job_name: "Order"
+  - job_name: "microservices"
     static_configs:
-      - targets: ["host.docker.internal:8001"]
+      - targets:
+          - "product:8080"
+          - "order:8080"
+          - "basket:8080"
+          - "inventory:8080"
+          - "auth:8080"
+          - "gateway:8080"
+
+  - job_name: "rabbitmq"
+    static_configs:
+      - targets: ["rabbitmq-exporter:9419"]
+
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+
+  - job_name: "mssql"
+    static_configs:
+      - targets: ["mssql-exporter:4000"]
