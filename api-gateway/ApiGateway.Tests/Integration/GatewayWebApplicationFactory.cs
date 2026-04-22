@@ -74,7 +74,9 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         }
 
         builder.Services.AddJwtAuthentication(builder.Configuration);
-        builder.AddPlatformObservability("ApiGateway");
+        builder.AddPlatformObservability(
+            "ApiGateway",
+            customTracing: tracing => tracing.AddSource("Yarp.ReverseProxy"));
         builder.Services.AddPlatformHealthChecks();
 
         var gatewayPort = AllocatePort();

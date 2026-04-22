@@ -175,6 +175,34 @@ public class GatewayIntegrationTests : IAsyncLifetime, IDisposable
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("Ocelot", "/health/live")]
+    [InlineData("Yarp", "/health/live")]
+    [InlineData("Ocelot", "/health/ready")]
+    [InlineData("Yarp", "/health/ready")]
+    public async Task HealthEndpoints_Return200_UnderBothProviders(string provider, string path)
+    {
+        await using var harness = await GatewayTestHarness.CreateAsync(provider, _downstreamStub.BaseUrl);
+
+        var response = await harness.Client.GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("Ocelot")]
+    [InlineData("Yarp")]
+    public async Task MetricsEndpoint_ReturnsPrometheusFormat_UnderBothProviders(string provider)
+    {
+        await using var harness = await GatewayTestHarness.CreateAsync(provider, _downstreamStub.BaseUrl);
+
+        var response = await harness.Client.GetAsync("/metrics");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
+        Assert.StartsWith("text/plain", contentType, StringComparison.Ordinal);
+    }
+
     private static Task<HttpResponseMessage> SendAsync(HttpClient client, string method, string path)
     {
         var request = new HttpRequestMessage(new HttpMethod(method), path);

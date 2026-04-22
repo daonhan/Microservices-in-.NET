@@ -7,7 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddConfiguredGateway();
 builder.Services.AddJwtAuthentication(builder.Configuration);
-builder.AddPlatformObservability("ApiGateway");
+builder.AddPlatformObservability(
+    "ApiGateway",
+    customTracing: tracing => tracing.AddSource("Yarp.ReverseProxy"));
 builder.Services.AddPlatformHealthChecks();
 
 var app = builder.Build();
