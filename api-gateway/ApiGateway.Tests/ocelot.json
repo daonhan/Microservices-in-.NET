@@ -1,4 +1,17 @@
 {
-  "Routes": [],
+  "Routes": [
+    {
+      "UpstreamPathTemplate": "/login",
+      "UpstreamHttpMethod": [ "Post" ],
+      "DownstreamScheme": "http",
+      "DownstreamPathTemplate": "/login",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 1
+        }
+      ]
+    }
+  ],
   "GlobalConfiguration": {}
 }

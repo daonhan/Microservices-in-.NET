@@ -18,3 +18,5 @@ app.UseJwtAuthentication();
 await app.UseConfiguredGatewayAsync();
 
 app.Run();
+
+public partial class Program { }

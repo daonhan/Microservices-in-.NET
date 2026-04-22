@@ -17,14 +17,15 @@ public class GatewayProviderExtensionsTests
     }
 
     [Fact]
-    public void AddConfiguredGateway_WithYarpProvider_ThrowsNotImplementedException()
+    public void AddConfiguredGateway_WithYarpProvider_RegistersYarpServices()
     {
         var builder = WebApplication.CreateBuilder();
         builder.Configuration["Gateway:Provider"] = "Yarp";
 
-        var ex = Assert.Throws<NotImplementedException>(() => builder.AddConfiguredGateway());
+        builder.AddConfiguredGateway();
 
-        Assert.Contains("YARP", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(builder.Services, sd =>
+            sd.ServiceType.FullName?.StartsWith("Yarp.", StringComparison.Ordinal) == true);
     }
 
     [Fact]
@@ -33,7 +34,7 @@ public class GatewayProviderExtensionsTests
         var builder = WebApplication.CreateBuilder();
         builder.Configuration["Gateway:Provider"] = "Yarp";
 
-        Assert.Throws<NotImplementedException>(() => builder.AddConfiguredGateway());
+        builder.AddConfiguredGateway();
 
         Assert.DoesNotContain(builder.Services, sd =>
             sd.ServiceType.FullName?.StartsWith("Ocelot.", StringComparison.Ordinal) == true);
