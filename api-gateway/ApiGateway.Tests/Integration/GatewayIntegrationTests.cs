@@ -105,6 +105,76 @@ public class GatewayIntegrationTests : IAsyncLifetime, IDisposable
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("Ocelot", "POST", "/product/42", "/42")]
+    [InlineData("Yarp", "POST", "/product/42", "/42")]
+    [InlineData("Ocelot", "PUT", "/product/42", "/42")]
+    [InlineData("Yarp", "PUT", "/product/42", "/42")]
+    [InlineData("Ocelot", "GET", "/inventory", "/")]
+    [InlineData("Yarp", "GET", "/inventory", "/")]
+    [InlineData("Ocelot", "POST", "/inventory/42", "/42")]
+    [InlineData("Yarp", "POST", "/inventory/42", "/42")]
+    [InlineData("Ocelot", "PUT", "/inventory/42", "/42")]
+    [InlineData("Yarp", "PUT", "/inventory/42", "/42")]
+    public async Task AdminRoutes_WithAdminToken_ProxyWithStrippedPrefix(
+        string provider, string method, string upstreamPath, string expectedDownstreamPath)
+    {
+        await using var harness = await GatewayTestHarness.CreateAsync(provider, _downstreamStub.BaseUrl);
+        harness.Client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", GatewayTestHarness.CreateJwt(role: "Administrator"));
+
+        var response = await SendAsync(harness.Client, method, upstreamPath);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(
+            _downstreamStub.ReceivedRequests,
+            r => r.Method == method && r.Path == expectedDownstreamPath);
+    }
+
+    [Theory]
+    [InlineData("Ocelot", "POST", "/product/42")]
+    [InlineData("Yarp", "POST", "/product/42")]
+    [InlineData("Ocelot", "PUT", "/product/42")]
+    [InlineData("Yarp", "PUT", "/product/42")]
+    [InlineData("Ocelot", "GET", "/inventory")]
+    [InlineData("Yarp", "GET", "/inventory")]
+    [InlineData("Ocelot", "POST", "/inventory/42")]
+    [InlineData("Yarp", "POST", "/inventory/42")]
+    [InlineData("Ocelot", "PUT", "/inventory/42")]
+    [InlineData("Yarp", "PUT", "/inventory/42")]
+    public async Task AdminRoutes_WithoutToken_Return401(
+        string provider, string method, string upstreamPath)
+    {
+        await using var harness = await GatewayTestHarness.CreateAsync(provider, _downstreamStub.BaseUrl);
+
+        var response = await SendAsync(harness.Client, method, upstreamPath);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("Ocelot", "POST", "/product/42")]
+    [InlineData("Yarp", "POST", "/product/42")]
+    [InlineData("Ocelot", "PUT", "/product/42")]
+    [InlineData("Yarp", "PUT", "/product/42")]
+    [InlineData("Ocelot", "GET", "/inventory")]
+    [InlineData("Yarp", "GET", "/inventory")]
+    [InlineData("Ocelot", "POST", "/inventory/42")]
+    [InlineData("Yarp", "POST", "/inventory/42")]
+    [InlineData("Ocelot", "PUT", "/inventory/42")]
+    [InlineData("Yarp", "PUT", "/inventory/42")]
+    public async Task AdminRoutes_WithNonAdminToken_Return403(
+        string provider, string method, string upstreamPath)
+    {
+        await using var harness = await GatewayTestHarness.CreateAsync(provider, _downstreamStub.BaseUrl);
+        harness.Client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", GatewayTestHarness.CreateJwt());
+
+        var response = await SendAsync(harness.Client, method, upstreamPath);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static Task<HttpResponseMessage> SendAsync(HttpClient client, string method, string path)
     {
         var request = new HttpRequestMessage(new HttpMethod(method), path);
