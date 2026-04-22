@@ -6,7 +6,7 @@ A production-ready e-commerce system built with **.NET 8**, **ASP.NET Core Minim
 
 ```mermaid
 graph TD
-    Client([Client]) --> GW["API Gateway<br/>Ocelot · :8004<br/>JWT auth + routing"]
+    Client([Client]) --> GW["API Gateway<br/>YARP · :8004<br/>JWT auth + routing"]
 
     GW --> Basket["Basket<br/>:8000"]
     GW --> Order["Order<br/>:8001"]
@@ -59,13 +59,13 @@ Order/Inventory coordinate via a saga-style flow: `OrderCreatedEvent` → Invent
 | **Order** | 8001 | SQL Server | Order creation, confirmation/cancellation, publishes `OrderCreatedEvent` / `OrderConfirmedEvent` / `OrderCancelledEvent` |
 | **Product** | 8002 | SQL Server | Product catalog, publishes `ProductCreatedEvent` / `ProductPriceUpdatedEvent` |
 | **Auth** | 8003 | SQL Server | User login, JWT token issuance (HMAC-SHA256) |
-| **API Gateway** | 8004 | — | Ocelot routing, centralized auth, role-based access |
+| **API Gateway** | 8004 | — | YARP reverse proxy (Ocelot fallback available), centralized auth, role-based access |
 | **Inventory** | 8005 | SQL Server | Stock levels, reservations, backorders, low-stock monitoring; publishes `StockReserved`/`StockCommitted`/`StockReleased`/`StockAdjusted`/`StockDepleted`/`LowStock` events |
 
 ## Project Structure
 
 ```
-├── api-gateway/              Ocelot API Gateway
+├── api-gateway/              API Gateway (YARP by default, Ocelot fallback)
 ├── auth-microservice/        JWT authentication service
 │   └── Auth.Tests/           Endpoint tests
 ├── basket-microservice/      Shopping basket + Redis cache
@@ -165,10 +165,46 @@ dotnet nuget push bin/Release/*.nupkg -s ../local-nuget-packages
 | **Per-service datastore** | Each service owns its data — no shared databases |
 | **Event-driven communication** | RabbitMQ fanout exchange for async cross-service events |
 | **Transactional Outbox** | DB write + outbox record in single transaction; background service publishes |
-| **API Gateway** | Ocelot centralizes routing, JWT validation, and role-based access |
+| **API Gateway** | YARP reverse proxy centralizes routing, JWT validation, and role-based access (Ocelot implementation retained as runtime-switchable fallback) |
 | **DTOs** | `ApiModels/` for API contracts, `Models/` for internal domain entities |
 | **Resilience** | Polly retry pipelines for RabbitMQ, EF Core `EnableRetryOnFailure` for SQL |
 | **Distributed tracing** | OpenTelemetry with context propagation across RabbitMQ messages |
+
+## API Gateway Provider (YARP / Ocelot)
+
+The API Gateway ships with two reverse-proxy implementations compiled into the same project. The active one is selected at runtime via the `Gateway:Provider` config key. Defaults to **`Yarp`**.
+
+| Config key | Env var | Values | Default |
+|---|---|---|---|
+| `Gateway:Provider` | `Gateway__Provider` | `Yarp`, `Ocelot` | `Yarp` |
+
+The active provider is logged at startup (`ApiGateway starting with provider=Yarp`). Unknown values fail fast via options validation.
+
+### Switching providers
+
+```bash
+# Docker Compose
+Gateway__Provider=Ocelot docker compose up api-gateway
+
+# Local dev
+Gateway__Provider=Ocelot dotnet run --project api-gateway/ApiGateway
+```
+
+Or edit `api-gateway/ApiGateway/appsettings.json`:
+
+```json
+"Gateway": { "Provider": "Ocelot" }
+```
+
+### Rollback to Ocelot
+
+If YARP misbehaves in production:
+
+1. Set `Gateway__Provider=Ocelot` on the `api-gateway` deployment (e.g. `kubectl set env deploy/api-gateway Gateway__Provider=Ocelot`, or edit the env block in `kubernetes/api-gateway.yaml` / `docker-compose.yaml`).
+2. Restart the gateway pod/container. No image rebuild required — both implementations are in the same binary.
+3. Confirm the rollback by checking the startup log line for `provider=Ocelot`.
+
+Upstream routes, port (`8004`), auth rules, health checks, and Prometheus metrics are identical across both providers, so clients and ops tooling are unaffected by the switch.
 
 ## Testing
 
@@ -228,5 +264,5 @@ Services discover each other via Kubernetes DNS (e.g., `rabbitmq-clusterip-servi
 | Observability | OpenTelemetry (traces + metrics + logs via OTLP), OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki |
 | Health | `Microsoft.Extensions.Diagnostics.HealthChecks` via shared `AddPlatformHealthChecks` |
 | Resilience | Polly, EF Core retries, Outbox pattern, saga-style order/inventory coordination |
-| Security | JWT (HMAC-SHA256), Ocelot API Gateway, role-based auth |
+| Security | JWT (HMAC-SHA256), YARP API Gateway (Ocelot fallback), role-based auth |
 | Deployment | Docker, Docker Compose, Kubernetes |
