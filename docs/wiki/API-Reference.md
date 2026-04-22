@@ -1,0 +1,56 @@
+# API Reference
+
+Consolidated listing of every public HTTP endpoint exposed through the Gateway. For individual service deep-dives see the per-service pages.
+
+> **Maintainer note** — when you add or change an endpoint, update this page in the same PR. The endpoint source files are the authoritative schema.
+
+## Auth — [Service-Auth](Service-Auth)
+
+| Method | Gateway route | Downstream | Auth |
+|---|---|---|---|
+| `POST` | `/login` | Auth `/login` | public |
+
+## Product — [Service-Product](Service-Product)
+
+| Method | Gateway route | Downstream | Auth |
+|---|---|---|---|
+| `GET` | `/product/{id}` | Product `/{id}` | public |
+| `POST` | `/product` | Product `/` | Bearer + `Administrator` |
+| `PUT` | `/product/{id}` | Product `/{id}` | Bearer + `Administrator` |
+
+## Basket — [Service-Basket](Service-Basket)
+
+| Method | Gateway route | Downstream | Auth |
+|---|---|---|---|
+| `GET` | `/basket/{customerId}` | Basket `/{customerId}` | Bearer |
+| `POST` | `/basket/{customerId}` | Basket `/{customerId}` | Bearer |
+| `PUT` | `/basket/{customerId}` | Basket `/{customerId}` | Bearer |
+| `DELETE` | `/basket/{customerId}/{productId}` | Basket `/{customerId}/{productId}` | Bearer |
+| `DELETE` | `/basket/{customerId}` | Basket `/{customerId}` | Bearer |
+
+## Order — [Service-Order](Service-Order)
+
+| Method | Gateway route | Downstream | Auth |
+|---|---|---|---|
+| `POST` | `/order/{customerId}` | Order `/{customerId}` | Bearer |
+| `GET` | `/order/{customerId}/{orderId}` | Order `/{customerId}/{orderId}` | Bearer |
+
+## Inventory — [Service-Inventory](Service-Inventory)
+
+| Method | Gateway route | Downstream | Auth |
+|---|---|---|---|
+| `GET` | `/inventory` | Inventory `/` | Bearer + `Administrator` |
+| `GET` | `/inventory/{productId}` | Inventory `/{productId}` | public |
+| `GET` | `/inventory/{productId}/movements` | Inventory `/{productId}/movements` | Bearer + `Administrator` |
+| `POST` | `/inventory/{productId}/restock` | Inventory `/{productId}/restock` | Bearer + `Administrator` |
+| `POST` | `/inventory/{productId}/backorder` | Inventory backorder handler | Bearer |
+
+## Cross-cutting endpoints (every service)
+
+| Route | Purpose |
+|---|---|
+| `/health/live` | Liveness — process is up |
+| `/health/ready` | Readiness — dependencies reachable (SQL / Redis / RabbitMQ) |
+| `/metrics` | Prometheus scrape |
+
+These are wired via `MapPlatformHealthChecks()` and `AddPlatformObservability()` from [ECommerce.Shared](Shared-Library).
