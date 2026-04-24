@@ -3,6 +3,7 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
+using ECommerce.Shared.OpenApi;
 using Product.Service.Endpoints;
 using Product.Service.Infrastructure.Data.EntityFramework;
 
@@ -24,10 +25,13 @@ builder.Services.AddPlatformHealthChecks()
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
 
+builder.AddPlatformOpenApi("product");
+
 var app = builder.Build();
 
 app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
+app.UsePlatformOpenApi();
 
 if (app.Environment.IsDevelopment())
 {
