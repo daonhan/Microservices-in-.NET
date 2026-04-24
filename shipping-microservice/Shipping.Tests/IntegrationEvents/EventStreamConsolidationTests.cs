@@ -81,21 +81,18 @@ public class EventStreamConsolidationTests : IntegrationTestBase
         // Collect outbox events scoped to this shipment.
         var events = await GetOutboxEventsForShipmentAsync(shipmentId);
 
-        // Exact ordered sequence of ShipmentStatusChangedEvent for this shipment.
-        var orderedTransitions = events
-            .Where(e => e.EventType.Contains(nameof(ShipmentStatusChangedEvent), StringComparison.Ordinal))
-            .Select(e => ReadToStatus(e.Data))
-            .ToList();
+        // Exact ordered sequence of (FromStatus, ToStatus) transitions for this shipment.
+        var orderedTransitions = ReadStatusTransitions(events);
 
         Assert.Equal(
-            new[]
+            new (ShipmentStatus? From, ShipmentStatus To)[]
             {
-                ShipmentStatus.Pending,
-                ShipmentStatus.Picked,
-                ShipmentStatus.Packed,
-                ShipmentStatus.Shipped,
-                ShipmentStatus.InTransit,
-                ShipmentStatus.Delivered,
+                (null, ShipmentStatus.Pending),
+                (ShipmentStatus.Pending, ShipmentStatus.Picked),
+                (ShipmentStatus.Picked, ShipmentStatus.Packed),
+                (ShipmentStatus.Packed, ShipmentStatus.Shipped),
+                (ShipmentStatus.Shipped, ShipmentStatus.InTransit),
+                (ShipmentStatus.InTransit, ShipmentStatus.Delivered),
             },
             orderedTransitions);
 
@@ -123,16 +120,13 @@ public class EventStreamConsolidationTests : IntegrationTestBase
 
         var events = await GetOutboxEventsForShipmentAsync(shipmentId);
 
-        var orderedTransitions = events
-            .Where(e => e.EventType.Contains(nameof(ShipmentStatusChangedEvent), StringComparison.Ordinal))
-            .Select(e => ReadToStatus(e.Data))
-            .ToList();
+        var orderedTransitions = ReadStatusTransitions(events);
 
         Assert.Equal(
-            new[]
+            new (ShipmentStatus? From, ShipmentStatus To)[]
             {
-                ShipmentStatus.Pending,
-                ShipmentStatus.Cancelled,
+                (null, ShipmentStatus.Pending),
+                (ShipmentStatus.Pending, ShipmentStatus.Cancelled),
             },
             orderedTransitions);
 
@@ -140,6 +134,8 @@ public class EventStreamConsolidationTests : IntegrationTestBase
         AssertMilestoneExists(events, nameof(ShipmentCancelledEvent));
         Assert.DoesNotContain(events, e => e.EventType.Contains(nameof(ShipmentDispatchedEvent), StringComparison.Ordinal));
         Assert.DoesNotContain(events, e => e.EventType.Contains(nameof(ShipmentDeliveredEvent), StringComparison.Ordinal));
+        Assert.DoesNotContain(events, e => e.EventType.Contains(nameof(ShipmentFailedEvent), StringComparison.Ordinal));
+        Assert.DoesNotContain(events, e => e.EventType.Contains(nameof(ShipmentReturnedEvent), StringComparison.Ordinal));
     }
 
     private async Task<Guid> LookupShipmentIdAsync(Guid orderId)
@@ -160,20 +156,38 @@ public class EventStreamConsolidationTests : IntegrationTestBase
         var needle = shipmentId.ToString();
         return all
             .Where(e => e.Data.Contains(needle, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(e => ReadCreatedDate(e.Data))
             .ToList();
     }
 
-    private static DateTime ReadCreatedDate(string data)
+    private static List<(ShipmentStatus? From, ShipmentStatus To)> ReadStatusTransitions(
+        IEnumerable<OutboxEvent> events)
     {
-        using var doc = JsonDocument.Parse(data);
-        return doc.RootElement.GetProperty("CreatedDate").GetDateTime();
+        // Order by OccurredAt from the payload rather than the outbox row's
+        // CreatedDate — sibling events in the same transaction can share a
+        // millisecond timestamp on CreatedDate, but OccurredAt is advanced by
+        // the test via separate HTTP calls / event dispatches.
+        return events
+            .Where(e => e.EventType.Contains(nameof(ShipmentStatusChangedEvent), StringComparison.Ordinal))
+            .Select(e => ParseStatusChanged(e.Data))
+            .OrderBy(t => t.OccurredAt)
+            .Select(t => (t.From, t.To))
+            .ToList();
     }
 
-    private static ShipmentStatus ReadToStatus(string data)
+    private static (ShipmentStatus? From, ShipmentStatus To, DateTime OccurredAt) ParseStatusChanged(string data)
     {
         using var doc = JsonDocument.Parse(data);
-        return (ShipmentStatus)doc.RootElement.GetProperty("ToStatus").GetInt32();
+        var root = doc.RootElement;
+        ShipmentStatus? from = null;
+        if (root.TryGetProperty("FromStatus", out var fromElement)
+            && fromElement.ValueKind == JsonValueKind.Number)
+        {
+            from = (ShipmentStatus)fromElement.GetInt32();
+        }
+
+        var to = (ShipmentStatus)root.GetProperty("ToStatus").GetInt32();
+        var occurredAt = root.GetProperty("OccurredAt").GetDateTime();
+        return (from, to, occurredAt);
     }
 
     private static void AssertMilestoneExists(IReadOnlyCollection<OutboxEvent> events, string eventTypeName)
