@@ -13,6 +13,7 @@ internal class ShippingContext : DbContext, IShipmentStore
     public DbSet<Warehouse> Warehouses { get; set; } = null!;
     public DbSet<Shipment> Shipments { get; set; } = null!;
     public DbSet<ShipmentLine> ShipmentLines { get; set; } = null!;
+    public DbSet<ShipmentStatusHistoryEntry> ShipmentStatusHistory { get; set; } = null!;
     public DbSet<OrderConfirmation> OrderConfirmations { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -20,6 +21,7 @@ internal class ShippingContext : DbContext, IShipmentStore
         modelBuilder.ApplyConfiguration(new WarehouseConfiguration());
         modelBuilder.ApplyConfiguration(new ShipmentConfiguration());
         modelBuilder.ApplyConfiguration(new ShipmentLineConfiguration());
+        modelBuilder.ApplyConfiguration(new ShipmentStatusHistoryEntryConfiguration());
         modelBuilder.ApplyConfiguration(new OrderConfirmationConfiguration());
     }
 
@@ -30,6 +32,13 @@ internal class ShippingContext : DbContext, IShipmentStore
             .Where(s => s.OrderId == orderId)
             .OrderBy(s => s.WarehouseId)
             .ToListAsync();
+    }
+
+    public async Task<Shipment?> GetById(Guid shipmentId)
+    {
+        return await Shipments
+            .Include(s => s.Lines)
+            .FirstOrDefaultAsync(s => s.Id == shipmentId);
     }
 
     public async Task<CreateShipmentsResult> CreateShipmentsForOrder(
@@ -50,15 +59,12 @@ internal class ShippingContext : DbContext, IShipmentStore
 
         foreach (var group in lines.GroupBy(l => l.WarehouseId))
         {
-            var shipment = new Shipment
-            {
-                Id = Guid.NewGuid(),
-                OrderId = orderId,
-                CustomerId = customerId,
-                WarehouseId = group.Key,
-                Status = ShipmentStatus.Pending,
-                CreatedAt = now,
-            };
+            var shipment = Shipment.Create(
+                id: Guid.NewGuid(),
+                orderId: orderId,
+                customerId: customerId,
+                warehouseId: group.Key,
+                createdAt: now);
 
             foreach (var line in group)
             {

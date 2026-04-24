@@ -6,6 +6,8 @@ internal interface IShipmentStore
 {
     Task<IReadOnlyList<Shipment>> GetByOrder(Guid orderId);
 
+    Task<Shipment?> GetById(Guid shipmentId);
+
     Task<CreateShipmentsResult> CreateShipmentsForOrder(
         Guid orderId,
         string customerId,

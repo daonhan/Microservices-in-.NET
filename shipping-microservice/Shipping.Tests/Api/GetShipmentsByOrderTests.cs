@@ -34,15 +34,12 @@ public class GetShipmentsByOrderTests : IntegrationTestBase
     public async Task Get_WhenShipmentsExist_ThenReturnsThem()
     {
         var orderId = Guid.NewGuid();
-        var shipment = new Shipment
-        {
-            Id = Guid.NewGuid(),
-            OrderId = orderId,
-            CustomerId = "cust-1",
-            WarehouseId = 1,
-            Status = ShipmentStatus.Pending,
-            CreatedAt = DateTime.UtcNow,
-        };
+        var shipment = Shipment.Create(
+            id: Guid.NewGuid(),
+            orderId: orderId,
+            customerId: "cust-1",
+            warehouseId: 1,
+            createdAt: DateTime.UtcNow);
         shipment.AddLine(productId: 10, quantity: 2);
         ShippingContext.Shipments.Add(shipment);
         await ShippingContext.SaveChangesAsync();

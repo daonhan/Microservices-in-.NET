@@ -24,7 +24,15 @@ internal class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
             .HasForeignKey(l => l.ShipmentId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(s => s.StatusHistory)
+            .WithOne()
+            .HasForeignKey(h => h.ShipmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Metadata.FindNavigation(nameof(Shipment.Lines))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Metadata.FindNavigation(nameof(Shipment.StatusHistory))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
     }
 }
