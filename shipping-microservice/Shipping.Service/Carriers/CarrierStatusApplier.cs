@@ -1,6 +1,7 @@
 using ECommerce.Shared.Infrastructure.Outbox;
 using Shipping.Service.IntegrationEvents;
 using Shipping.Service.Models;
+using Shipping.Service.Observability;
 
 namespace Shipping.Service.Carriers;
 
@@ -18,7 +19,8 @@ internal static class CarrierStatusApplier
         CarrierStatus status,
         ShipmentStatusSource source,
         DateTime occurredAt,
-        IOutboxStore outboxStore)
+        IOutboxStore outboxStore,
+        ShippingMetrics? metrics = null)
     {
         ArgumentNullException.ThrowIfNull(shipment);
         ArgumentNullException.ThrowIfNull(status);
@@ -31,6 +33,7 @@ internal static class CarrierStatusApplier
         }
 
         var fromStatus = shipment.Status;
+        var createdAt = shipment.CreatedAt;
 
         switch (status.Code)
         {
@@ -88,6 +91,16 @@ internal static class CarrierStatusApplier
             FromStatus: fromStatus,
             ToStatus: shipment.Status,
             OccurredAt: occurredAt));
+
+        if (metrics is not null)
+        {
+            metrics.RecordStatusChange(shipment.Status);
+            if (shipment.Status == ShipmentStatus.Delivered)
+            {
+                metrics.RecordTimeToDelivery(createdAt, occurredAt);
+            }
+        }
+
         return true;
     }
 }

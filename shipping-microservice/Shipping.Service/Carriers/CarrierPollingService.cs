@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Shipping.Service.Infrastructure.Data;
 using Shipping.Service.Models;
+using Shipping.Service.Observability;
 
 namespace Shipping.Service.Carriers;
 
@@ -79,6 +80,7 @@ internal sealed partial class CarrierPollingService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var shipmentStore = scope.ServiceProvider.GetRequiredService<IShipmentStore>();
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var metrics = scope.ServiceProvider.GetRequiredService<ShippingMetrics>();
         var carriers = scope.ServiceProvider.GetServices<ICarrierGateway>()
             .ToDictionary(c => c.CarrierKey, StringComparer.OrdinalIgnoreCase);
 
@@ -129,7 +131,8 @@ internal sealed partial class CarrierPollingService : BackgroundService
                     status,
                     ShipmentStatusSource.CarrierPoll,
                     _timeProvider.GetUtcNow().UtcDateTime,
-                    outboxStore);
+                    outboxStore,
+                    metrics);
 
                 if (applied)
                 {

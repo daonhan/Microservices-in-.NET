@@ -9,6 +9,7 @@ using Shipping.Service.Endpoints;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
 using Shipping.Service.IntegrationEvents;
 using Shipping.Service.IntegrationEvents.EventHandlers;
+using Shipping.Service.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +44,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ICarrierGateway, FakeExpressCarrierGateway>();
 builder.Services.AddSingleton<ICarrierGateway, FakeGroundCarrierGateway>();
 builder.Services.AddScoped<RateShoppingService>();
+builder.Services.AddSingleton<ShippingMetrics>();
 
 builder.Services.Configure<CarrierWebhookOptions>(options =>
 {
