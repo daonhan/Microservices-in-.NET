@@ -146,6 +146,22 @@
       "RouteClaimsRequirement": {
         "user_role": "Administrator"
       }
+    },
+    {
+      "UpstreamPathTemplate": "/shipping/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post" ],
+      "DownstreamPathTemplate": "/{everything}",
+      "DownstreamScheme": "http",
+      "DangerousAcceptAnyServerCertificateValidator": true,
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "shipping-clusterip-service",
+          "Port": 8080
+        }
+      ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer"
+      }
     }
   ]
 }
