@@ -38,9 +38,33 @@ builder.Services.AddAuthorization(options =>
         policy.RequireClaim("user_role", "Administrator"));
 });
 
+builder.Services.AddSingleton<FakeCarrierDispatchRegistry>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ICarrierGateway, FakeExpressCarrierGateway>();
 builder.Services.AddSingleton<ICarrierGateway, FakeGroundCarrierGateway>();
 builder.Services.AddScoped<RateShoppingService>();
+
+builder.Services.Configure<CarrierWebhookOptions>(options =>
+{
+    var section = builder.Configuration.GetSection(CarrierWebhookOptions.SectionName);
+    var intervalValue = section["PollingIntervalSeconds"];
+    if (!string.IsNullOrWhiteSpace(intervalValue)
+        && int.TryParse(intervalValue, System.Globalization.CultureInfo.InvariantCulture, out var interval))
+    {
+        options.PollingIntervalSeconds = interval;
+    }
+
+    foreach (var secret in section.GetSection("SharedSecrets").GetChildren())
+    {
+        if (!string.IsNullOrWhiteSpace(secret.Value))
+        {
+            options.SharedSecrets[secret.Key] = secret.Value;
+        }
+    }
+});
+
+builder.Services.AddSingleton<CarrierPollingService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<CarrierPollingService>());
 
 var app = builder.Build();
 

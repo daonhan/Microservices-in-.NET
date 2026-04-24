@@ -10,6 +10,10 @@ internal interface IShipmentStore
 
     Task<IReadOnlyList<Shipment>> ListShipments(ShipmentListFilters filters);
 
+    Task<IReadOnlyList<Shipment>> ListActiveShipments();
+
+    Task<Shipment?> GetByTrackingNumber(string trackingNumber);
+
     Task<CreateShipmentsResult> CreateShipmentsForOrder(
         Guid orderId,
         string customerId,

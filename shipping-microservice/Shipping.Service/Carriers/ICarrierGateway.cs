@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Shipping.Service.Models;
 
 namespace Shipping.Service.Carriers;
@@ -35,6 +36,8 @@ public enum CarrierStatusCode
 
 public record CarrierStatus(CarrierStatusCode Code, string? Detail);
 
+public record CarrierWebhookUpdate(string TrackingNumber, CarrierStatus Status);
+
 public interface ICarrierGateway
 {
     string CarrierKey { get; }
@@ -46,4 +49,6 @@ public interface ICarrierGateway
     Task<CarrierDispatchResult> DispatchAsync(ShipmentDispatchRequest request, CancellationToken cancellationToken = default);
 
     Task<CarrierStatus> GetStatusAsync(string trackingNumber, CancellationToken cancellationToken = default);
+
+    bool TryParseWebhookPayload(JsonElement payload, out CarrierWebhookUpdate? update);
 }

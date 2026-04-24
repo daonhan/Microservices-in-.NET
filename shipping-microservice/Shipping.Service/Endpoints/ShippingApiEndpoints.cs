@@ -1,8 +1,10 @@
 using System.Security.Claims;
+using System.Text.Json;
 using System.Transactions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Shipping.Service.ApiModels;
 using Shipping.Service.Carriers;
 using Shipping.Service.Infrastructure.Data;
@@ -285,6 +287,78 @@ public static class ShippingApiEndpoints
                 QuotedPriceAmount: quotedPrice.Amount,
                 QuotedPriceCurrency: quotedPrice.Currency));
         }).RequireAuthorization("Administrator");
+
+        routeBuilder.MapPost("/webhooks/carrier/{carrierKey}", async Task<IResult> (
+            [FromServices] IShipmentStore shipmentStore,
+            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IEnumerable<ICarrierGateway> carriers,
+            [FromServices] IOptions<CarrierWebhookOptions> options,
+            HttpRequest httpRequest,
+            string carrierKey,
+            [FromBody] JsonElement payload) =>
+        {
+            if (string.IsNullOrWhiteSpace(carrierKey))
+            {
+                return TypedResults.BadRequest("Carrier key required.");
+            }
+
+            if (!options.Value.SharedSecrets.TryGetValue(carrierKey, out var expectedSecret)
+                || string.IsNullOrWhiteSpace(expectedSecret))
+            {
+                return TypedResults.Unauthorized();
+            }
+
+            if (!httpRequest.Headers.TryGetValue("X-Carrier-Secret", out var presented)
+                || !string.Equals(presented.ToString(), expectedSecret, StringComparison.Ordinal))
+            {
+                return TypedResults.Unauthorized();
+            }
+
+            var carrier = carriers.FirstOrDefault(c =>
+                string.Equals(c.CarrierKey, carrierKey, StringComparison.OrdinalIgnoreCase));
+            if (carrier is null)
+            {
+                return TypedResults.NotFound($"Unknown carrier '{carrierKey}'.");
+            }
+
+            if (!carrier.TryParseWebhookPayload(payload, out var update) || update is null)
+            {
+                return TypedResults.BadRequest("Unable to parse carrier webhook payload.");
+            }
+
+            var shipment = await shipmentStore.GetByTrackingNumber(update.TrackingNumber);
+            if (shipment is null)
+            {
+                return TypedResults.NotFound($"No shipment found for tracking number '{update.TrackingNumber}'.");
+            }
+
+            var now = DateTime.UtcNow;
+
+            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            {
+                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+
+                var applied = await CarrierStatusApplier.ApplyAsync(
+                    shipment,
+                    update.Status,
+                    ShipmentStatusSource.CarrierWebhook,
+                    now,
+                    outboxStore);
+
+                if (applied)
+                {
+                    await shipmentStore.SaveChangesAsync();
+                }
+
+                scope.Complete();
+            });
+
+            return TypedResults.Ok(new
+            {
+                shipmentId = shipment.Id,
+                status = shipment.Status.ToString(),
+            });
+        }).AllowAnonymous();
     }
 
     private static async Task<IResult> ApplyTransitionAsync(

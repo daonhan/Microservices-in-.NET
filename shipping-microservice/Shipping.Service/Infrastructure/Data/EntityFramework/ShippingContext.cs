@@ -76,6 +76,26 @@ internal class ShippingContext : DbContext, IShipmentStore
 
     public Task<int> SaveChangesAsync() => base.SaveChangesAsync();
 
+    public async Task<IReadOnlyList<Shipment>> ListActiveShipments()
+    {
+        return await Shipments
+            .Include(s => s.Lines)
+            .Where(s => s.Status == ShipmentStatus.Shipped || s.Status == ShipmentStatus.InTransit)
+            .ToListAsync();
+    }
+
+    public async Task<Shipment?> GetByTrackingNumber(string trackingNumber)
+    {
+        if (string.IsNullOrWhiteSpace(trackingNumber))
+        {
+            return null;
+        }
+
+        return await Shipments
+            .Include(s => s.Lines)
+            .FirstOrDefaultAsync(s => s.TrackingNumber == trackingNumber);
+    }
+
     public async Task<CreateShipmentsResult> CreateShipmentsForOrder(
         Guid orderId,
         string customerId,
