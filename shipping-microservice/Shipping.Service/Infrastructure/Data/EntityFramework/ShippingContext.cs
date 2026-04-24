@@ -41,6 +41,41 @@ internal class ShippingContext : DbContext, IShipmentStore
             .FirstOrDefaultAsync(s => s.Id == shipmentId);
     }
 
+    public async Task<IReadOnlyList<Shipment>> ListShipments(ShipmentListFilters filters)
+    {
+        var query = Shipments
+            .Include(s => s.Lines)
+            .AsQueryable();
+
+        if (filters.Status is not null)
+        {
+            query = query.Where(s => s.Status == filters.Status);
+        }
+
+        if (filters.WarehouseId is not null)
+        {
+            query = query.Where(s => s.WarehouseId == filters.WarehouseId);
+        }
+
+        if (filters.From is not null)
+        {
+            query = query.Where(s => s.CreatedAt >= filters.From);
+        }
+
+        if (filters.To is not null)
+        {
+            query = query.Where(s => s.CreatedAt <= filters.To);
+        }
+
+        return await query
+            .OrderByDescending(s => s.CreatedAt)
+            .Skip(filters.Skip)
+            .Take(filters.Take)
+            .ToListAsync();
+    }
+
+    public Task<int> SaveChangesAsync() => base.SaveChangesAsync();
+
     public async Task<CreateShipmentsResult> CreateShipmentsForOrder(
         Guid orderId,
         string customerId,

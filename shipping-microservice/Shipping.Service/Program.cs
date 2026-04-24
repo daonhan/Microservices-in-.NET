@@ -19,6 +19,7 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqEventPublisher(builder.Configuration)
     .AddRabbitMqSubscriberService(builder.Configuration)
     .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
+    .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>()
     .AddEventHandler<StockCommittedEvent, StockCommittedEventHandler>();
 
 builder.AddPlatformObservability("Shipping",
