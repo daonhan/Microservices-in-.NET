@@ -3,6 +3,7 @@ using Auth.Service.Infrastructure.Data.EntityFramework;
 using Auth.Service.Services;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Observability;
+using ECommerce.Shared.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,10 +16,13 @@ builder.AddPlatformObservability("Auth",
 builder.Services.AddPlatformHealthChecks()
     .AddSqlServerProbe(builder.Configuration.GetConnectionString("Default") ?? "");
 
+builder.AddPlatformOpenApi("auth");
+
 var app = builder.Build();
 
 app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
+app.UsePlatformOpenApi();
 
 if (app.Environment.IsDevelopment())
 {

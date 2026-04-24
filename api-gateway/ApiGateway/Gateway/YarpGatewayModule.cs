@@ -1,3 +1,5 @@
+using ApiGateway.Gateway.SwaggerAggregation;
+
 namespace ApiGateway.Gateway;
 
 public static class YarpGatewayModule
@@ -9,7 +11,8 @@ public static class YarpGatewayModule
     public static void AddServices(WebApplicationBuilder builder)
     {
         builder.Services.AddReverseProxy()
-            .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+            .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
+            .AddSwaggerAggregation();
 
         builder.Services.AddAuthorization(options =>
             options.AddPolicy(AdminOnlyPolicy, policy => policy
@@ -17,6 +20,9 @@ public static class YarpGatewayModule
                 .RequireClaim(RoleClaimType, AdministratorRole)));
     }
 
-    public static void UseMiddleware(WebApplication app) =>
+    public static void UseMiddleware(WebApplication app)
+    {
+        app.UseSwaggerAggregation();
         app.MapReverseProxy();
+    }
 }
