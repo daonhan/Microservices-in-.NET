@@ -4,6 +4,7 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
+using Shipping.Service.Carriers;
 using Shipping.Service.Endpoints;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
 using Shipping.Service.IntegrationEvents;
@@ -36,6 +37,10 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("Administrator", policy =>
         policy.RequireClaim("user_role", "Administrator"));
 });
+
+builder.Services.AddSingleton<ICarrierGateway, FakeExpressCarrierGateway>();
+builder.Services.AddSingleton<ICarrierGateway, FakeGroundCarrierGateway>();
+builder.Services.AddScoped<RateShoppingService>();
 
 var app = builder.Build();
 

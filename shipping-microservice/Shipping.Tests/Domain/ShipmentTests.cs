@@ -262,4 +262,52 @@ public class ShipmentTests
         }
         return shipment;
     }
+
+    [Fact]
+    public void TryDispatch_WithCarrierDetails_FromPacked_StoresDataAndTransitions()
+    {
+        var shipment = NewShipment();
+        shipment.TryPick(CreatedAt, ShipmentStatusSource.Admin);
+        shipment.TryPack(CreatedAt, ShipmentStatusSource.Admin);
+
+        var address = new ShippingAddress("Jane", "1 Main", null, "Austin", "TX", "78701", "US");
+        var ok = shipment.TryDispatch(
+            carrierKey: "fake-ground",
+            trackingNumber: "GND-123",
+            labelRef: "label://x",
+            quotedPrice: Money.Usd(12.34m),
+            shippingAddress: address,
+            occurredAt: CreatedAt.AddHours(1),
+            source: ShipmentStatusSource.Admin);
+
+        Assert.True(ok);
+        Assert.Equal(ShipmentStatus.Shipped, shipment.Status);
+        Assert.Equal("fake-ground", shipment.CarrierKey);
+        Assert.Equal("GND-123", shipment.TrackingNumber);
+        Assert.Equal("label://x", shipment.LabelRef);
+        Assert.Equal(12.34m, shipment.QuotedPriceAmount);
+        Assert.Equal("USD", shipment.QuotedPriceCurrency);
+        Assert.Equal(address, shipment.ShippingAddress);
+    }
+
+    [Fact]
+    public void TryDispatch_WithCarrierDetails_FromPending_Fails_AndDoesNotStoreCarrierData()
+    {
+        var shipment = NewShipment();
+        var address = new ShippingAddress("Jane", "1 Main", null, "Austin", "TX", "78701", "US");
+
+        var ok = shipment.TryDispatch(
+            carrierKey: "fake-ground",
+            trackingNumber: "GND-123",
+            labelRef: "label://x",
+            quotedPrice: Money.Usd(12.34m),
+            shippingAddress: address,
+            occurredAt: CreatedAt.AddHours(1),
+            source: ShipmentStatusSource.Admin);
+
+        Assert.False(ok);
+        Assert.Equal(ShipmentStatus.Pending, shipment.Status);
+        Assert.Null(shipment.CarrierKey);
+        Assert.Null(shipment.TrackingNumber);
+    }
 }

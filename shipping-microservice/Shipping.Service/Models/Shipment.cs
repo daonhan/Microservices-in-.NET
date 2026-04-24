@@ -25,6 +25,18 @@ internal class Shipment
 
     public DateTime CreatedAt { get; private set; }
 
+    public string? CarrierKey { get; private set; }
+
+    public string? TrackingNumber { get; private set; }
+
+    public string? LabelRef { get; private set; }
+
+    public decimal? QuotedPriceAmount { get; private set; }
+
+    public string? QuotedPriceCurrency { get; private set; }
+
+    public ShippingAddress? ShippingAddress { get; private set; }
+
     public IReadOnlyCollection<ShipmentLine> Lines => _lines.AsReadOnly();
 
     public IReadOnlyList<ShipmentStatusHistoryEntry> StatusHistory => _statusHistory.AsReadOnly();
@@ -81,6 +93,47 @@ internal class Shipment
 
     public bool TryDispatch(DateTime occurredAt, ShipmentStatusSource source)
         => TryTransition(ShipmentStatus.Shipped, [ShipmentStatus.Packed], occurredAt, source, reason: null);
+
+    public bool TryDispatch(
+        string carrierKey,
+        string trackingNumber,
+        string labelRef,
+        Money quotedPrice,
+        ShippingAddress shippingAddress,
+        DateTime occurredAt,
+        ShipmentStatusSource source)
+    {
+        if (string.IsNullOrWhiteSpace(carrierKey))
+        {
+            throw new ArgumentException("Carrier key required.", nameof(carrierKey));
+        }
+
+        if (string.IsNullOrWhiteSpace(trackingNumber))
+        {
+            throw new ArgumentException("Tracking number required.", nameof(trackingNumber));
+        }
+
+        if (string.IsNullOrWhiteSpace(labelRef))
+        {
+            throw new ArgumentException("Label ref required.", nameof(labelRef));
+        }
+
+        ArgumentNullException.ThrowIfNull(quotedPrice);
+        ArgumentNullException.ThrowIfNull(shippingAddress);
+
+        if (!TryTransition(ShipmentStatus.Shipped, [ShipmentStatus.Packed], occurredAt, source, reason: null))
+        {
+            return false;
+        }
+
+        CarrierKey = carrierKey;
+        TrackingNumber = trackingNumber;
+        LabelRef = labelRef;
+        QuotedPriceAmount = quotedPrice.Amount;
+        QuotedPriceCurrency = quotedPrice.Currency;
+        ShippingAddress = shippingAddress;
+        return true;
+    }
 
     public bool TryMarkInTransit(DateTime occurredAt, ShipmentStatusSource source)
         => TryTransition(ShipmentStatus.InTransit, [ShipmentStatus.Shipped], occurredAt, source, reason: null);

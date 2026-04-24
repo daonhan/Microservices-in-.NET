@@ -4,6 +4,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Shipping.Service.ApiModels;
+using Shipping.Service.Carriers;
 using Shipping.Service.Infrastructure.Data;
 using Shipping.Service.IntegrationEvents;
 using Shipping.Service.Models;
@@ -136,6 +137,153 @@ public static class ShippingApiEndpoints
                     shipment.CustomerId,
                     now,
                     reason));
+        }).RequireAuthorization("Administrator");
+
+        routeBuilder.MapGet("/{shipmentId:guid}/quotes", async Task<IResult> (
+            [FromServices] IShipmentStore shipmentStore,
+            [FromServices] RateShoppingService rateShopping,
+            Guid shipmentId) =>
+        {
+            var shipment = await shipmentStore.GetById(shipmentId);
+            if (shipment is null)
+            {
+                return TypedResults.NotFound($"Shipment {shipmentId} not found");
+            }
+
+            var placeholderAddress = new ShippingAddress(
+                Recipient: shipment.CustomerId,
+                Line1: "TBD",
+                Line2: null,
+                City: "TBD",
+                State: null,
+                PostalCode: "00000",
+                Country: "US");
+
+            var totalQuantity = shipment.Lines.Sum(l => l.Quantity);
+            var request = new ShipmentQuoteRequest(
+                ShipmentId: shipment.Id,
+                WarehouseId: shipment.WarehouseId,
+                Destination: placeholderAddress,
+                TotalQuantity: totalQuantity);
+
+            var quotes = await rateShopping.GetRankedQuotesAsync(request);
+            return TypedResults.Ok(quotes.Select(q => new CarrierQuoteResponse(
+                q.CarrierKey,
+                q.CarrierName,
+                q.Price.Amount,
+                q.Price.Currency,
+                q.EstimatedDeliveryDays)).ToList());
+        }).RequireAuthorization("Administrator");
+
+        routeBuilder.MapPost("/{shipmentId:guid}/dispatch", async Task<IResult> (
+            [FromServices] IShipmentStore shipmentStore,
+            [FromServices] IOutboxStore outboxStore,
+            [FromServices] RateShoppingService rateShopping,
+            Guid shipmentId,
+            [FromBody] DispatchShipmentRequest request) =>
+        {
+            if (request is null || string.IsNullOrWhiteSpace(request.CarrierKey) || request.ShippingAddress is null)
+            {
+                return TypedResults.BadRequest("CarrierKey and ShippingAddress are required.");
+            }
+
+            var shipment = await shipmentStore.GetById(shipmentId);
+            if (shipment is null)
+            {
+                return TypedResults.NotFound($"Shipment {shipmentId} not found");
+            }
+
+            var carrier = rateShopping.FindCarrier(request.CarrierKey);
+            if (carrier is null)
+            {
+                return TypedResults.BadRequest($"Unknown carrier '{request.CarrierKey}'.");
+            }
+
+            var destination = new ShippingAddress(
+                Recipient: request.ShippingAddress.Recipient,
+                Line1: request.ShippingAddress.Line1,
+                Line2: request.ShippingAddress.Line2,
+                City: request.ShippingAddress.City,
+                State: request.ShippingAddress.State,
+                PostalCode: request.ShippingAddress.PostalCode,
+                Country: request.ShippingAddress.Country);
+
+            var totalQuantity = shipment.Lines.Sum(l => l.Quantity);
+
+            Money quotedPrice;
+            if (request.OverrideQuote is not null)
+            {
+                quotedPrice = new Money(request.OverrideQuote.PriceAmount, request.OverrideQuote.PriceCurrency);
+            }
+            else
+            {
+                var quote = await carrier.QuoteAsync(new ShipmentQuoteRequest(
+                    ShipmentId: shipment.Id,
+                    WarehouseId: shipment.WarehouseId,
+                    Destination: destination,
+                    TotalQuantity: totalQuantity));
+                quotedPrice = quote.Price;
+            }
+
+            var dispatchResult = await carrier.DispatchAsync(new ShipmentDispatchRequest(
+                ShipmentId: shipment.Id,
+                WarehouseId: shipment.WarehouseId,
+                Destination: destination,
+                TotalQuantity: totalQuantity));
+
+            var fromStatus = shipment.Status;
+            var now = DateTime.UtcNow;
+
+            if (!shipment.TryDispatch(
+                carrierKey: carrier.CarrierKey,
+                trackingNumber: dispatchResult.TrackingNumber,
+                labelRef: dispatchResult.LabelRef,
+                quotedPrice: quotedPrice,
+                shippingAddress: destination,
+                occurredAt: now,
+                source: ShipmentStatusSource.Admin))
+            {
+                return TypedResults.Conflict(new
+                {
+                    error = "Illegal state transition",
+                    currentStatus = shipment.Status.ToString(),
+                });
+            }
+
+            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            {
+                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+
+                await shipmentStore.SaveChangesAsync();
+
+                await outboxStore.AddOutboxEvent(new ShipmentDispatchedEvent(
+                    ShipmentId: shipment.Id,
+                    OrderId: shipment.OrderId,
+                    CustomerId: shipment.CustomerId,
+                    CarrierKey: carrier.CarrierKey,
+                    TrackingNumber: dispatchResult.TrackingNumber,
+                    QuotedPriceAmount: quotedPrice.Amount,
+                    QuotedPriceCurrency: quotedPrice.Currency,
+                    OccurredAt: now));
+
+                await outboxStore.AddOutboxEvent(new ShipmentStatusChangedEvent(
+                    shipment.Id,
+                    shipment.OrderId,
+                    FromStatus: fromStatus,
+                    ToStatus: shipment.Status,
+                    OccurredAt: now));
+
+                scope.Complete();
+            });
+
+            return TypedResults.Ok(new DispatchShipmentResponse(
+                ShipmentId: shipment.Id,
+                Status: shipment.Status.ToString(),
+                CarrierKey: carrier.CarrierKey,
+                TrackingNumber: dispatchResult.TrackingNumber,
+                LabelRef: dispatchResult.LabelRef,
+                QuotedPriceAmount: quotedPrice.Amount,
+                QuotedPriceCurrency: quotedPrice.Currency));
         }).RequireAuthorization("Administrator");
     }
 
