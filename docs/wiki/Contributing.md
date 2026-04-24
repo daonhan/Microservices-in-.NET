@@ -9,7 +9,7 @@ This page covers coding conventions and the wiki-publishing flow. Before opening
 | API style | ASP.NET Core **Minimal APIs**. Route groups per service under `Endpoints/`. |
 | DTOs | All HTTP request/response shapes live in `ApiModels/`. Never expose `Models/` entities directly. |
 | Domain | Internal entities go in `Models/`. EF configuration lives alongside the `DbContext` in `Infrastructure/Data/`. |
-| Events | New events are classes under `IntegrationEvents/` that derive from `Event`. Publish via `IEventBus` (through the Outbox). Subscribe via `IEventHandler<TEvent>` + `AddEventHandler<,>()`. |
+| Events | New events are classes under `IntegrationEvents/` that derive from `Event`. Publish via `IEventBus` (through the Outbox). Subscribe via `IEventHandler<TEvent>` + `AddEventHandler<,>()`. Shipping events follow the same pattern. |
 | Cross-cutting | Prefer an extension in [`ECommerce.Shared`](Shared-Library) over copy-paste across services. |
 | Config | Put env-var-overridable keys in `appsettings.json`. Secrets never in repo. |
 | Migrations | `dotnet ef migrations add <Descriptive_Name>` from the service project. Check the SQL script before committing. |
@@ -29,6 +29,7 @@ Substantial changes start as a PRD under [`docs/prd/`](https://github.com/daonha
 - [`PRD-Observability.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Observability.md)
 - [`PRD-ApiGateway-Yarp.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-ApiGateway-Yarp.md)
 - [`PRD-Wiki.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Wiki.md)
+
 
 ## Editing the Wiki
 
@@ -62,6 +63,10 @@ git add -A
 git commit -m "Sync wiki from docs/wiki/"
 git push origin master
 ```
+
+### Ralph automation
+
+For agent-driven development and feedback loops, see the `ralph/` folder for Bash/PowerShell scripts and prompt design. These automate PRD, plan, and documentation workflows.
 
 ## Commit style
 

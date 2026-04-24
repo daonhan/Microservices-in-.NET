@@ -45,6 +45,23 @@ Consolidated listing of every public HTTP endpoint exposed through the Gateway. 
 | `POST` | `/inventory/{productId}/restock` | Inventory `/{productId}/restock` | Bearer + `Administrator` |
 | `POST` | `/inventory/{productId}/backorder` | Inventory backorder handler | Bearer |
 
+## Shipping — [Service-Shipping](Service-Shipping)
+
+| Method | Gateway route | Downstream | Auth |
+|---|---|---|---|
+| `GET` | `/shipping/by-order/{orderId}` | Shipping `/by-order/{orderId}` | Bearer |
+| `GET` | `/shipping/{shipmentId}` | Shipping `/{shipmentId}` | Bearer |
+| `GET` | `/shipping` | Shipping `/` | Bearer + `Administrator` |
+| `POST` | `/shipping/{shipmentId}/pick` | Shipping `/{shipmentId}/pick` | Bearer + `Administrator` |
+| `POST` | `/shipping/{shipmentId}/pack` | Shipping `/{shipmentId}/pack` | Bearer + `Administrator` |
+| `POST` | `/shipping/{shipmentId}/cancel` | Shipping `/{shipmentId}/cancel` | Bearer + `Administrator` |
+| `POST` | `/shipping/{shipmentId}/deliver` | Shipping `/{shipmentId}/deliver` | Bearer + `Administrator` |
+| `POST` | `/shipping/{shipmentId}/fail` | Shipping `/{shipmentId}/fail` | Bearer + `Administrator` |
+| `POST` | `/shipping/{shipmentId}/return` | Shipping `/{shipmentId}/return` | Bearer + `Administrator` |
+| `GET` | `/shipping/{shipmentId}/quotes` | Shipping `/{shipmentId}/quotes` | Bearer + `Administrator` |
+| `POST` | `/shipping/{shipmentId}/dispatch` | Shipping `/{shipmentId}/dispatch` | Bearer + `Administrator` |
+| `POST` | `/shipping/webhooks/carrier/{carrierKey}` | Shipping `/webhooks/carrier/{carrierKey}` | None (shared secret) |
+
 ## Cross-cutting endpoints (every service)
 
 | Route | Purpose |

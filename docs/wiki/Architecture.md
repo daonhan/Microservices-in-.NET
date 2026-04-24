@@ -12,19 +12,23 @@ graph TD
     GW --> Product["Product<br/>:8002"]
     GW --> Auth["Auth<br/>:8003"]
     GW --> Inventory["Inventory<br/>:8005"]
+    GW --> Shipping["Shipping<br/>:8006"]
 
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL · Order)]
     Product --- SQLProduct[(SQL · Product)]
     Auth --- SQLAuth[(SQL · Auth)]
     Inventory --- SQLInventory[(SQL · Inventory)]
+    Shipping --- SQLShipping[(SQL · Shipping)]
 
     Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>ecommerce-exchange"}}
     Product -- publishes --> RabbitMQ
     Inventory -- publishes --> RabbitMQ
+    Shipping -- publishes --> RabbitMQ
     RabbitMQ -- subscribes --> Basket
     RabbitMQ -- subscribes --> Order
     RabbitMQ -- subscribes --> Inventory
+    RabbitMQ -- subscribes --> Shipping
 ```
 
 ## Core design rules
@@ -38,9 +42,10 @@ graph TD
 | **DTO vs Domain separation** | `ApiModels/` holds request/response DTOs; `Models/` holds internal domain entities. |
 | **Shared cross-cutting library** | `ECommerce.Shared` centralizes JWT, EventBus, Outbox, Observability, Health — see [Shared-Library](Shared-Library). |
 
-## Saga: Order ↔ Inventory
 
-The Order and Inventory services coordinate via a choreographed saga. There is no orchestrator service — each participant reacts to events and emits its own.
+## Saga: Order ↔ Inventory ↔ Shipping
+
+Order, Inventory, and Shipping coordinate via a choreographed saga. Each participant reacts to events and emits its own.
 
 ```mermaid
 sequenceDiagram
@@ -48,6 +53,7 @@ sequenceDiagram
     participant Order
     participant Bus as RabbitMQ
     participant Inventory
+    participant Shipping
 
     Client->>Order: POST /order/{customerId}
     Order->>Order: Persist Order + outbox (one tx)
@@ -61,6 +67,10 @@ sequenceDiagram
         Bus-->>Inventory: OrderConfirmedEvent
         Inventory->>Inventory: Commit reservation
         Inventory-->>Bus: StockCommittedEvent
+        Bus-->>Shipping: StockCommittedEvent
+        Shipping-->>Bus: ShipmentCreatedEvent
+        Shipping-->>Bus: ShipmentDispatchedEvent
+        Shipping-->>Bus: ShipmentDeliveredEvent
     else Insufficient stock
         Inventory-->>Bus: StockReservationFailedEvent
         Bus-->>Order: StockReservationFailedEvent
@@ -68,6 +78,8 @@ sequenceDiagram
         Bus-->>Inventory: OrderCancelledEvent
         Inventory->>Inventory: Release reservation
         Inventory-->>Bus: StockReleasedEvent
+        Bus-->>Shipping: OrderCancelledEvent
+        Shipping-->>Bus: ShipmentCancelledEvent
     end
 ```
 

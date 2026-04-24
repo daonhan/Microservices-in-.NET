@@ -10,22 +10,31 @@ All cross-service communication happens through events published to a single Rab
 | `ProductPriceUpdatedEvent` | Product | [Basket](Service-Basket) |
 | `OrderCreatedEvent` | [Order](Service-Order) | [Basket](Service-Basket), [Inventory](Service-Inventory) |
 | `OrderConfirmedEvent` | Order | Inventory |
-| `OrderCancelledEvent` | Order | Inventory |
+| `OrderCancelledEvent` | Order | Inventory, [Shipping](Service-Shipping) |
 | `StockReservedEvent` | Inventory | Order |
 | `StockReservationFailedEvent` | Inventory | Order |
-| `StockCommittedEvent` | Inventory | — (ops/audit) |
+| `StockCommittedEvent` | Inventory | [Shipping](Service-Shipping) |
 | `StockReleasedEvent` | Inventory | — (ops/audit) |
 | `StockAdjustedEvent` | Inventory | — (ops/audit) |
 | `StockDepletedEvent` | Inventory | — (ops/audit) |
 | `LowStockEvent` | Inventory | — (ops/audit) |
+| `ShipmentCreatedEvent` | [Shipping](Service-Shipping) | — (ops/audit) |
+| `ShipmentDispatchedEvent` | Shipping | — (ops/audit) |
+| `ShipmentDeliveredEvent` | Shipping | — (ops/audit) |
+| `ShipmentCancelledEvent` | Shipping | — (ops/audit) |
+| `ShipmentFailedEvent` | Shipping | — (ops/audit) |
+| `ShipmentReturnedEvent` | Shipping | — (ops/audit) |
+| `ShipmentStatusChangedEvent` | Shipping | — (ops/audit) |
 
-## Saga sequence
+
+## Saga and fulfillment sequence
 
 ```mermaid
 sequenceDiagram
     participant Order
     participant Bus as RabbitMQ
     participant Inventory
+    participant Shipping
 
     Order-->>Bus: OrderCreatedEvent
     Bus-->>Inventory: OrderCreatedEvent
@@ -35,12 +44,19 @@ sequenceDiagram
         Order-->>Bus: OrderConfirmedEvent
         Bus-->>Inventory: OrderConfirmedEvent
         Inventory-->>Bus: StockCommittedEvent
+        Bus-->>Shipping: StockCommittedEvent
+        Shipping-->>Bus: ShipmentCreatedEvent
+        ... Shipping transitions ...
+        Shipping-->>Bus: ShipmentDispatchedEvent
+        Shipping-->>Bus: ShipmentDeliveredEvent
     else insufficient stock
         Inventory-->>Bus: StockReservationFailedEvent
         Bus-->>Order: StockReservationFailedEvent
         Order-->>Bus: OrderCancelledEvent
         Bus-->>Inventory: OrderCancelledEvent
         Inventory-->>Bus: StockReleasedEvent
+        Bus-->>Shipping: OrderCancelledEvent
+        Shipping-->>Bus: ShipmentCancelledEvent
     end
 ```
 
@@ -51,11 +67,13 @@ All events derive from the shared `Event` base class (see [Shared-Library](Share
 - `Id` — a unique identifier used for idempotency on the subscriber side
 - `OccurredAt` — UTC timestamp
 
-Concrete payloads (product id, order id, quantities, prices) live alongside the event type in each service's `IntegrationEvents/` folder — that folder is the authoritative schema. Link targets per event:
+
+Concrete payloads (product id, order id, quantities, prices, shipment id, carrier info, etc.) live alongside the event type in each service's `IntegrationEvents/` folder — that folder is the authoritative schema. Link targets per event:
 
 - Product events: [`product-microservice/Product.Service/IntegrationEvents/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/product-microservice/Product.Service/IntegrationEvents)
 - Order events: [`order-microservice/Order.Service/IntegrationEvents/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/order-microservice/Order.Service/IntegrationEvents)
 - Inventory events: [`inventory-microservice/Inventory.Service/IntegrationEvents/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/inventory-microservice/Inventory.Service/IntegrationEvents)
+- Shipping events: [`shipping-microservice/Shipping.Service/IntegrationEvents/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/shipping-microservice/Shipping.Service/IntegrationEvents)
 
 ## Delivery semantics
 
