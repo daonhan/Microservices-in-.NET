@@ -3,6 +3,7 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
+using ECommerce.Shared.OpenApi;
 using OpenTelemetry.Metrics;
 using Order.Service.Endpoints;
 using Order.Service.Infrastructure.Data.EntityFramework;
@@ -17,8 +18,7 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 
 builder.Services.AddOutbox(builder.Configuration);
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.AddPlatformOpenApi("order");
 
 builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqEventPublisher(builder.Configuration)
@@ -46,8 +46,7 @@ if (app.Environment.IsDevelopment())
     app.ApplyOutboxMigrations();
 }
 
-app.UseSwagger();
-app.UseSwaggerUI();
+app.UsePlatformOpenApi();
 
 app.RegisterEndpoints();
 

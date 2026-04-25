@@ -7,6 +7,7 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
+using ECommerce.Shared.OpenApi;
 using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,14 +28,12 @@ builder.Services.AddPlatformHealthChecks()
     .AddRedisProbe(builder.Configuration["Redis:Configuration"] ?? "localhost:6379")
     .AddRabbitMqProbe(builder.Configuration["RabbitMq:HostName"] ?? "localhost");
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.AddPlatformOpenApi("basket");
 
 var app = builder.Build();
 app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
-app.UseSwagger();
-app.UseSwaggerUI();
+app.UsePlatformOpenApi();
 
 app.RegisterEndpoints();
 

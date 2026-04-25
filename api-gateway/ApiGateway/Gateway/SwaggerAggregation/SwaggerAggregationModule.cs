@@ -16,6 +16,10 @@ public static class SwaggerAggregationModule
         {
             ["swagger-auth-spec"] = new("auth", "Auth", "auth-cluster", "/swagger/auth/v1/swagger.json"),
             ["swagger-product-spec"] = new("product", "Product", "product-cluster", "/swagger/product/v1/swagger.json"),
+            ["swagger-basket-spec"] = new("basket", "Basket", "basket-cluster", "/swagger/basket/v1/swagger.json"),
+            ["swagger-order-spec"] = new("order", "Order", "order-cluster", "/swagger/order/v1/swagger.json"),
+            ["swagger-inventory-spec"] = new("inventory", "Inventory", "inventory-cluster", "/swagger/inventory/v1/swagger.json"),
+            ["swagger-shipping-spec"] = new("shipping", "Shipping", "shipping-cluster", "/swagger/shipping/v1/swagger.json"),
         };
 
     public static IReverseProxyBuilder AddSwaggerAggregation(this IReverseProxyBuilder proxy) =>

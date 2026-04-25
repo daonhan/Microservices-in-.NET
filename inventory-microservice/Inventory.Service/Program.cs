@@ -4,6 +4,7 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
+using ECommerce.Shared.OpenApi;
 using Inventory.Service.Endpoints;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
 using Inventory.Service.IntegrationEvents;
@@ -41,10 +42,13 @@ builder.Services.AddAuthorization(options =>
         policy.RequireClaim("user_role", "Administrator"));
 });
 
+builder.AddPlatformOpenApi("inventory");
+
 var app = builder.Build();
 
 app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
+app.UsePlatformOpenApi();
 
 if (app.Environment.IsDevelopment())
 {

@@ -4,6 +4,7 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
+using ECommerce.Shared.OpenApi;
 using Shipping.Service.Carriers;
 using Shipping.Service.Endpoints;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
@@ -68,10 +69,13 @@ builder.Services.Configure<CarrierWebhookOptions>(options =>
 builder.Services.AddSingleton<CarrierPollingService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<CarrierPollingService>());
 
+builder.AddPlatformOpenApi("shipping");
+
 var app = builder.Build();
 
 app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
+app.UsePlatformOpenApi();
 
 if (app.Environment.IsDevelopment())
 {
