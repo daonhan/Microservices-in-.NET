@@ -15,6 +15,7 @@
 - [Order](Service-Order)
 - [Product](Service-Product)
 - [Inventory](Service-Inventory)
+- [Shipping](Service-Shipping)
 
 **Reference**
 - [API-Reference](API-Reference)

@@ -22,12 +22,15 @@ Verify endpoints:
 | Endpoint | URL |
 |---|---|
 | API Gateway | http://localhost:8004 |
+| Combined Swagger UI (dev/staging only) | http://localhost:8004/swagger |
 | RabbitMQ Management | http://localhost:15672 (guest/guest) |
 | Jaeger UI | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |
 | Alertmanager | http://localhost:9093 |
 | Grafana | http://localhost:3000 |
 | Loki | http://localhost:3100 |
+
+The Swagger UI is the easiest way to explore endpoints across all services: pick a service from the dropdown, click **Authorize**, paste a JWT returned by `POST /login`, and Try-it-out works for every service through the gateway. See [Service-API-Gateway § Combined Swagger UI](Service-API-Gateway#combined-swagger-ui).
 
 ## Option B — Run one service against shared infra
 
@@ -65,11 +68,13 @@ If any of these fail, start with [Troubleshooting](Troubleshooting).
 ## Running the tests
 
 ```bash
-cd auth-microservice    && dotnet test
-cd basket-microservice  && dotnet test
-cd order-microservice   && dotnet test
-cd product-microservice && dotnet test
+cd auth-microservice      && dotnet test
+cd basket-microservice    && dotnet test
+cd order-microservice     && dotnet test
+cd product-microservice   && dotnet test
 cd inventory-microservice && dotnet test
+cd shipping-microservice  && dotnet test
+cd api-gateway            && dotnet test
 ```
 
 Integration tests provision isolated SQL Server databases via `WebApplicationFactory<Program>` and clean up via `IAsyncLifetime`. See [Testing](Testing).

@@ -36,6 +36,7 @@ graph LR
 | `AddPlatformObservability()` | OTLP traces + Prometheus metrics + OTLP logs |
 | `AddPlatformHealthChecks()` + `MapPlatformHealthChecks()` | `/health/live`, `/health/ready` |
 | `AddSqlServerProbe()`, `AddRedisProbe()`, `AddRabbitMqProbe()` | Per-dependency readiness probes |
+| `AddPlatformOpenApi()` + `UsePlatformOpenApi()` | Swashbuckle with the platform-wide JWT Bearer security scheme and XML-comment pickup; UI is gateway-only, so services expose `GET /swagger/v1/swagger.json` (dev/staging) and the gateway aggregates them — see [Service-API-Gateway § Combined Swagger UI](Service-API-Gateway#combined-swagger-ui) |
 
 ## Key abstractions
 

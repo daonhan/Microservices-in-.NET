@@ -10,6 +10,7 @@ A snapshot of where the platform is heading. Intent here is aspirational; author
 - ✅ Inventory service with reservations, movements, backorders — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Inventory.md)
 - ✅ Order ↔ Inventory saga
 - ✅ Shipping service: post-confirmation fulfillment, carrier integration, event-driven state machine — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Shipping.md)
+- ✅ Combined Swagger UI at the gateway (OpenAPI aggregation, dev/staging only) — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-ApiGateway-OpenApi-Aggregation.md)
 - ✅ Full observability stack (Jaeger, Prometheus, Alertmanager, Grafana, Loki) with alerts — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Observability.md)
 - ✅ Kubernetes manifests for services + infra + observability
 - ✅ Public Wiki (this wiki) — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Wiki.md)
@@ -27,7 +28,6 @@ These are ideas, not commitments.
 
 - **Auto-sync wiki from `main`** — GitHub Action to mirror `docs/wiki/` → wiki remote on merge, removing the manual publish step from [Contributing](Contributing#editing-the-wiki).
 - **Payment service** — close the checkout loop with a payment microservice participating in the saga.
-- **OpenAPI aggregation at the Gateway** — surface a combined Swagger UI.
 - **Dead-letter queue + replay UI** — operator tool for failed events.
 - **Identity Server / OIDC** instead of the hand-rolled JWT issuer.
 - **Multi-tenancy** — tenant-scoped datastores and row-level auth.

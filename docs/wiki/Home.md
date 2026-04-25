@@ -8,23 +8,27 @@ If you just want to clone and run it, see the repository [README](https://github
 
 ```mermaid
 graph TD
-    Client([Client]) --> GW["API Gateway<br/>YARP · :8004<br/>JWT auth + routing"]
+    Client([Client]) --> GW["API Gateway<br/>YARP · :8004<br/>JWT auth + routing<br/>combined Swagger UI"]
     GW --> Basket["Basket<br/>:8000"]
     GW --> Order["Order<br/>:8001"]
     GW --> Product["Product<br/>:8002"]
     GW --> Auth["Auth<br/>:8003"]
     GW --> Inventory["Inventory<br/>:8005"]
+    GW --> Shipping["Shipping<br/>:8006"]
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL Server)]
     Product --- SQLProduct[(SQL Server)]
     Auth --- SQLAuth[(SQL Server)]
     Inventory --- SQLInventory[(SQL Server)]
+    Shipping --- SQLShipping[(SQL Server)]
     Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>fanout exchange"}}
     Product -- publishes --> RabbitMQ
     Inventory -- publishes --> RabbitMQ
+    Shipping -- publishes --> RabbitMQ
     RabbitMQ -- subscribes --> Basket
     RabbitMQ -- subscribes --> Order
     RabbitMQ -- subscribes --> Inventory
+    RabbitMQ -- subscribes --> Shipping
 ```
 
 See [Architecture](Architecture) for the full story.
@@ -35,7 +39,8 @@ See [Architecture](Architecture) for the full story.
 |---|---|
 | Run the platform locally | [Getting-Started](Getting-Started) |
 | Understand the design | [Architecture](Architecture) |
-| Learn one service | [Service-Basket](Service-Basket) · [Service-Order](Service-Order) · [Service-Product](Service-Product) · [Service-Auth](Service-Auth) · [Service-Inventory](Service-Inventory) · [Service-API-Gateway](Service-API-Gateway) |
+| Learn one service | [Service-Basket](Service-Basket) · [Service-Order](Service-Order) · [Service-Product](Service-Product) · [Service-Auth](Service-Auth) · [Service-Inventory](Service-Inventory) · [Service-Shipping](Service-Shipping) · [Service-API-Gateway](Service-API-Gateway) |
+| Try the API in a browser | Combined Swagger UI at `http://localhost:8004/swagger` (dev/staging only) |
 | See all HTTP endpoints | [API-Reference](API-Reference) |
 | Trace cross-service events | [Integration-Events](Integration-Events) |
 | Learn the shared building blocks | [Shared-Library](Shared-Library) |
