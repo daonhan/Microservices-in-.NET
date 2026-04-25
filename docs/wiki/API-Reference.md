@@ -1,5 +1,7 @@
 # API Reference
 
+> **Deprecated — prefer the combined Swagger UI.** The gateway now serves a live, code-generated Swagger UI at [`http://localhost:8004/swagger`](http://localhost:8004/swagger) (Development/Staging only) that aggregates every service behind a dropdown. Paths, schemas, and auth requirements there are derived from the running services and never drift. This page is kept as a quick at-a-glance reference but will be retired once adoption settles.
+
 Consolidated listing of every public HTTP endpoint exposed through the Gateway. For individual service deep-dives see the per-service pages.
 
 > **Maintainer note** — when you add or change an endpoint, update this page in the same PR. The endpoint source files are the authoritative schema.

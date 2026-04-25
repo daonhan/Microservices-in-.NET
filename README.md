@@ -133,12 +133,25 @@ dotnet run
 | Endpoint | URL |
 |----------|-----|
 | API Gateway | http://localhost:8004 |
+| Combined Swagger UI | http://localhost:8004/swagger (Development/Staging only) |
 | RabbitMQ Management | http://localhost:15672 (guest/guest) |
 | Jaeger UI | http://localhost:16686 |
 | Prometheus | http://localhost:9090 |
 | Alertmanager | http://localhost:9093 |
 | Grafana | http://localhost:3000 (anonymous admin) |
 | Loki | http://localhost:3100 |
+
+### Try the API from Swagger UI
+
+The combined Swagger UI at `http://localhost:8004/swagger` aggregates every gateway-routed endpoint behind a service dropdown (Auth, Product, Basket, Order, Inventory, Shipping). All paths and security annotations match what the gateway actually exposes, so "Try it out" exercises real routing and auth.
+
+To call authenticated endpoints:
+
+1. From the **Auth** dropdown, run `POST /login` with valid credentials. Copy the JWT from the response body.
+2. Click **Authorize** at the top of the page, paste `Bearer <token>` (or just the token, depending on your Swagger UI version) into the value box, and confirm.
+3. Switch to any other service in the dropdown — `AdminOnly` operations require an Administrator-claim token; `Default` operations accept any valid Bearer token.
+
+The UI is gated to Development and Staging environments. Production gateway binaries return 404 on every `/swagger*` URL.
 
 ## Shared Library
 
