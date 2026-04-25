@@ -30,9 +30,14 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         Client = client;
     }
 
-    public static Task<GatewayTestHarness> CreateAsync(string provider, string downstreamStubBaseUrl)
+    public static Task<GatewayTestHarness> CreateAsync(
+        string provider,
+        string downstreamStubBaseUrl,
+        string? environmentName = null)
     {
-        var builder = WebApplication.CreateBuilder();
+        var builder = environmentName is null
+            ? WebApplication.CreateBuilder()
+            : WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environmentName });
 
         // Set provider and downstream addresses BEFORE service registration reads them
         builder.Configuration["Gateway:Provider"] = provider;
@@ -46,7 +51,7 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
             foreach (var cluster in new[]
             {
                 "auth-cluster", "product-cluster", "basket-cluster",
-                "order-cluster", "inventory-cluster"
+                "order-cluster", "inventory-cluster", "shipping-cluster"
             })
             {
                 builder.Configuration[$"ReverseProxy:Clusters:{cluster}:Destinations:default:Address"]
