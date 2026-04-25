@@ -35,6 +35,8 @@ public class SwaggerAggregationIntegrationTests : IAsyncLifetime, IDisposable
     [InlineData("basket")]
     [InlineData("order")]
     [InlineData("inventory")]
+    [InlineData("shipping")]
+    [InlineData("payment")]
     public async Task ServiceSpec_InDevelopment_Returns200Json(string serviceTag)
     {
         await using var harness = await GatewayTestHarness.CreateAsync("Yarp", _stub.BaseUrl, "Development");
@@ -84,6 +86,7 @@ public class SwaggerAggregationIntegrationTests : IAsyncLifetime, IDisposable
     [InlineData("/swagger/order/v1/swagger.json")]
     [InlineData("/swagger/inventory/v1/swagger.json")]
     [InlineData("/swagger/shipping/v1/swagger.json")]
+    [InlineData("/swagger/payment/v1/swagger.json")]
     public async Task ServiceSpec_InProduction_Returns404(string path)
     {
         await using var harness = await GatewayTestHarness.CreateAsync("Yarp", _stub.BaseUrl, "Production");

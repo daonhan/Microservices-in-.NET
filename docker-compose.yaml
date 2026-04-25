@@ -87,6 +87,24 @@ services:
       - "OpenTelemetry__EnableConsoleExporters=false"
       - "OpenTelemetry__Environment=Development"
 
+  payment:
+    container_name: payment
+    build:
+      context: .
+      dockerfile: ./payment-microservice/Payment.Service/Dockerfile
+    ports:
+      - "8007:8080"
+    restart: unless-stopped
+    environment:
+      - "ASPNETCORE_ENVIRONMENT=Development"
+      - "RabbitMq__HostName=host.docker.internal"
+      - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Payment;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
+      - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
+      - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
+      - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
+      - "OpenTelemetry__EnableConsoleExporters=false"
+      - "OpenTelemetry__Environment=Development"
+
   auth:
     container_name: auth
     build:
@@ -121,6 +139,7 @@ services:
       - "ReverseProxy__Clusters__order-cluster__Destinations__default__Address=http://order:8080"
       - "ReverseProxy__Clusters__inventory-cluster__Destinations__default__Address=http://inventory:8080"
       - "ReverseProxy__Clusters__shipping-cluster__Destinations__default__Address=http://shipping:8080"
+      - "ReverseProxy__Clusters__payment-cluster__Destinations__default__Address=http://payment:8080"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
       - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
       - "OpenTelemetry__EnableConsoleExporters=false"

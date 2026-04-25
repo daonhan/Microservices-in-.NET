@@ -39,12 +39,12 @@ A new Payment microservice that starts, connects to its own SQL database via EF 
 
 ### Acceptance criteria
 
-- [ ] `payment-microservice/Payment.Service/` and `payment-microservice/Payment.Tests/` exist mirroring the Shipping project layout.
+- [x] `payment-microservice/Payment.Service/` and `payment-microservice/Payment.Tests/` exist mirroring the Shipping project layout.
 - [ ] `docker compose up --build payment` starts the container, EF migrations create the `Payment` database, container reports healthy.
 - [ ] `GET http://localhost:8004/payment/health/ready` returns 200 through the gateway.
 - [ ] Combined Swagger at `http://localhost:8004/swagger` enumerates Payment routes.
 - [ ] A trace from a health-check call appears in Jaeger; a `payments_total` counter is registered (zero) in Prometheus.
-- [ ] `kubernetes/payment-microservice.yaml` mirrors the Shipping manifest.
+- [x] `kubernetes/payment-microservice.yaml` mirrors the Shipping manifest.
 
 ---
 

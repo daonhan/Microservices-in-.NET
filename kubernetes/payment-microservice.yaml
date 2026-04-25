@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paymentservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paymentservice
+  template:
+    metadata:
+      labels:
+        app: paymentservice
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+        - name: paymentservice
+          image: <USERNAME>/paymentservice:latest
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Development
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: RabbitMq__HostName
+              value: rabbitmq-clusterip-service
+            - name: ConnectionStrings__Default
+              value: Server=mssql-clusterip-service,1433;Database=Payment;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True
+            - name: Authentication__AuthMicroserviceBaseAddress
+              value: http://auth-clusterip-service:8080
+            - name: OpenTelemetry__OtlpExporterEndpoint
+              value: http://jaeger-clusterip-service:4317
+            - name: OpenTelemetry__LogsOtlpExporterEndpoint
+              value: http://otel-collector:4317
+            - name: OpenTelemetry__SamplingRatio
+              value: "0.1"
+            - name: OpenTelemetry__ServiceVersion
+              value: "1.0.0"
+            - name: OpenTelemetry__Environment
+              value: Production
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-clusterip-service
+spec:
+  type: ClusterIP
+  selector:
+    app: paymentservice
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paymentservice-loadbalancer
+spec:
+  type: LoadBalancer
+  selector:
+    app: paymentservice
+  ports:
+    - protocol: TCP
+      port: 8007
+      targetPort: 8080

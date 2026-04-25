@@ -51,7 +51,8 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
             foreach (var cluster in new[]
             {
                 "auth-cluster", "product-cluster", "basket-cluster",
-                "order-cluster", "inventory-cluster", "shipping-cluster"
+                "order-cluster", "inventory-cluster", "shipping-cluster",
+                "payment-cluster"
             })
             {
                 builder.Configuration[$"ReverseProxy:Clusters:{cluster}:Destinations:default:Address"]
