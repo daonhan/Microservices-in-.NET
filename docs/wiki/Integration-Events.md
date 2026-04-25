@@ -46,7 +46,7 @@ sequenceDiagram
         Inventory-->>Bus: StockCommittedEvent
         Bus-->>Shipping: StockCommittedEvent
         Shipping-->>Bus: ShipmentCreatedEvent
-        ... Shipping transitions ...
+        Note over Shipping: pick · pack · dispatch · in-transit
         Shipping-->>Bus: ShipmentDispatchedEvent
         Shipping-->>Bus: ShipmentDeliveredEvent
     else insufficient stock
