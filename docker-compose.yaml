@@ -6,6 +6,7 @@ services:
       dockerfile: ./product-microservice/Product.Service/Dockerfile
     ports:
       - "8002:8080"
+    restart: unless-stopped
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "RabbitMq__HostName=host.docker.internal"
@@ -23,6 +24,7 @@ services:
       dockerfile: ./order-microservice/Order.Service/Dockerfile
     ports:
       - "8001:8080"
+    restart: unless-stopped
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "RabbitMq__HostName=host.docker.internal"
@@ -39,6 +41,7 @@ services:
       dockerfile: ./basket-microservice/Basket.Service/Dockerfile
     ports:
       - "8000:8080"
+    restart: unless-stopped
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "RabbitMq__HostName=host.docker.internal"
@@ -55,6 +58,7 @@ services:
       dockerfile: ./inventory-microservice/Inventory.Service/Dockerfile
     ports:
       - "8005:8080"
+    restart: unless-stopped
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "RabbitMq__HostName=host.docker.internal"
@@ -72,6 +76,7 @@ services:
       dockerfile: ./shipping-microservice/Shipping.Service/Dockerfile
     ports:
       - "8006:8080"
+    restart: unless-stopped
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "RabbitMq__HostName=host.docker.internal"
@@ -89,6 +94,7 @@ services:
       dockerfile: ./auth-microservice/Auth.Service/Dockerfile
     ports:
       - "8003:8080"
+    restart: unless-stopped
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Auth;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
@@ -105,8 +111,16 @@ services:
       dockerfile: ./api-gateway/ApiGateway/Dockerfile
     ports:
       - "8004:8080"
+    restart: unless-stopped
     environment:
+      - "ASPNETCORE_ENVIRONMENT=Development"
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
+      - "ReverseProxy__Clusters__auth-cluster__Destinations__default__Address=http://auth:8080"
+      - "ReverseProxy__Clusters__product-cluster__Destinations__default__Address=http://product:8080"
+      - "ReverseProxy__Clusters__basket-cluster__Destinations__default__Address=http://basket:8080"
+      - "ReverseProxy__Clusters__order-cluster__Destinations__default__Address=http://order:8080"
+      - "ReverseProxy__Clusters__inventory-cluster__Destinations__default__Address=http://inventory:8080"
+      - "ReverseProxy__Clusters__shipping-cluster__Destinations__default__Address=http://shipping:8080"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
       - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
       - "OpenTelemetry__EnableConsoleExporters=false"

@@ -22,7 +22,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasData(
             new User
             {
-                Id = Guid.NewGuid(),
+                Id = new Guid("d854813c-4a72-4afd-b431-878cba3ecf2a"),
                 Username = "microservices@code-maze.com",
                 Password = "oKNrqkO7iC#G",
                 Role = "Administrator"
