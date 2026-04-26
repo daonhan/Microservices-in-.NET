@@ -6,7 +6,11 @@ using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using Payment.Service.Endpoints;
+using Payment.Service.Infrastructure.Data;
 using Payment.Service.Infrastructure.Data.EntityFramework;
+using Payment.Service.Infrastructure.Gateways;
+using Payment.Service.IntegrationEvents.EventHandlers;
+using Payment.Service.IntegrationEvents.Events;
 using Payment.Service.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,9 +19,13 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 
 builder.Services.AddOutbox(builder.Configuration);
 
+builder.Services.AddSingleton<IPaymentGateway, InMemoryPaymentGateway>();
+
 builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqEventPublisher(builder.Configuration)
-    .AddRabbitMqSubscriberService(builder.Configuration);
+    .AddRabbitMqSubscriberService(builder.Configuration)
+    .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
+    .AddEventHandler<StockReservedEvent, StockReservedEventHandler>();
 
 builder.AddPlatformObservability("Payment",
     customTracing: t => t.WithSqlInstrumentation());

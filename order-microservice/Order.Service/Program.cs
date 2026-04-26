@@ -26,7 +26,7 @@ builder.AddPlatformOpenApi("order");
 builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqEventPublisher(builder.Configuration)
     .AddRabbitMqSubscriberService(builder.Configuration)
-    .AddEventHandler<StockReservedEvent, StockReservedEventHandler>()
+    .AddEventHandler<PaymentAuthorizedEvent, PaymentAuthorizedEventHandler>()
     .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>();
 
 builder.AddPlatformObservability(serviceName,

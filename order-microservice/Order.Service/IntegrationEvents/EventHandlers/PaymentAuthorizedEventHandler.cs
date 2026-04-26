@@ -8,18 +8,18 @@ using Order.Service.Models;
 
 namespace Order.Service.IntegrationEvents.EventHandlers;
 
-internal class StockReservedEventHandler : IEventHandler<StockReservedEvent>
+internal class PaymentAuthorizedEventHandler : IEventHandler<PaymentAuthorizedEvent>
 {
     private readonly IOrderStore _orderStore;
     private readonly IOutboxStore _outboxStore;
 
-    public StockReservedEventHandler(IOrderStore orderStore, IOutboxStore outboxStore)
+    public PaymentAuthorizedEventHandler(IOrderStore orderStore, IOutboxStore outboxStore)
     {
         _orderStore = orderStore;
         _outboxStore = outboxStore;
     }
 
-    public async Task Handle(StockReservedEvent @event)
+    public async Task Handle(PaymentAuthorizedEvent @event)
     {
         await _outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
         {

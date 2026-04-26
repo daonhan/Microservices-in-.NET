@@ -77,12 +77,12 @@ Wire Payment as a saga participant. On `StockReservedEvent`, Payment creates a `
 
 ### Acceptance criteria
 
-- [ ] `Payment` aggregate exists with `TryAuthorize`, `TryFail`, `TryCapture`, `TryRefund`. Aggregate unit tests cover every legal transition (success) and every illegal transition (throws). No DB, no DI in these tests.
-- [ ] Payment's `StockReservedEventHandler` creates a row, authorizes via `InMemoryPaymentGateway`, transitions `Pending → Authorized`, emits `PaymentAuthorizedEvent` through outbox in the same transaction.
-- [ ] Order's `PaymentAuthorizedEventHandler` publishes `OrderConfirmedEvent`. Order's `StockReservedEventHandler` no longer publishes `OrderConfirmedEvent`.
-- [ ] Re-delivering the same `StockReservedEvent` does not create a second `Payment` row (unique-on-`OrderId` is honored idempotently).
-- [ ] Integration test `Payment.Tests/IntegrationEvents/CheckoutHappyPathTests.cs` dispatches a `StockReservedEvent` with a `.00` amount and asserts `Authorized` row + `PaymentAuthorizedEvent` on outbox.
-- [ ] Order test project gets a new test asserting `PaymentAuthorized → OrderConfirmed`.
+- [x] `Payment` aggregate exists with `Authorize`, `Fail`, `Capture`, `Refund` (PRD requires throws on illegal transitions, so the methods are named without the `Try` prefix). Aggregate unit tests cover every legal transition (success) and every illegal transition (throws). No DB, no DI in these tests.
+- [x] Payment's `StockReservedEventHandler` creates a row, authorizes via `InMemoryPaymentGateway`, transitions `Pending → Authorized`, emits `PaymentAuthorizedEvent` through outbox in the same transaction.
+- [x] Order's `PaymentAuthorizedEventHandler` publishes `OrderConfirmedEvent`. Order's `StockReservedEventHandler` is removed.
+- [x] Re-delivering the same `StockReservedEvent` does not create a second `Payment` row (unique-on-`OrderId` is honored idempotently).
+- [x] Integration test `Payment.Tests/IntegrationEvents/CheckoutHappyPathTests.cs` dispatches a `StockReservedEvent` with a `.00` amount and asserts `Authorized` row + `PaymentAuthorizedEvent` on outbox.
+- [x] Order test project gets a new test asserting `PaymentAuthorized → OrderConfirmed`.
 - [ ] Manual smoke: a `.00`-total order ends in Order = `Confirmed`, Payment = `Authorized`, Shipping row created.
 
 ---
