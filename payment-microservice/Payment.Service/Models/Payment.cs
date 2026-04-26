@@ -83,4 +83,16 @@ public class Payment
         Status = PaymentStatus.Refunded;
         UpdatedAt = occurredAt;
     }
+
+    public void Void(DateTime occurredAt)
+    {
+        if (Status != PaymentStatus.Pending && Status != PaymentStatus.Authorized)
+        {
+            throw new InvalidOperationException(
+                $"Cannot void payment {PaymentId} in status {Status}.");
+        }
+
+        Status = PaymentStatus.Failed;
+        UpdatedAt = occurredAt;
+    }
 }

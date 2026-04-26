@@ -111,6 +111,30 @@ public class PaymentStateMachineTests
         Assert.Throws<InvalidOperationException>(() => payment.Refund(DateTime.UtcNow));
     }
 
+    [Theory]
+    [InlineData(PaymentStatus.Pending)]
+    [InlineData(PaymentStatus.Authorized)]
+    public void Void_FromPendingOrAuthorized_TransitionsToFailed(PaymentStatus current)
+    {
+        var payment = MoveTo(current);
+        var occurredAt = DateTime.UtcNow;
+
+        payment.Void(occurredAt);
+
+        Assert.Equal(PaymentStatus.Failed, payment.Status);
+        Assert.Equal(occurredAt, payment.UpdatedAt);
+    }
+
+    [Theory]
+    [InlineData(PaymentStatus.Captured)]
+    [InlineData(PaymentStatus.Refunded)]
+    [InlineData(PaymentStatus.Failed)]
+    public void Void_FromTerminal_Throws(PaymentStatus current)
+    {
+        var payment = MoveTo(current);
+        Assert.Throws<InvalidOperationException>(() => payment.Void(DateTime.UtcNow));
+    }
+
     private static Service.Models.Payment MoveTo(PaymentStatus target)
     {
         var payment = NewPending();

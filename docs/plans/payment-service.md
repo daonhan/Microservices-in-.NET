@@ -97,11 +97,11 @@ Wire the decline path through the existing cancellation cascade. On a declining 
 
 ### Acceptance criteria
 
-- [ ] Payment's `StockReservedEventHandler` transitions to `Failed` and emits `PaymentFailedEvent` when the gateway declines.
-- [ ] Order's `PaymentFailedEventHandler` publishes `OrderCancelledEvent` (existing event, no contract change).
-- [ ] Payment's `OrderCancelledEventHandler` is idempotent: redelivery does not throw, terminal payments are untouched.
-- [ ] Integration test `Payment.Tests/IntegrationEvents/PaymentFailureCompensationTests.cs` asserts `Failed` row + `PaymentFailedEvent`.
-- [ ] Order test asserts `PaymentFailed → OrderCancelled`.
+- [x] Payment's `StockReservedEventHandler` transitions to `Failed` and emits `PaymentFailedEvent` when the gateway declines.
+- [x] Order's `PaymentFailedEventHandler` publishes `OrderCancelledEvent` (existing event, no contract change).
+- [x] Payment's `OrderCancelledEventHandler` is idempotent: redelivery does not throw, terminal payments are untouched.
+- [x] Integration test `Payment.Tests/IntegrationEvents/PaymentFailureCompensationTests.cs` asserts `Failed` row + `PaymentFailedEvent`.
+- [x] Order test asserts `PaymentFailed → OrderCancelled`.
 - [ ] Manual smoke: a `.99`-total order ends in Order = `Cancelled`, Payment = `Failed`, Inventory reserved count back to zero.
 
 ---

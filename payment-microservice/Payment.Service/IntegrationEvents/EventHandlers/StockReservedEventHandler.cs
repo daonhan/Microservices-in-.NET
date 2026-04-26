@@ -55,13 +55,6 @@ internal class StockReservedEventHandler : IEventHandler<StockReservedEvent>
             @event.Amount, @event.Currency, @event.OrderId.ToString());
         _metrics.RecordAuthorizeLatency(sw.Elapsed);
 
-        if (!result.Success)
-        {
-            // Phase 4 will land the failure path: payment.Fail() + PaymentFailedEvent.
-            throw new InvalidOperationException(
-                "Payment declined; failure-compensation path lands in Phase 4.");
-        }
-
         await _outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
@@ -74,6 +67,26 @@ internal class StockReservedEventHandler : IEventHandler<StockReservedEvent>
                 amount: @event.Amount,
                 currency: @event.Currency,
                 createdAt: now);
+
+            if (!result.Success)
+            {
+                payment.Fail(now);
+
+                _context.Payments.Add(payment);
+                await _context.SaveChangesAsync();
+
+                await _outboxStore.AddOutboxEvent(new PaymentFailedEvent(
+                    payment.PaymentId,
+                    payment.OrderId,
+                    payment.CustomerId,
+                    result.FailureReason ?? "Declined"));
+
+                _metrics.RecordStatusChange(PaymentStatus.Failed);
+
+                scope.Complete();
+                return;
+            }
+
             payment.Authorize(result.ProviderReference!, now);
 
             _context.Payments.Add(payment);

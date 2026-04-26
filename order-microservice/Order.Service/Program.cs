@@ -27,6 +27,7 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqEventPublisher(builder.Configuration)
     .AddRabbitMqSubscriberService(builder.Configuration)
     .AddEventHandler<PaymentAuthorizedEvent, PaymentAuthorizedEventHandler>()
+    .AddEventHandler<PaymentFailedEvent, PaymentFailedEventHandler>()
     .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>();
 
 builder.AddPlatformObservability(serviceName,
