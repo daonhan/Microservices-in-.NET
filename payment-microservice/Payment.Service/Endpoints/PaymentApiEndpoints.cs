@@ -1,12 +1,20 @@
 using System.Security.Claims;
+using System.Transactions;
+using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Payment.Service.Infrastructure.Data;
+using Payment.Service.Infrastructure.Gateways;
+using Payment.Service.IntegrationEvents.Events;
+using Payment.Service.Models;
+using Payment.Service.Observability;
 
 namespace Payment.Service.Endpoints;
 
 public static class PaymentApiEndpoints
 {
     private const string AdminRole = "Administrator";
+    private const string AdminPolicy = "Administrator";
     private const string CustomerIdClaim = "customerId";
 
     public static void RegisterEndpoints(this IEndpointRouteBuilder routeBuilder)
@@ -48,6 +56,104 @@ public static class PaymentApiEndpoints
 
             return TypedResults.Ok(ToResponse(payment));
         }).RequireAuthorization();
+
+        routeBuilder.MapPost("/{paymentId:guid}/capture", async Task<IResult> (
+            [FromServices] IPaymentStore paymentStore,
+            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IPaymentGateway gateway,
+            [FromServices] PaymentMetrics metrics,
+            Guid paymentId) =>
+        {
+            var payment = await paymentStore.GetById(paymentId);
+            if (payment is null)
+            {
+                return TypedResults.NotFound($"Payment {paymentId} not found");
+            }
+
+            if (payment.Status == PaymentStatus.Captured)
+            {
+                return TypedResults.Ok(ToResponse(payment));
+            }
+
+            if (payment.Status != PaymentStatus.Authorized)
+            {
+                return TypedResults.Conflict(new
+                {
+                    error = "Illegal state transition",
+                    currentStatus = payment.Status.ToString(),
+                });
+            }
+
+            await gateway.CaptureAsync(payment.ProviderReference!);
+
+            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            {
+                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+
+                payment.Capture(DateTime.UtcNow);
+
+                await paymentStore.SaveChangesAsync();
+
+                await outboxStore.AddOutboxEvent(new PaymentCapturedEvent(
+                    payment.PaymentId,
+                    payment.OrderId,
+                    payment.Amount));
+
+                scope.Complete();
+            });
+
+            metrics.RecordStatusChange(PaymentStatus.Captured);
+
+            return TypedResults.Ok(ToResponse(payment));
+        }).RequireAuthorization(AdminPolicy);
+
+        routeBuilder.MapPost("/{paymentId:guid}/refund", async Task<IResult> (
+            [FromServices] IPaymentStore paymentStore,
+            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IPaymentGateway gateway,
+            [FromServices] PaymentMetrics metrics,
+            Guid paymentId,
+            [FromBody] RefundPaymentRequest? request) =>
+        {
+            var payment = await paymentStore.GetById(paymentId);
+            if (payment is null)
+            {
+                return TypedResults.NotFound($"Payment {paymentId} not found");
+            }
+
+            if (payment.Status != PaymentStatus.Captured)
+            {
+                return TypedResults.Conflict(new
+                {
+                    error = "Illegal state transition",
+                    currentStatus = payment.Status.ToString(),
+                });
+            }
+
+            var refundAmount = request?.Amount ?? payment.Amount;
+
+            await gateway.RefundAsync(payment.ProviderReference!, refundAmount);
+
+            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            {
+                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+
+                payment.Refund(DateTime.UtcNow);
+
+                await paymentStore.SaveChangesAsync();
+
+                await outboxStore.AddOutboxEvent(new PaymentRefundedEvent(
+                    payment.PaymentId,
+                    payment.OrderId,
+                    refundAmount));
+
+                scope.Complete();
+            });
+
+            metrics.RecordStatusChange(PaymentStatus.Refunded);
+
+            return TypedResults.Ok(ToResponse(payment));
+        }).RequireAuthorization(AdminPolicy);
     }
 
     private static bool IsAuthorized(ClaimsPrincipal user, string customerId)
@@ -83,4 +189,6 @@ public static class PaymentApiEndpoints
         string? ProviderReference,
         DateTime CreatedAt,
         DateTime UpdatedAt);
+
+    public record RefundPaymentRequest(decimal? Amount);
 }
