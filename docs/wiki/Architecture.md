@@ -1,6 +1,6 @@
 # Architecture
 
-The platform decomposes an e-commerce domain into six independently deployable services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on a RabbitMQ fanout exchange.
+The platform decomposes an e-commerce domain into seven independently deployable services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on a RabbitMQ fanout exchange.
 
 ## High-level topology
 
@@ -13,6 +13,7 @@ graph TD
     GW --> Auth["Auth<br/>:8003"]
     GW --> Inventory["Inventory<br/>:8005"]
     GW --> Shipping["Shipping<br/>:8006"]
+    GW --> Payment["Payment<br/>:8007"]
 
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL · Order)]
@@ -20,15 +21,18 @@ graph TD
     Auth --- SQLAuth[(SQL · Auth)]
     Inventory --- SQLInventory[(SQL · Inventory)]
     Shipping --- SQLShipping[(SQL · Shipping)]
+    Payment --- SQLPayment[(SQL · Payment)]
 
     Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>ecommerce-exchange"}}
     Product -- publishes --> RabbitMQ
     Inventory -- publishes --> RabbitMQ
     Shipping -- publishes --> RabbitMQ
+    Payment -- publishes --> RabbitMQ
     RabbitMQ -- subscribes --> Basket
     RabbitMQ -- subscribes --> Order
     RabbitMQ -- subscribes --> Inventory
     RabbitMQ -- subscribes --> Shipping
+    RabbitMQ -- subscribes --> Payment
 ```
 
 ## Core design rules
@@ -43,9 +47,9 @@ graph TD
 | **Shared cross-cutting library** | `ECommerce.Shared` centralizes JWT, EventBus, Outbox, Observability, Health — see [Shared-Library](Shared-Library). |
 
 
-## Saga: Order ↔ Inventory ↔ Shipping
+## Saga: Order ↔ Inventory ↔ Payment ↔ Shipping
 
-Order, Inventory, and Shipping coordinate via a choreographed saga. Each participant reacts to events and emits its own.
+Order, Inventory, Payment, and Shipping coordinate via a choreographed saga. Each participant reacts to events and emits its own. Order's "confirm" edge is driven by `PaymentAuthorizedEvent` (not `StockReservedEvent` directly), so no unpaid order proceeds to shipment. Capture happens when goods physically dispatch.
 
 ```mermaid
 sequenceDiagram
@@ -53,24 +57,39 @@ sequenceDiagram
     participant Order
     participant Bus as RabbitMQ
     participant Inventory
+    participant Payment
     participant Shipping
 
     Client->>Order: POST /order/{customerId}
     Order->>Order: Persist Order + outbox (one tx)
     Order-->>Bus: OrderCreatedEvent
     Bus-->>Inventory: OrderCreatedEvent
+    Bus-->>Payment: OrderCreatedEvent
     alt Stock available
         Inventory->>Inventory: Reserve stock
         Inventory-->>Bus: StockReservedEvent
-        Bus-->>Order: StockReservedEvent
-        Order-->>Bus: OrderConfirmedEvent
-        Bus-->>Inventory: OrderConfirmedEvent
-        Inventory->>Inventory: Commit reservation
-        Inventory-->>Bus: StockCommittedEvent
-        Bus-->>Shipping: StockCommittedEvent
-        Shipping-->>Bus: ShipmentCreatedEvent
-        Shipping-->>Bus: ShipmentDispatchedEvent
-        Shipping-->>Bus: ShipmentDeliveredEvent
+        Bus-->>Payment: StockReservedEvent
+        alt Gateway approves
+            Payment-->>Bus: PaymentAuthorizedEvent
+            Bus-->>Order: PaymentAuthorizedEvent
+            Order-->>Bus: OrderConfirmedEvent
+            Bus-->>Inventory: OrderConfirmedEvent
+            Inventory->>Inventory: Commit reservation
+            Inventory-->>Bus: StockCommittedEvent
+            Bus-->>Shipping: StockCommittedEvent
+            Shipping-->>Bus: ShipmentCreatedEvent
+            Shipping-->>Bus: ShipmentDispatchedEvent
+            Bus-->>Payment: ShipmentDispatchedEvent
+            Payment-->>Bus: PaymentCapturedEvent
+            Shipping-->>Bus: ShipmentDeliveredEvent
+        else Gateway declines
+            Payment-->>Bus: PaymentFailedEvent
+            Bus-->>Order: PaymentFailedEvent
+            Order-->>Bus: OrderCancelledEvent
+            Bus-->>Inventory: OrderCancelledEvent
+            Inventory-->>Bus: StockReleasedEvent
+            Bus-->>Payment: OrderCancelledEvent
+        end
     else Insufficient stock
         Inventory-->>Bus: StockReservationFailedEvent
         Bus-->>Order: StockReservationFailedEvent
@@ -80,6 +99,7 @@ sequenceDiagram
         Inventory-->>Bus: StockReleasedEvent
         Bus-->>Shipping: OrderCancelledEvent
         Shipping-->>Bus: ShipmentCancelledEvent
+        Bus-->>Payment: OrderCancelledEvent
     end
 ```
 

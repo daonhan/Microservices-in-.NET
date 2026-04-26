@@ -4,12 +4,13 @@ A snapshot of where the platform is heading. Intent here is aspirational; author
 
 ## Delivered
 
-- ✅ Six-service decomposition with per-service datastores
+- ✅ Seven-service decomposition with per-service datastores
 - ✅ RabbitMQ fanout + Transactional Outbox
 - ✅ YARP API Gateway (with Ocelot retained as runtime-switchable fallback) — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-ApiGateway-Yarp.md)
 - ✅ Inventory service with reservations, movements, backorders — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Inventory.md)
-- ✅ Order ↔ Inventory saga
+- ✅ Order ↔ Inventory ↔ Payment ↔ Shipping saga (authorize on stock-reserved; capture on shipment-dispatch; payment-driven `OrderConfirmedEvent`)
 - ✅ Shipping service: post-confirmation fulfillment, carrier integration, event-driven state machine — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Shipping.md)
+- ✅ Payment service: authorize/capture/refund with pluggable `IPaymentGateway` (in-memory default), admin refund + manual capture, ownership-checked reads — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Payment.md)
 - ✅ Combined Swagger UI at the gateway (OpenAPI aggregation, dev/staging only) — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-ApiGateway-OpenApi-Aggregation.md)
 - ✅ Full observability stack (Jaeger, Prometheus, Alertmanager, Grafana, Loki) with alerts — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Observability.md)
 - ✅ Kubernetes manifests for services + infra + observability
@@ -27,7 +28,7 @@ Tracked under [`docs/plans/`](https://github.com/daonhan/Microservices-in-.NET/t
 These are ideas, not commitments.
 
 - **Auto-sync wiki from `main`** — GitHub Action to mirror `docs/wiki/` → wiki remote on merge, removing the manual publish step from [Contributing](Contributing#editing-the-wiki).
-- **Payment service** — close the checkout loop with a payment microservice participating in the saga.
+- **Real PSP integration** — slot a Stripe/Adyen implementation behind `IPaymentGateway` (the in-memory gateway is the v1 default; see [Service-Payment](Service-Payment)).
 - **Dead-letter queue + replay UI** — operator tool for failed events.
 - **Identity Server / OIDC** instead of the hand-rolled JWT issuer.
 - **Multi-tenancy** — tenant-scoped datastores and row-level auth.

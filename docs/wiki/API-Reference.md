@@ -64,6 +64,15 @@ Consolidated listing of every public HTTP endpoint exposed through the Gateway. 
 | `POST` | `/shipping/{shipmentId}/dispatch` | Shipping `/{shipmentId}/dispatch` | Bearer + `Administrator` |
 | `POST` | `/shipping/webhooks/carrier/{carrierKey}` | Shipping `/webhooks/carrier/{carrierKey}` | None (shared secret) |
 
+## Payment — [Service-Payment](Service-Payment)
+
+| Method | Gateway route | Downstream | Auth |
+|---|---|---|---|
+| `GET` | `/payment/by-order/{orderId}` | Payment `/by-order/{orderId}` | Bearer |
+| `GET` | `/payment/{paymentId}` | Payment `/{paymentId}` | Bearer |
+| `POST` | `/payment/{paymentId}/capture` | Payment `/{paymentId}/capture` | Bearer + `Administrator` |
+| `POST` | `/payment/{paymentId}/refund` | Payment `/{paymentId}/refund` | Bearer + `Administrator` |
+
 ## Cross-cutting endpoints (every service)
 
 | Route | Purpose |

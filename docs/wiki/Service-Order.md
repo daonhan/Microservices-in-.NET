@@ -9,7 +9,7 @@ Order lifecycle service. Persists orders to SQL Server, emits domain events via 
 | **Source** | [`order-microservice/Order.Service/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/order-microservice/Order.Service) |
 | **Tests** | [`order-microservice/Order.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/order-microservice/Order.Tests) |
 | **Publishes** | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent` |
-| **Subscribes** | `StockReservedEvent`, `StockReservationFailedEvent` |
+| **Subscribes** | `StockReservationFailedEvent`, `PaymentAuthorizedEvent`, `PaymentFailedEvent` |
 
 ## Responsibilities
 
@@ -30,11 +30,12 @@ Implementation: `Endpoints/OrderApiEndpoint.cs`.
 
 ## Saga participation
 
-See the sequence diagram in [Architecture](Architecture#saga-order--inventory). Summary:
+See the sequence diagram in [Architecture](Architecture#saga-order--inventory--payment--shipping). Summary:
 
-- On `POST`, Order writes order rows + outbox row in one transaction.
+- On `POST`, Order writes order rows + outbox row in one transaction. `OrderCreatedEvent` carries `UnitPrice` per item and `Currency` so Payment can authorize without an extra round trip.
 - Outbox background service publishes `OrderCreatedEvent`.
-- `StockReservedEventHandler` → order becomes `Confirmed`, emits `OrderConfirmedEvent`.
+- `PaymentAuthorizedEventHandler` → order becomes `Confirmed`, emits `OrderConfirmedEvent`. (The pre-Payment behaviour where `StockReservedEvent` confirmed directly has been removed.)
+- `PaymentFailedEventHandler` → order becomes `Cancelled`, emits `OrderCancelledEvent`. Inventory's existing handler releases the reservation from the same signal.
 - `StockReservationFailedEventHandler` → order becomes `Cancelled`, emits `OrderCancelledEvent`.
 
 ## Migrations
