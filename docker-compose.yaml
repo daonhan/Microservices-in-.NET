@@ -29,6 +29,7 @@ services:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "RabbitMq__HostName=host.docker.internal"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Order;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
+      - "Redis__Configuration=host.docker.internal:6379"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
       - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"
       - "OpenTelemetry__EnableConsoleExporters=false"

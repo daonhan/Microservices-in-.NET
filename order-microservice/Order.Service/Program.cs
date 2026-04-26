@@ -18,6 +18,9 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 
 builder.Services.AddOutbox(builder.Configuration);
 
+builder.Services.AddStackExchangeRedisCache(options =>
+    options.Configuration = builder.Configuration["Redis:Configuration"] ?? "localhost:6379");
+
 builder.AddPlatformOpenApi("order");
 
 builder.Services.AddRabbitMqEventBus(builder.Configuration)

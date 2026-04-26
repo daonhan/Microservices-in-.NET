@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Transactions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Order.Service.ApiModels;
 using Order.Service.Infrastructure.Data;
 using Order.Service.IntegrationEvents.Events;
@@ -17,7 +19,7 @@ public static class OrderApiEndpoint
     }
 
     internal static async Task<IResult> CreateOrder(IOutboxStore outboxStore,
-        IOrderStore orderStore, MetricFactory metricFactory,
+        IOrderStore orderStore, IDistributedCache cache, MetricFactory metricFactory,
         string customerId, CreateOrderRequest request)
     {
         var order = new Models.Order
@@ -30,6 +32,15 @@ public static class OrderApiEndpoint
             order.AddOrderProduct(product.ProductId, product.Quantity);
         }
 
+        var unitPrices = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        foreach (var product in order.OrderProducts.DistinctBy(p => p.ProductId))
+        {
+            var cached = await cache.GetStringAsync(product.ProductId)
+                ?? throw new InvalidOperationException(
+                    $"Product price not found in cache for product {product.ProductId}");
+            unitPrices[product.ProductId] = decimal.Parse(cached, CultureInfo.InvariantCulture);
+        }
+
         await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
@@ -37,7 +48,7 @@ public static class OrderApiEndpoint
             await orderStore.CreateOrder(order);
 
             var items = order.OrderProducts
-                .Select(p => new OrderItem(p.ProductId, p.Quantity))
+                .Select(p => new OrderItem(p.ProductId, p.Quantity, unitPrices[p.ProductId]))
                 .ToList();
 
             await outboxStore.AddOutboxEvent(new OrderCreatedEvent(order.OrderId, customerId, items));

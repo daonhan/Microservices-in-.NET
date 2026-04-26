@@ -2,6 +2,10 @@ using ECommerce.Shared.Infrastructure.EventBus;
 
 namespace Inventory.Service.IntegrationEvents;
 
-public record OrderItem(string ProductId, int Quantity);
+public record OrderItem(string ProductId, int Quantity, decimal UnitPrice = 0m);
 
-public record OrderCreatedEvent(Guid OrderId, string CustomerId, IReadOnlyList<OrderItem> Items) : Event;
+public record OrderCreatedEvent(
+    Guid OrderId,
+    string CustomerId,
+    IReadOnlyList<OrderItem> Items,
+    string Currency = "USD") : Event;

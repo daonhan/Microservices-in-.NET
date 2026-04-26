@@ -85,7 +85,10 @@ internal class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
                     .Add(1, new KeyValuePair<string, object?>("movement_type", nameof(MovementType.Reserve)));
             }
 
-            await _outboxStore.AddOutboxEvent(new StockReservedEvent(@event.OrderId, published));
+            var amount = @event.Items.Sum(i => i.UnitPrice * i.Quantity);
+
+            await _outboxStore.AddOutboxEvent(
+                new StockReservedEvent(@event.OrderId, published, amount, @event.Currency));
 
             scope.Complete();
         });
