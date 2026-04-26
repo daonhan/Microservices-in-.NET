@@ -26,7 +26,8 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqSubscriberService(builder.Configuration)
     .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
     .AddEventHandler<StockReservedEvent, StockReservedEventHandler>()
-    .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>();
+    .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>()
+    .AddEventHandler<ShipmentDispatchedEvent, ShipmentDispatchedEventHandler>();
 
 builder.AddPlatformObservability("Payment",
     customTracing: t => t.WithSqlInstrumentation());
