@@ -58,11 +58,11 @@ Extend the integration-event shapes used end-to-end so Payment can later charge 
 
 ### Acceptance criteria
 
-- [ ] `ECommerce.Shared` 1.18.0 published locally; every service `csproj` references it.
-- [ ] `OrderItem` carries `UnitPrice`, `OrderCreatedEvent` carries `Currency`, `StockReservedEvent` carries `Amount` and `Currency`.
-- [ ] Order's checkout endpoint computes `UnitPrice` per line and `Currency` from cached prices; missing-price path fails with `InvalidOperationException` (consistent with Basket).
-- [ ] Inventory's `OrderCreatedEvent` consumer echoes `Amount`/`Currency` onto the `StockReservedEvent` it publishes.
-- [ ] All existing tests in Order, Inventory, Basket, and Shipping projects pass unchanged.
+- [x] `ECommerce.Shared` 1.18.0 published locally; every service `csproj` references it.
+- [x] `OrderItem` carries `UnitPrice`, `OrderCreatedEvent` carries `Currency`, `StockReservedEvent` carries `Amount` and `Currency`.
+- [x] Order's checkout endpoint computes `UnitPrice` per line from Basket-shared Redis cache; missing-price path fails with `InvalidOperationException` (consistent with Basket). `Currency` defaults to `"USD"` (single-currency MVP — multi-currency Out of Scope per PRD).
+- [x] Inventory's `OrderCreatedEvent` consumer echoes `Amount`/`Currency` onto the `StockReservedEvent` it publishes.
+- [x] All existing tests in Order, Inventory, Basket, and Shipping projects pass unchanged.
 - [ ] Manual smoke: place an order, observe `Amount` and `Currency` populated on RabbitMQ payloads (RabbitMQ management UI).
 
 ---
