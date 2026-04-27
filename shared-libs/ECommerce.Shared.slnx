@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="ECommerce.Shared/ECommerce.Shared.csproj" />
+  <Project Path="ECommerce.Shared.Tests/ECommerce.Shared.Tests.csproj" />
 </Solution>
