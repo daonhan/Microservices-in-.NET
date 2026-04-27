@@ -11,7 +11,7 @@ namespace Auth.Service.Services;
 
 public class JwtTokenService : ITokenService
 {
-    private const string SigningAlgorithm = SecurityAlgorithms.HmacSha256;
+    private const string SigningAlgorithm = SecurityAlgorithms.RsaSha256;
 
     private readonly IAuthStore _authStore;
     private readonly IRsaKeyProvider _rsaKeyProvider;

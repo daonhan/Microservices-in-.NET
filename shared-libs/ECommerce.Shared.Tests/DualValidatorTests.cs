@@ -169,6 +169,37 @@ public sealed class DualValidatorTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
+    public async Task Token_signed_with_HS256_using_public_key_as_secret_returns_401()
+    {
+        // Algorithm-confusion regression test: must remain green forever
+        // Attacker creates an HS256 token using the published RS256 public key (as string/bytes)
+        var parameters = _rsa.ExportParameters(false);
+        var publicKeyBytes = _rsa.ExportRSAPublicKey();
+        var securityKey = new SymmetricSecurityKey(publicKeyBytes);
+        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+        var claims = new[]
+        {
+            new Claim(JwtRegisteredClaimNames.Name, "test-user"),
+            new Claim("user_role", "Administrator")
+        };
+
+        var tokenDescriptor = new JwtSecurityToken(
+            issuer: _issuer,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(5),
+            signingCredentials: credentials);
+
+        var tokenString = new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
+        
+        var request = NewRequest(tokenString);
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Token_with_wrong_RSA_key_returns_401()
     {
         using var wrongRsa = RSA.Create(2048);
