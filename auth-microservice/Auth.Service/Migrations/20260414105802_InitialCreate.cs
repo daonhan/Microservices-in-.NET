@@ -28,7 +28,7 @@ namespace Auth.Service.Migrations
             migrationBuilder.InsertData(
                 table: "Users",
                 columns: new[] { "Id", "Password", "Role", "Username" },
-                values: new object[] { new Guid("d854813c-4a72-4afd-b431-878cba3ecf2a"), "oKNrqkO7iC#G", "Administrator", "microservices@code-maze.com" });
+                values: new object[] { new Guid("d854813c-4a72-4afd-b431-878cba3ecf2a"), "oKNrqkO7iC#G", "Administrator", "microservices@daonhan.com" });
         }
 
         /// <inheritdoc />

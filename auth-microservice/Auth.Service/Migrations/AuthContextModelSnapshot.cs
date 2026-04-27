@@ -50,7 +50,7 @@ namespace Auth.Service.Migrations
                             Id = new Guid("d854813c-4a72-4afd-b431-878cba3ecf2a"),
                             Password = "oKNrqkO7iC#G",
                             Role = "Administrator",
-                            Username = "microservices@code-maze.com"
+                            Username = "microservices@daonhan.com"
                         });
                 });
 #pragma warning restore 612, 618

@@ -23,7 +23,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             new User
             {
                 Id = new Guid("d854813c-4a72-4afd-b431-878cba3ecf2a"),
-                Username = "microservices@code-maze.com",
+                Username = "microservices@daonhan.com",
                 Password = "oKNrqkO7iC#G",
                 Role = "Administrator"
             });
