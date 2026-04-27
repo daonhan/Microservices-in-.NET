@@ -7,6 +7,7 @@ using ECommerce.Shared.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.IPasswordHasher<Auth.Service.Models.User>, Microsoft.AspNetCore.Identity.PasswordHasher<Auth.Service.Models.User>>();
 builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.RegisterTokenService(builder.Configuration);
 

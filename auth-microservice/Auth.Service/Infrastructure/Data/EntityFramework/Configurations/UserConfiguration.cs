@@ -13,7 +13,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Username)
             .IsRequired();
 
-        builder.Property(u => u.Password)
+        builder.Property(u => u.PasswordHash)
             .IsRequired();
 
         builder.Property(u => u.Role)
@@ -24,7 +24,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             {
                 Id = new Guid("d854813c-4a72-4afd-b431-878cba3ecf2a"),
                 Username = "microservices@daonhan.com",
-                Password = "oKNrqkO7iC#G",
+                PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
                 Role = "Administrator"
             });
     }

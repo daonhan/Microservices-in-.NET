@@ -28,7 +28,7 @@ namespace Auth.Service.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Password")
+                    b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -48,7 +48,7 @@ namespace Auth.Service.Migrations
                         new
                         {
                             Id = new Guid("d854813c-4a72-4afd-b431-878cba3ecf2a"),
-                            Password = "oKNrqkO7iC#G",
+                            PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
                             Role = "Administrator",
                             Username = "microservices@daonhan.com"
                         });
