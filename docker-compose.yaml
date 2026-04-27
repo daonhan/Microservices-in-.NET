@@ -114,6 +114,8 @@ services:
     ports:
       - "8003:8080"
     restart: unless-stopped
+    volumes:
+      - ./auth-microservice/Auth.Service/dev-keys:/app/dev-keys:ro
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Auth;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"

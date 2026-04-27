@@ -30,6 +30,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.RegisterEndpoints();
+app.RegisterJwksEndpoint();
 
 app.Run();
 
