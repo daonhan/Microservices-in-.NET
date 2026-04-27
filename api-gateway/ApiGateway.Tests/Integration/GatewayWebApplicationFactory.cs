@@ -2,6 +2,7 @@ using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net.Sockets;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using ApiGateway.Gateway;
 using ECommerce.Shared.Authentication;
@@ -13,86 +14,84 @@ namespace ApiGateway.Tests.Integration;
 
 internal sealed class GatewayTestHarness : IAsyncDisposable
 {
-    // Indices match ocelot.json route order.
-    // 0=login(auth) 1=product-get 2=product-write 3=basket 4=order
-    // 5=inventory-list 6=inventory-read 7=inventory-backorder 8=inventory-write
     private static readonly int[] OcelotRouteIndices = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
 
-    internal const string TestIssuer = "http://localhost:8003";
-
+    public string TestIssuer { get; }
     private readonly WebApplication _app;
+    private readonly WebApplication _authApp;
+    private readonly RSA _rsa;
 
     public HttpClient Client { get; }
 
-    private GatewayTestHarness(WebApplication app, HttpClient client)
+    private GatewayTestHarness(WebApplication app, WebApplication authApp, HttpClient client, string issuer, RSA rsa)
     {
         _app = app;
+        _authApp = authApp;
         Client = client;
+        TestIssuer = issuer;
+        _rsa = rsa;
     }
 
-    public static Task<GatewayTestHarness> CreateAsync(
+    public static async Task<GatewayTestHarness> CreateAsync(
         string provider,
         string downstreamStubBaseUrl,
         string? environmentName = null)
     {
+        var rsa = RSA.Create(2048);
+        var authPort = AllocatePort();
+        var issuer = $"http://127.0.0.1:{authPort}";
+
+        var authBuilder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Development });
+        var authApp = authBuilder.Build();
+
+        authApp.MapGet("/.well-known/openid-configuration", () => Results.Json(new { issuer, jwks_uri = $"{issuer}/.well-known/jwks.json" }));
+        authApp.MapGet("/.well-known/jwks.json", () =>
+        {
+            var p = rsa.ExportParameters(false);
+            return Results.Json(new { keys = new[] { new { kty = "RSA", use = "sig", kid = "test-kid", alg = "RS256", n = Base64UrlEncode(p.Modulus!), e = Base64UrlEncode(p.Exponent!) } } });
+        });
+
+        authApp.Urls.Add(issuer);
+        await authApp.StartAsync();
+
         var builder = environmentName is null
             ? WebApplication.CreateBuilder()
             : WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environmentName });
 
-        // Set provider and downstream addresses BEFORE service registration reads them
         builder.Configuration["Gateway:Provider"] = provider;
         builder.Configuration["OpenTelemetry:OtlpExporterEndpoint"] = "http://localhost:4317";
-        builder.Configuration["Authentication:AuthMicroserviceBaseAddress"] = TestIssuer;
+        builder.Configuration["Authentication:AuthMicroserviceBaseAddress"] = issuer;
 
         if (provider == "Yarp")
         {
-            // Route every cluster destination at the single stub so tests can
-            // assert method + transformed path without spinning up per-service stubs.
-            foreach (var cluster in new[]
+            foreach (var cluster in new[] { "auth-cluster", "product-cluster", "basket-cluster", "order-cluster", "inventory-cluster", "shipping-cluster", "payment-cluster" })
             {
-                "auth-cluster", "product-cluster", "basket-cluster",
-                "order-cluster", "inventory-cluster", "shipping-cluster",
-                "payment-cluster"
-            })
-            {
-                builder.Configuration[$"ReverseProxy:Clusters:{cluster}:Destinations:default:Address"]
-                    = downstreamStubBaseUrl;
+                builder.Configuration[$"ReverseProxy:Clusters:{cluster}:Destinations:default:Address"] = downstreamStubBaseUrl;
             }
         }
 
         builder.Logging.ClearProviders();
-
         builder.AddConfiguredGateway();
 
         if (provider == "Ocelot")
         {
-            // Ocelot reads its routes from ocelot.json; override every route's
-            // downstream host/port to point at the stub (last config source wins).
             var uri = new Uri(downstreamStubBaseUrl);
             var overrides = new Dictionary<string, string?>();
             foreach (var idx in OcelotRouteIndices)
             {
                 overrides[$"Routes:{idx}:DownstreamHostAndPorts:0:Host"] = uri.Host;
-                overrides[$"Routes:{idx}:DownstreamHostAndPorts:0:Port"]
-                    = uri.Port.ToString(CultureInfo.InvariantCulture);
+                overrides[$"Routes:{idx}:DownstreamHostAndPorts:0:Port"] = uri.Port.ToString(CultureInfo.InvariantCulture);
             }
             builder.Configuration.AddInMemoryCollection(overrides);
         }
 
         builder.Services.AddJwtAuthentication(builder.Configuration);
-        builder.AddPlatformObservability(
-            "ApiGateway",
-            customTracing: tracing => tracing.AddSource("Yarp.ReverseProxy"));
+        builder.AddPlatformObservability("ApiGateway", customTracing: tracing => tracing.AddSource("Yarp.ReverseProxy"));
         builder.Services.AddPlatformHealthChecks();
 
         var gatewayPort = AllocatePort();
         builder.WebHost.UseUrls($"http://localhost:{gatewayPort}");
 
-        return BuildAndStartAsync(builder, gatewayPort);
-    }
-
-    private static async Task<GatewayTestHarness> BuildAndStartAsync(WebApplicationBuilder builder, int gatewayPort)
-    {
         var app = builder.Build();
         app.UsePrometheusExporter();
         app.MapPlatformHealthChecks();
@@ -101,13 +100,13 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         await app.StartAsync();
 
         var client = new HttpClient { BaseAddress = new Uri($"http://localhost:{gatewayPort}") };
-        return new GatewayTestHarness(app, client);
+        return new GatewayTestHarness(app, authApp, client, issuer, rsa);
     }
 
-    public static string CreateJwt(string? role = null)
+    public string CreateJwt(string? role = null)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AuthenticationExtensions.SecurityKey));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var rsaKey = new RsaSecurityKey(_rsa) { KeyId = "test-kid" };
+        var credentials = new SigningCredentials(rsaKey, SecurityAlgorithms.RsaSha256);
 
         var claims = new List<Claim> { new(JwtRegisteredClaimNames.Name, "test-user") };
         if (role is not null)
@@ -129,6 +128,9 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         Client.Dispose();
         await _app.StopAsync();
         await _app.DisposeAsync();
+        await _authApp.StopAsync();
+        await _authApp.DisposeAsync();
+        _rsa.Dispose();
     }
 
     private static int AllocatePort()
@@ -137,4 +139,6 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         listener.Start();
         return ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
     }
+
+    private static string Base64UrlEncode(byte[] input) => Convert.ToBase64String(input).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }

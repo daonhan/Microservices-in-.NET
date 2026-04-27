@@ -125,14 +125,22 @@ public sealed class DualValidatorTests : IAsyncLifetime, IDisposable
     // ---- Tests ----
 
     [Fact]
-    public async Task HS256_token_with_legacy_key_returns_200()
+    public async Task HS256_token_with_legacy_key_returns_401()
     {
-        var token = CreateHs256Token(AuthenticationExtensions.SecurityKey, _issuer);
+        // Legacy key hardcoded since it's removed from AuthenticationExtensions
+        var token = CreateHs256Token("kR^86SSZu&10RQ1%^k84hii1poPW^CG*", _issuer);
         var request = NewRequest(token);
 
         var response = await _client.SendAsync(request);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public void SecurityKey_constant_is_removed_from_public_surface()
+    {
+        var field = typeof(AuthenticationExtensions).GetField("SecurityKey", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+        Assert.Null(field);
     }
 
     [Fact]

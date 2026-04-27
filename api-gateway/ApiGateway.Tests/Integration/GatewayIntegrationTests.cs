@@ -74,7 +74,7 @@ public class GatewayIntegrationTests : IAsyncLifetime, IDisposable
     {
         await using var harness = await GatewayTestHarness.CreateAsync(provider, _downstreamStub.BaseUrl);
         harness.Client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", GatewayTestHarness.CreateJwt());
+            new AuthenticationHeaderValue("Bearer", harness.CreateJwt());
 
         var response = await SendAsync(harness.Client, method, upstreamPath);
 
@@ -121,7 +121,7 @@ public class GatewayIntegrationTests : IAsyncLifetime, IDisposable
     {
         await using var harness = await GatewayTestHarness.CreateAsync(provider, _downstreamStub.BaseUrl);
         harness.Client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", GatewayTestHarness.CreateJwt(role: "Administrator"));
+            new AuthenticationHeaderValue("Bearer", harness.CreateJwt(role: "Administrator"));
 
         var response = await SendAsync(harness.Client, method, upstreamPath);
 
@@ -168,7 +168,7 @@ public class GatewayIntegrationTests : IAsyncLifetime, IDisposable
     {
         await using var harness = await GatewayTestHarness.CreateAsync(provider, _downstreamStub.BaseUrl);
         harness.Client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", GatewayTestHarness.CreateJwt());
+            new AuthenticationHeaderValue("Bearer", harness.CreateJwt());
 
         var response = await SendAsync(harness.Client, method, upstreamPath);
 

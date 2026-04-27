@@ -13,11 +13,6 @@ namespace ECommerce.Shared.Authentication;
 
 public static partial class AuthenticationExtensions
 {
-    /// <summary>
-    /// Legacy symmetric key — kept for the dual-validator window (1.19.0).
-    /// Will be removed in 2.0.0 once all consumers confirm zero HS256 validations.
-    /// </summary>
-    public const string SecurityKey = "kR^86SSZu&10RQ1%^k84hii1poPW^CG*";
 
     private static readonly Meter JwtMeter = new("ECommerce.Shared.Jwt");
     private static readonly Counter<long> ValidationFailureCounter =
@@ -41,7 +36,7 @@ public static partial class AuthenticationExtensions
 
         var isDevelopment = environment?.IsDevelopment() ?? true;
 
-        var legacySymmetricKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SecurityKey));
+
 
         services.AddAuthentication(opt =>
         {
@@ -64,10 +59,8 @@ public static partial class AuthenticationExtensions
                 RequireSignedTokens = true,
                 RequireExpirationTime = true,
                 ClockSkew = TimeSpan.FromSeconds(30),
-                // Accept both HS256 and RS256 during the dual-validator window
-                ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256, SecurityAlgorithms.RsaSha256 },
-                // Legacy HS256 key — also used when no kid is present
-                IssuerSigningKey = legacySymmetricKey,
+                // Accept only RS256 for phase 5
+                ValidAlgorithms = new[] { SecurityAlgorithms.RsaSha256 },
                 // RS256 keys are resolved automatically via Authority/JWKS
             };
 

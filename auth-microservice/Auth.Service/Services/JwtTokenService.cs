@@ -63,9 +63,6 @@ public class JwtTokenService : ITokenService
                 KeyId = _rsaKeyProvider.ActiveKeyId
             },
             SecurityAlgorithms.RsaSha256),
-        SecurityAlgorithms.HmacSha256 => new SigningCredentials(
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(AuthenticationExtensions.SecurityKey)),
-            SecurityAlgorithms.HmacSha256),
         _ => throw new NotSupportedException($"Unsupported signing algorithm: {SigningAlgorithm}")
     };
 }

@@ -141,6 +141,8 @@ migration drift.
 
 ### 3.2 (Critical) Symmetric signing key shipped in a shared library
 
+> **Resolved:** This finding was resolved by migrating to RS256 with a JWKS endpoint, and dropping HS256 validation entirely in Phase 5.
+
 `AuthenticationExtensions.SecurityKey` is a `public const string` compiled
 into `ECommerce.Shared.dll`, which is published to a NuGet feed and copied
 into every consumer container image. Any container compromise — including
