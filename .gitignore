@@ -6,3 +6,7 @@ obj/
 ralph/.ghafk-prompt-*.md
 *.DotSettings.user
 local-nuget-packages/
+
+# Local tools
+ralph/
+.claude/
