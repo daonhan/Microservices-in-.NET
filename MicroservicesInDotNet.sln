@@ -12,6 +12,109 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
+
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "kubernetes", "kubernetes", "{77777777-7777-7777-7777-777777777777}"
+	ProjectSection(SolutionItems) = preProject
+		kubernetes\alertmanager.yaml = kubernetes\alertmanager.yaml
+		kubernetes\api-gateway.yaml = kubernetes\api-gateway.yaml
+		kubernetes\auth-microservice.yaml = kubernetes\auth-microservice.yaml
+		kubernetes\basket-microservice.yaml = kubernetes\basket-microservice.yaml
+		kubernetes\exporters.yaml = kubernetes\exporters.yaml
+		kubernetes\grafana.yaml = kubernetes\grafana.yaml
+		kubernetes\inventory-microservice.yaml = kubernetes\inventory-microservice.yaml
+		kubernetes\jaeger.yaml = kubernetes\jaeger.yaml
+		kubernetes\loki.yaml = kubernetes\loki.yaml
+		kubernetes\order-microservice.yaml = kubernetes\order-microservice.yaml
+		kubernetes\otel-collector.yaml = kubernetes\otel-collector.yaml
+		kubernetes\payment-microservice.yaml = kubernetes\payment-microservice.yaml
+		kubernetes\product-microservice.yaml = kubernetes\product-microservice.yaml
+		kubernetes\prometheus.yaml = kubernetes\prometheus.yaml
+		kubernetes\rabbitmq.yaml = kubernetes\rabbitmq.yaml
+		kubernetes\redis.yaml = kubernetes\redis.yaml
+		kubernetes\shipping-microservice.yaml = kubernetes\shipping-microservice.yaml
+		kubernetes\sql.yaml = kubernetes\sql.yaml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{88888888-8888-8888-8888-888888888888}"
+	ProjectSection(SolutionItems) = preProject
+		docs\auth-security-guide.md = docs\auth-security-guide.md
+		docs\essential-ai-coding-feedback-loops.md = docs\essential-ai-coding-feedback-loops.md
+		docs\instructions.md = docs\instructions.md
+		docs\plans\api-gateway-yarp.md = docs\plans\api-gateway-yarp.md
+		docs\plans\auth-critical-hardening-phase1-summary.md = docs\plans\auth-critical-hardening-phase1-summary.md
+		docs\plans\auth-critical-hardening.md = docs\plans\auth-critical-hardening.md
+		docs\plans\e-commerce-microservices.md = docs\plans\e-commerce-microservices.md
+		docs\plans\inventory.md = docs\plans\inventory.md
+		docs\plans\observability-polish.md = docs\plans\observability-polish.md
+		docs\plans\openapi-gateway-swagger-aggregation.md = docs\plans\openapi-gateway-swagger-aggregation.md
+		docs\plans\order-architecture-refactor-plan.md = docs\plans\order-architecture-refactor-plan.md
+		docs\plans\payment-phase3.md = docs\plans\payment-phase3.md
+		docs\plans\payment-phase4-summary.md = docs\plans\payment-phase4-summary.md
+		docs\plans\payment-service.md = docs\plans\payment-service.md
+		docs\plans\shipping-service.md = docs\plans\shipping-service.md
+		docs\prd\PRD-ApiGateway-OpenApi-Aggregation.md = docs\prd\PRD-ApiGateway-OpenApi-Aggregation.md
+		docs\prd\PRD-ApiGateway-Yarp.md = docs\prd\PRD-ApiGateway-Yarp.md
+		docs\prd\PRD-Auth-Critical-Hardening.md = docs\prd\PRD-Auth-Critical-Hardening.md
+		docs\prd\PRD-Inventory.md = docs\prd\PRD-Inventory.md
+		docs\prd\PRD-Observability.md = docs\prd\PRD-Observability.md
+		docs\prd\PRD-order-architecture-refactor.md = docs\prd\PRD-order-architecture-refactor.md
+		docs\prd\PRD-Payment.md = docs\prd\PRD-Payment.md
+		docs\prd\PRD-Shipping.md = docs\prd\PRD-Shipping.md
+		docs\prd\PRD-Wiki.md = docs\prd\PRD-Wiki.md
+		docs\prd\PRD.md = docs\prd\PRD.md
+		docs\prd\unified-vs-solution.md = docs\prd\unified-vs-solution.md
+		docs\runbooks\payment-smoke.md = docs\runbooks\payment-smoke.md
+		docs\wiki\API-Reference.md = docs\wiki\API-Reference.md
+		docs\wiki\Architecture.md = docs\wiki\Architecture.md
+		docs\wiki\Contributing.md = docs\wiki\Contributing.md
+		docs\wiki\Getting-Started.md = docs\wiki\Getting-Started.md
+		docs\wiki\Home.md = docs\wiki\Home.md
+		docs\wiki\Integration-Events.md = docs\wiki\Integration-Events.md
+		docs\wiki\Kubernetes-Deployment.md = docs\wiki\Kubernetes-Deployment.md
+		docs\wiki\Observability.md = docs\wiki\Observability.md
+		docs\wiki\Roadmap.md = docs\wiki\Roadmap.md
+		docs\wiki\Service-API-Gateway.md = docs\wiki\Service-API-Gateway.md
+		docs\wiki\Service-Auth.md = docs\wiki\Service-Auth.md
+		docs\wiki\Service-Basket.md = docs\wiki\Service-Basket.md
+		docs\wiki\Service-Inventory.md = docs\wiki\Service-Inventory.md
+		docs\wiki\Service-Order.md = docs\wiki\Service-Order.md
+		docs\wiki\Service-Payment.md = docs\wiki\Service-Payment.md
+		docs\wiki\Service-Product.md = docs\wiki\Service-Product.md
+		docs\wiki\Service-Shipping.md = docs\wiki\Service-Shipping.md
+		docs\wiki\Shared-Library.md = docs\wiki\Shared-Library.md
+		docs\wiki\Testing.md = docs\wiki\Testing.md
+		docs\wiki\Troubleshooting.md = docs\wiki\Troubleshooting.md
+		docs\wiki\_Footer.md = docs\wiki\_Footer.md
+		docs\wiki\_Sidebar.md = docs\wiki\_Sidebar.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "observability", "observability", "{99999999-9999-9999-9999-999999999999}"
+	ProjectSection(SolutionItems) = preProject
+		observability\alertmanager.yaml = observability\alertmanager.yaml
+		observability\alerts.yaml = observability\alerts.yaml
+		observability\otel-collector-config.yaml = observability\otel-collector-config.yaml
+		observability\prometheus-config.yaml = observability\prometheus-config.yaml
+		observability\grafana\dashboards\platform-overview.json = observability\grafana\dashboards\platform-overview.json
+		observability\grafana\dashboards\rabbitmq.json = observability\grafana\dashboards\rabbitmq.json
+		observability\grafana\dashboards\red-per-service.json = observability\grafana\dashboards\red-per-service.json
+		observability\grafana\dashboards\sql.json = observability\grafana\dashboards\sql.json
+		observability\grafana\provisioning\dashboards\dashboards.yaml = observability\grafana\provisioning\dashboards\dashboards.yaml
+		observability\grafana\provisioning\datasources\datasources.yaml = observability\grafana\provisioning\datasources\datasources.yaml
+		observability\loki\loki-config.yaml = observability\loki\loki-config.yaml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "plans", "plans", "{AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA}"
+	ProjectSection(SolutionItems) = preProject
+		plans\unified-vs-solution.md = plans\unified-vs-solution.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".husky", ".husky", "{BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB}"
+	ProjectSection(SolutionItems) = preProject
+		husky\task-runner.json = husky\task-runner.json
+		husky\_\.gitignore = husky\_\.gitignore
+		husky\_\husky.sh = husky\_\husky.sh
+	EndProjectSection
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Services", "Services", "{5854FF58-B8C5-05C6-5BF2-ACE42193F22B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Auth.Service", "auth-microservice\Auth.Service\Auth.Service.csproj", "{DFAC6253-7F66-45E3-8290-AEF1AC9B66E6}"
@@ -307,3 +410,4 @@ Global
 		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
+
