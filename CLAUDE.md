@@ -1,65 +1,97 @@
 # CLAUDE.md
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+## Repo shape
 
-## 1. Think Before Coding
+.NET microservices monorepo. Each top-level `*-microservice/` (and `api-gateway/`, `shared-libs/`) is an independent solution using a `.slnx` file (no root `.sln`). All projects target **net10.0** despite README mentioning .NET 8 — trust the `.csproj` files.
 
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
+Services and ports (see `docker-compose.yaml`):
 
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
+| Service | Port | Datastore |
+|---|---|---|
+| basket | 8000 | Redis |
+| order | 8001 | SQL Server (+ Redis cache) |
+| product | 8002 | SQL Server |
+| auth | 8003 | SQL Server |
+| api-gateway | 8004 | — (YARP, Ocelot fallback via `Gateway:Provider`) |
+| inventory | 8005 | SQL Server |
+| shipping | 8006 | SQL Server |
+| payment | 8007 | SQL Server |
 
-## 2. Simplicity First
+## Build / test / run
 
-**Minimum code that solves the problem. Nothing speculative.**
+Operate per-solution from the service directory — there is no root solution.
 
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+```bash
+# Build a service (restore happens implicitly)
+cd order-microservice && dotnet build
 
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+# Test a service
+cd order-microservice && dotnet test
+cd order-microservice && dotnet test --filter "FullyQualifiedName~OrderEndpointTests"   # single class
+cd order-microservice && dotnet test --filter "DisplayName~Given_X_When_Y_Then_Z"        # single test
 
-## 3. Surgical Changes
+# Format check (mirrors pre-commit)
+dotnet format --verify-no-changes --verbosity minimal
+dotnet format                                                 # apply fixes
 
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
+# Full stack via Docker
+docker compose up --build
+docker compose up sql rabbitmq redis -d                       # infra only, then dotnet run a service
 ```
 
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+`Directory.Build.props` enables `TreatWarningsAsErrors` and `EnforceCodeStyleInBuild` — analyzer warnings break the build. The `NoWarn` list there documents intentional exemptions (e.g. `CA1707` for `Given_When_Then` test names, `CA1711` for `*EventHandler` types).
 
----
+## Pre-commit (Husky.Net)
 
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+`.husky/task-runner.json` runs on commit:
+1. `dotnet format --verify-no-changes`
+2. `dotnet build --no-restore`
+3. `dotnet test basket-microservice/Basket.Service.slnx --no-build --no-restore`
+
+Only Basket tests run pre-commit. Run other service test suites manually before pushing changes that cross service boundaries.
+
+## Shared library workflow (`ECommerce.Shared`)
+
+`shared-libs/ECommerce.Shared` is consumed as a **NuGet package** (e.g. `<PackageReference Include="ECommerce.Shared" Version="2.0.0" />`), not a project reference. The package is published to `local-nuget-packages/` (gitignored). After editing the shared lib:
+
+```bash
+cd shared-libs/ECommerce.Shared
+dotnet pack -c Release
+dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
+# Bump <Version> in ECommerce.Shared.csproj if consumers should pick it up
+```
+
+Consumers won't see changes until the version is bumped and the new `.nupkg` lands in the local feed.
+
+## Cross-service architecture
+
+The "big picture" lives in three places that have to be read together:
+
+1. **Each service's `Program.cs`** — composition root. All wiring uses extension methods from `ECommerce.Shared`: `AddSqlServerDatastore`, `AddOutbox`, `AddRabbitMqEventBus`, `AddRabbitMqEventPublisher`, `AddRabbitMqSubscriberService`, `AddEventHandler<TEvent, THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`. New cross-cutting concerns belong in `shared-libs/ECommerce.Shared`, not duplicated per service.
+
+2. **`shared-libs/ECommerce.Shared/Infrastructure/`** —
+   - `EventBus/` — `IEventBus`, `Event` base type, handler registration via keyed DI.
+   - `RabbitMq/` — fanout exchange `ecommerce-exchange`, `RabbitMqHostedService` subscribes, `RabbitMqEventBus` publishes, OTEL context propagates through message headers (`RabbitMqTelemetry`).
+   - `Outbox/` — transactional outbox. `OutboxBackgroundService` polls `OutboxContext` for unpublished events. Services that publish events must call `AddOutbox(...)` and (in Development) `app.ApplyOutboxMigrations()`.
+
+3. **Saga between Order and Inventory** — `OrderCreatedEvent` → Inventory reserves stock → `StockReserved`/`StockReservationFailed` → Order emits `OrderConfirmed`/`OrderCancelled` → Inventory commits or releases. Touching either side without considering both will desynchronize the flow. Event types live in each service's `IntegrationEvents/Events/`; handlers in `IntegrationEvents/EventHandlers/`.
+
+Each service follows the same internal layout: `Endpoints/` (Minimal API handlers), `ApiModels/` (DTOs), `Models/` (domain), `Infrastructure/Data/` (EF Core or Redis), `IntegrationEvents/`, `Migrations/`. Keep this split — DTOs in `ApiModels`, domain types in `Models`.
+
+## API Gateway provider switch
+
+The gateway compiles **both** YARP and Ocelot. `Gateway:Provider` (env `Gateway__Provider`) selects at startup; values `Yarp` (default) or `Ocelot`. Unknown values fail fast. Logged at boot as `ApiGateway starting with provider=...`. Routes, port, auth, health checks, and metrics are identical across both — no client-side change needed when switching.
+
+## Conventions worth knowing
+
+- File-scoped namespaces, `var` preferred, usings outside namespace (enforced by `.editorconfig`, warning level).
+- Test names use `Given_When_Then` with underscores (suppressed `CA1707`).
+- EF Core migrations under `**/Migrations/*.cs` are marked `generated_code = true` — don't hand-edit style.
+- `IDesignTimeDbContextFactory` is implemented per service so `dotnet ef migrations add ...` works without running `Program.cs`.
+- Integration tests use `WebApplicationFactory<Program>`; each service exposes `public partial class Program { }` at the bottom of `Program.cs` to make this work.
+
+## Behavioral guidelines
+
+`.claude/CLAUDE.md` contains general LLM coding guidelines (think before coding, simplicity, surgical changes, goal-driven execution). Read once; they apply to all work in this repo.
