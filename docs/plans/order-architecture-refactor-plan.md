@@ -23,11 +23,11 @@ Extract the logic for fetching product prices from `IDistributedCache` in the or
 
 ### Acceptance criteria
 
-- [ ] `IProductPriceProvider` interface is defined.
-- [ ] `RedisProductPriceProvider` is implemented and registered in DI.
-- [ ] `OrderApiEndpoint.CreateOrder` uses `IProductPriceProvider`.
-- [ ] Unit tests for `OrderApiEndpoint.CreateOrder` use a mocked `IProductPriceProvider`.
-- [ ] Integration test for `RedisProductPriceProvider` validates Redis caching behavior.
+- [x] `IProductPriceProvider` interface is defined.
+- [x] `RedisProductPriceProvider` is implemented and registered in DI.
+- [x] `OrderApiEndpoint.CreateOrder` uses `IProductPriceProvider`.
+- [x] Unit tests for `OrderApiEndpoint.CreateOrder` use a mocked `IProductPriceProvider`.
+- [x] Integration test for `RedisProductPriceProvider` validates Redis caching behavior.
 
 ---
 

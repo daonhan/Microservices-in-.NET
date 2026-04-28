@@ -19,6 +19,10 @@ public class OrderApiTests : IntegrationTestBase
         var response = await HttpClient.GetAsync($"/1/{Guid.NewGuid()}");
 
         // Assert
+        if (!response.IsSuccessStatusCode && response.StatusCode != HttpStatusCode.NotFound)
+        {
+            Console.WriteLine(await response.Content.ReadAsStringAsync());
+        }
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 

@@ -21,6 +21,8 @@ builder.Services.AddOutbox(builder.Configuration);
 builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration["Redis:Configuration"] ?? "localhost:6379");
 
+builder.Services.AddScoped<Order.Service.Models.IProductPriceProvider, Order.Service.Infrastructure.Providers.RedisProductPriceProvider>();
+
 builder.AddPlatformOpenApi("order");
 
 builder.Services.AddRabbitMqEventBus(builder.Configuration)

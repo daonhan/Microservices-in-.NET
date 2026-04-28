@@ -19,7 +19,7 @@ public static class OrderApiEndpoint
     }
 
     internal static async Task<IResult> CreateOrder(IOutboxStore outboxStore,
-        IOrderStore orderStore, IDistributedCache cache, MetricFactory metricFactory,
+        IOrderStore orderStore, Order.Service.Models.IProductPriceProvider priceProvider, MetricFactory metricFactory,
         string customerId, CreateOrderRequest request)
     {
         var order = new Models.Order
@@ -32,14 +32,8 @@ public static class OrderApiEndpoint
             order.AddOrderProduct(product.ProductId, product.Quantity);
         }
 
-        var unitPrices = new Dictionary<string, decimal>(StringComparer.Ordinal);
-        foreach (var product in order.OrderProducts.DistinctBy(p => p.ProductId))
-        {
-            var cached = await cache.GetStringAsync(product.ProductId)
-                ?? throw new InvalidOperationException(
-                    $"Product price not found in cache for product {product.ProductId}");
-            unitPrices[product.ProductId] = decimal.Parse(cached, CultureInfo.InvariantCulture);
-        }
+        var uniqueProductIds = order.OrderProducts.Select(p => p.ProductId).Distinct().ToList();
+        var unitPrices = await priceProvider.GetUnitPricesAsync(uniqueProductIds);
 
         await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
