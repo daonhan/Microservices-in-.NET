@@ -3,42 +3,94 @@ parameters:
     type: string
   - name: aksServiceConnection
     type: string
+  - name: acrServiceConnection
+    type: string
+  - name: acrName
+    type: string
   - name: namespace
     type: string
   - name: manifestPath
     type: string
   - name: imageName
     type: string
-  - name: imageTag
-    type: string
-    default: '$(imageTag)'
-  - name: kubernetesCluster
-    type: string
-    default: ''
-  - name: resourceGroupName
-    type: string
-    default: ''
   - name: secrets
     type: object
     default: []
+  - name: deployCondition
+    type: string
+    default: succeeded()
+  - name: dependsOnStage
+    type: string
+    default: Build
 
 stages:
   - stage: Deploy_${{ parameters.environment }}
     displayName: Deploy to ${{ parameters.environment }}
-    dependsOn: Build
+    dependsOn: ${{ parameters.dependsOnStage }}
+    condition: ${{ parameters.deployCondition }}
+    variables:
+      imageTag: $[ stageDependencies.Build.Build.outputs['ComputeTag.imageTag'] ]
     jobs:
-      - deployment: Deploy
-        displayName: Deploy manifests
+      - deployment: Deploy_${{ parameters.imageName }}
+        displayName: Deploy ${{ parameters.imageName }} to AKS (${{ parameters.environment }})
         pool:
           vmImage: ubuntu-latest
+        # Manual approval/check gates for staging and prod are configured at the
+        # Environment level in Azure DevOps (Pipelines > Environments > {name} >
+        # Approvals and checks). Define an approval check on the staging and prod
+        # Environments so this stage waits for sign-off before running.
         environment: ${{ parameters.environment }}
         strategy:
           runOnce:
             deploy:
               steps:
-                - script: |
-                    echo "Deployment template skeleton for ${{ parameters.environment }}"
-                    echo "Namespace: ${{ parameters.namespace }}"
-                    echo "Manifest path: ${{ parameters.manifestPath }}"
-                    echo "Image: ${{ parameters.imageName }}:${{ parameters.imageTag }}"
-                  displayName: Show deployment inputs
+                - checkout: self
+                  displayName: Checkout source
+
+                - bash: |
+                    set -euo pipefail
+                    rendered_dir="$(Pipeline.Workspace)/manifests"
+                    mkdir -p "${rendered_dir}"
+                    rendered="${rendered_dir}/${ENVIRONMENT}-${IMAGE_NAME}.yml"
+                    sed -e "s|\$(ACR_NAME)|${ACR_NAME}|g" \
+                        -e "s|\$(IMAGE_TAG)|${IMAGE_TAG}|g" \
+                        "${MANIFEST_SRC}" > "${rendered}"
+                    echo "##vso[task.setvariable variable=manifestRendered]${rendered}"
+                    echo "Rendered manifest at ${rendered}"
+                  env:
+                    ACR_NAME: ${{ parameters.acrName }}
+                    IMAGE_TAG: $(imageTag)
+                    IMAGE_NAME: ${{ parameters.imageName }}
+                    ENVIRONMENT: ${{ parameters.environment }}
+                    MANIFEST_SRC: ${{ parameters.manifestPath }}
+                  displayName: Render manifest with ACR name and image tag
+
+                - task: KubernetesManifest@0
+                  displayName: Create ACR image pull secret
+                  inputs:
+                    action: createSecret
+                    secretType: dockerRegistry
+                    secretName: acr-pull-secret
+                    dockerRegistryEndpoint: ${{ parameters.acrServiceConnection }}
+                    namespace: ${{ parameters.namespace }}
+                    kubernetesServiceConnection: ${{ parameters.aksServiceConnection }}
+
+                - ${{ each secret in parameters.secrets }}:
+                    - task: KubernetesManifest@0
+                      displayName: Create secret ${{ secret.name }}
+                      inputs:
+                        action: createSecret
+                        secretType: generic
+                        secretName: ${{ secret.name }}
+                        secretArguments: ${{ secret.arguments }}
+                        namespace: ${{ parameters.namespace }}
+                        kubernetesServiceConnection: ${{ parameters.aksServiceConnection }}
+
+                - task: KubernetesManifest@0
+                  displayName: Deploy manifest to ${{ parameters.environment }}
+                  inputs:
+                    action: deploy
+                    namespace: ${{ parameters.namespace }}
+                    kubernetesServiceConnection: ${{ parameters.aksServiceConnection }}
+                    manifests: $(manifestRendered)
+                    containers: '${{ parameters.acrName }}.azurecr.io/${{ parameters.imageName }}:$(imageTag)'

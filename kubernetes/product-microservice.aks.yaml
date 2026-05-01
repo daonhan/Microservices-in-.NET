@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: productservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: productservice
+  template:
+    metadata:
+      labels:
+        app: productservice
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: productservice
+          image: <ACR_NAME>.azurecr.io/productservice:$(IMAGE_TAG)
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: product-config
+                  key: ASPNETCORE_ENVIRONMENT
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: RabbitMq__HostName
+              valueFrom:
+                configMapKeyRef:
+                  name: product-config
+                  key: RabbitMq__HostName
+            - name: ConnectionStrings__Default
+              valueFrom:
+                secretKeyRef:
+                  name: sql-secrets
+                  key: product-connection-string
+            - name: Authentication__AuthMicroserviceBaseAddress
+              valueFrom:
+                configMapKeyRef:
+                  name: product-config
+                  key: Authentication__AuthMicroserviceBaseAddress
+            - name: OpenTelemetry__OtlpExporterEndpoint
+              valueFrom:
+                configMapKeyRef:
+                  name: product-config
+                  key: OpenTelemetry__OtlpExporterEndpoint
+            - name: OpenTelemetry__LogsOtlpExporterEndpoint
+              valueFrom:
+                configMapKeyRef:
+                  name: product-config
+                  key: OpenTelemetry__LogsOtlpExporterEndpoint
+            - name: OpenTelemetry__SamplingRatio
+              valueFrom:
+                configMapKeyRef:
+                  name: product-config
+                  key: OpenTelemetry__SamplingRatio
+            - name: OpenTelemetry__ServiceVersion
+              valueFrom:
+                configMapKeyRef:
+                  name: product-config
+                  key: OpenTelemetry__ServiceVersion
+            - name: OpenTelemetry__Environment
+              valueFrom:
+                configMapKeyRef:
+                  name: product-config
+                  key: OpenTelemetry__Environment
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-clusterip-service
+spec:
+  type: ClusterIP
+  selector:
+    app: productservice
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: productservice-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: productservice
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70

@@ -11,6 +11,9 @@ trigger:
       - shared-libs/*
       - Directory.Build.props
       - Infrastructure - Deployment/pipelines/templates/*
+      - kubernetes/aks-dev-auth.yml
+      - kubernetes/aks-staging-auth.yml
+      - kubernetes/aks-prod-auth.yml
 
 pr:
   branches:
@@ -29,12 +32,66 @@ variables:
   - name: acrServiceConnection
     value: $(AcrServiceConnection)
 
-extends:
-  template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
-  parameters:
-    serviceName: auth
-    solutionPath: auth-microservice/Auth.Service.slnx
-    projectPath: auth-microservice/Auth.Service/Auth.Service.csproj
-    dockerfilePath: auth-microservice/Auth.Service/Dockerfile
-    acrName: $(acrName)
-    acrServiceConnection: $(acrServiceConnection)
+stages:
+  - template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
+    parameters:
+      serviceName: authservice
+      solutionPath: auth-microservice/Auth.Service.slnx
+      projectPath: auth-microservice/Auth.Service/Auth.Service.csproj
+      dockerfilePath: auth-microservice/Auth.Service/Dockerfile
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: dev
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(DEV_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-dev
+      manifestPath: kubernetes/aks-dev-auth.yml
+      imageName: authservice
+      deployCondition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/dev'), startsWith(variables['Build.SourceBranch'], 'refs/heads/deploy/')))
+      secrets:
+        - name: db-auth-secret
+          arguments: --from-literal=connection-string=$(DEV_AUTH_DB_CONNECTION_STRING)
+        - name: auth-signing-secret
+          arguments: --from-literal=key-id=$(DEV_AUTH_SIGNING_KEY_ID) --from-file=private-key-pem=$(DEV_AUTH_SIGNING_PRIVATE_KEY_PATH)
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(DEV_APPINSIGHTS_CONNECTION_STRING)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: staging
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(STAGING_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-staging
+      manifestPath: kubernetes/aks-staging-auth.yml
+      imageName: authservice
+      deployCondition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/staging'))
+      secrets:
+        - name: db-auth-secret
+          arguments: --from-literal=connection-string=$(STAGING_AUTH_DB_CONNECTION_STRING)
+        - name: auth-signing-secret
+          arguments: --from-literal=key-id=$(STAGING_AUTH_SIGNING_KEY_ID) --from-file=private-key-pem=$(STAGING_AUTH_SIGNING_PRIVATE_KEY_PATH)
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(STAGING_APPINSIGHTS_CONNECTION_STRING)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: prod
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(PROD_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-prod
+      manifestPath: kubernetes/aks-prod-auth.yml
+      imageName: authservice
+      deployCondition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/prod'))
+      secrets:
+        - name: db-auth-secret
+          arguments: --from-literal=connection-string=$(PROD_AUTH_DB_CONNECTION_STRING)
+        - name: auth-signing-secret
+          arguments: --from-literal=key-id=$(PROD_AUTH_SIGNING_KEY_ID) --from-file=private-key-pem=$(PROD_AUTH_SIGNING_PRIVATE_KEY_PATH)
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(PROD_APPINSIGHTS_CONNECTION_STRING)

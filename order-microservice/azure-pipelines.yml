@@ -11,6 +11,9 @@ trigger:
       - shared-libs/*
       - Directory.Build.props
       - Infrastructure - Deployment/pipelines/templates/*
+      - kubernetes/aks-dev-order.yml
+      - kubernetes/aks-staging-order.yml
+      - kubernetes/aks-prod-order.yml
 
 pr:
   branches:
@@ -29,12 +32,72 @@ variables:
   - name: acrServiceConnection
     value: $(AcrServiceConnection)
 
-extends:
-  template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
-  parameters:
-    serviceName: order
-    solutionPath: order-microservice/Order.Service.slnx
-    projectPath: order-microservice/Order.Service/Order.Service.csproj
-    dockerfilePath: order-microservice/Order.Service/Dockerfile
-    acrName: $(acrName)
-    acrServiceConnection: $(acrServiceConnection)
+stages:
+  - template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
+    parameters:
+      serviceName: orderservice
+      solutionPath: order-microservice/Order.Service.slnx
+      projectPath: order-microservice/Order.Service/Order.Service.csproj
+      dockerfilePath: order-microservice/Order.Service/Dockerfile
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: dev
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(DEV_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-dev
+      manifestPath: kubernetes/aks-dev-order.yml
+      imageName: orderservice
+      deployCondition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/dev'), startsWith(variables['Build.SourceBranch'], 'refs/heads/deploy/')))
+      secrets:
+        - name: db-order-secret
+          arguments: --from-literal=connection-string=$(DEV_ORDER_DB_CONNECTION_STRING)
+        - name: redis-secret
+          arguments: --from-literal=connection-string=$(DEV_REDIS_CONNECTION_STRING)
+        - name: messaging-secret
+          arguments: --from-literal=rabbitmq-host=$(DEV_RABBITMQ_HOST)
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(DEV_APPINSIGHTS_CONNECTION_STRING)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: staging
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(STAGING_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-staging
+      manifestPath: kubernetes/aks-staging-order.yml
+      imageName: orderservice
+      deployCondition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/staging'))
+      secrets:
+        - name: db-order-secret
+          arguments: --from-literal=connection-string=$(STAGING_ORDER_DB_CONNECTION_STRING)
+        - name: redis-secret
+          arguments: --from-literal=connection-string=$(STAGING_REDIS_CONNECTION_STRING)
+        - name: messaging-secret
+          arguments: --from-literal=rabbitmq-host=$(STAGING_RABBITMQ_HOST)
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(STAGING_APPINSIGHTS_CONNECTION_STRING)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: prod
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(PROD_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-prod
+      manifestPath: kubernetes/aks-prod-order.yml
+      imageName: orderservice
+      deployCondition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/prod'))
+      secrets:
+        - name: db-order-secret
+          arguments: --from-literal=connection-string=$(PROD_ORDER_DB_CONNECTION_STRING)
+        - name: redis-secret
+          arguments: --from-literal=connection-string=$(PROD_REDIS_CONNECTION_STRING)
+        - name: messaging-secret
+          arguments: --from-literal=rabbitmq-host=$(PROD_RABBITMQ_HOST)
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(PROD_APPINSIGHTS_CONNECTION_STRING)

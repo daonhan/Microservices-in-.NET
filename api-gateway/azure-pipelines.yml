@@ -11,6 +11,9 @@ trigger:
       - shared-libs/*
       - Directory.Build.props
       - Infrastructure - Deployment/pipelines/templates/*
+      - kubernetes/aks-dev-api-gateway.yml
+      - kubernetes/aks-staging-api-gateway.yml
+      - kubernetes/aks-prod-api-gateway.yml
 
 pr:
   branches:
@@ -29,12 +32,54 @@ variables:
   - name: acrServiceConnection
     value: $(AcrServiceConnection)
 
-extends:
-  template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
-  parameters:
-    serviceName: api-gateway
-    solutionPath: api-gateway/ApiGateway.slnx
-    projectPath: api-gateway/ApiGateway/ApiGateway.csproj
-    dockerfilePath: api-gateway/ApiGateway/Dockerfile
-    acrName: $(acrName)
-    acrServiceConnection: $(acrServiceConnection)
+stages:
+  - template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
+    parameters:
+      serviceName: apigateway
+      solutionPath: api-gateway/ApiGateway.slnx
+      projectPath: api-gateway/ApiGateway/ApiGateway.csproj
+      dockerfilePath: api-gateway/ApiGateway/Dockerfile
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: dev
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(DEV_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-dev
+      manifestPath: kubernetes/aks-dev-api-gateway.yml
+      imageName: apigateway
+      deployCondition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/dev'), startsWith(variables['Build.SourceBranch'], 'refs/heads/deploy/')))
+      secrets:
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(DEV_APPINSIGHTS_CONNECTION_STRING)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: staging
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(STAGING_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-staging
+      manifestPath: kubernetes/aks-staging-api-gateway.yml
+      imageName: apigateway
+      deployCondition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/staging'))
+      secrets:
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(STAGING_APPINSIGHTS_CONNECTION_STRING)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: prod
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(PROD_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-prod
+      manifestPath: kubernetes/aks-prod-api-gateway.yml
+      imageName: apigateway
+      deployCondition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/prod'))
+      secrets:
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(PROD_APPINSIGHTS_CONNECTION_STRING)

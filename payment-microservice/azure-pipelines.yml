@@ -11,6 +11,9 @@ trigger:
       - shared-libs/*
       - Directory.Build.props
       - Infrastructure - Deployment/pipelines/templates/*
+      - kubernetes/aks-dev-payment.yml
+      - kubernetes/aks-staging-payment.yml
+      - kubernetes/aks-prod-payment.yml
 
 pr:
   branches:
@@ -29,12 +32,66 @@ variables:
   - name: acrServiceConnection
     value: $(AcrServiceConnection)
 
-extends:
-  template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
-  parameters:
-    serviceName: payment
-    solutionPath: payment-microservice/Payment.Service.slnx
-    projectPath: payment-microservice/Payment.Service/Payment.Service.csproj
-    dockerfilePath: payment-microservice/Payment.Service/Dockerfile
-    acrName: $(acrName)
-    acrServiceConnection: $(acrServiceConnection)
+stages:
+  - template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
+    parameters:
+      serviceName: paymentservice
+      solutionPath: payment-microservice/Payment.Service.slnx
+      projectPath: payment-microservice/Payment.Service/Payment.Service.csproj
+      dockerfilePath: payment-microservice/Payment.Service/Dockerfile
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: dev
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(DEV_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-dev
+      manifestPath: kubernetes/aks-dev-payment.yml
+      imageName: paymentservice
+      deployCondition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/dev'), startsWith(variables['Build.SourceBranch'], 'refs/heads/deploy/')))
+      secrets:
+        - name: db-payment-secret
+          arguments: --from-literal=connection-string=$(DEV_PAYMENT_DB_CONNECTION_STRING)
+        - name: messaging-secret
+          arguments: --from-literal=rabbitmq-host=$(DEV_RABBITMQ_HOST)
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(DEV_APPINSIGHTS_CONNECTION_STRING)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: staging
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(STAGING_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-staging
+      manifestPath: kubernetes/aks-staging-payment.yml
+      imageName: paymentservice
+      deployCondition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/staging'))
+      secrets:
+        - name: db-payment-secret
+          arguments: --from-literal=connection-string=$(STAGING_PAYMENT_DB_CONNECTION_STRING)
+        - name: messaging-secret
+          arguments: --from-literal=rabbitmq-host=$(STAGING_RABBITMQ_HOST)
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(STAGING_APPINSIGHTS_CONNECTION_STRING)
+
+  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+    parameters:
+      environment: prod
+      acrName: $(acrName)
+      acrServiceConnection: $(acrServiceConnection)
+      aksServiceConnection: $(PROD_AKS_SERVICE_CONNECTION)
+      namespace: ecommerce-prod
+      manifestPath: kubernetes/aks-prod-payment.yml
+      imageName: paymentservice
+      deployCondition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/prod'))
+      secrets:
+        - name: db-payment-secret
+          arguments: --from-literal=connection-string=$(PROD_PAYMENT_DB_CONNECTION_STRING)
+        - name: messaging-secret
+          arguments: --from-literal=rabbitmq-host=$(PROD_RABBITMQ_HOST)
+        - name: appinsights-secret
+          arguments: --from-literal=connection-string=$(PROD_APPINSIGHTS_CONNECTION_STRING)

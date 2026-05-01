@@ -101,7 +101,10 @@ stages:
 
               echo "##vso[task.setvariable variable=imageTag]${image_tag}"
               echo "##vso[task.setvariable variable=imageName]$(imageRepository):${image_tag}"
+              echo "##vso[task.setvariable variable=imageTag;isOutput=true]${image_tag}"
+              echo "##vso[task.setvariable variable=imageName;isOutput=true]$(imageRepository):${image_tag}"
               echo "Using image tag ${image_tag}"
+            name: ComputeTag
             displayName: Compute Docker image tag
 
           - task: Docker@2

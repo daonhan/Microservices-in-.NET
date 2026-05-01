@@ -1,0 +1,61 @@
+name: Docker Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate Kubernetes manifests
+        run: kubeconform -summary -ignore-missing-schemas kubernetes/
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: product
+            dockerfile: product-microservice/Product.Service/Dockerfile
+          - service: order
+            dockerfile: order-microservice/Order.Service/Dockerfile
+          - service: basket
+            dockerfile: basket-microservice/Basket.Service/Dockerfile
+          - service: inventory
+            dockerfile: inventory-microservice/Inventory.Service/Dockerfile
+          - service: shipping
+            dockerfile: shipping-microservice/Shipping.Service/Dockerfile
+          - service: payment
+            dockerfile: payment-microservice/Payment.Service/Dockerfile
+          - service: auth
+            dockerfile: auth-microservice/Auth.Service/Dockerfile
+          - service: api-gateway
+            dockerfile: api-gateway/ApiGateway/Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
