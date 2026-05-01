@@ -39,6 +39,7 @@ builder.AddPlatformObservability(serviceName,
 
 builder.Services.AddPlatformHealthChecks()
     .AddSqlServerProbe(builder.Configuration.GetConnectionString("Default") ?? "")
+    .AddRedisProbe(builder.Configuration["Redis:Configuration"] ?? "localhost:6379")
     .AddRabbitMqProbe(builder.Configuration["RabbitMq:HostName"] ?? "localhost");
 
 var app = builder.Build();

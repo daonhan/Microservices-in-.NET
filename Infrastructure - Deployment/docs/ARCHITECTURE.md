@@ -163,9 +163,9 @@ Insights.
 | Setting                           | Source in cloud                                |
 |-----------------------------------|------------------------------------------------|
 | `ConnectionStrings__Default`      | K8s secret (from pipeline variable)            |
-| `Redis__ConnectionString`         | K8s secret (from pipeline variable)            |
+| `Redis__Configuration`            | K8s secret (from pipeline variable)            |
 | `Jwt:Key`                         | K8s secret (from pipeline variable)            |
 | `APPLICATIONINSIGHTS_CONNECTION_STRING` | K8s secret (from pipeline variable)      |
 | `Messaging:Provider`              | Per-deployment env var (`AzureServiceBus` or `RabbitMq`) |
 | `OpenTelemetry:Exporter`          | Per-deployment env var (`AzureMonitor` or `Otlp`) |
-| YARP cluster destinations         | `appsettings.json` defaults; overridable via env vars (`ReverseProxy__Clusters__<id>__Destinations__<id>__Address`) |
+| YARP cluster destinations         | `appsettings.json` defaults; overridable via env vars (`Gateway__ClusterAddresses__Product`, `Gateway__ClusterAddresses__Order`, and so on) |
