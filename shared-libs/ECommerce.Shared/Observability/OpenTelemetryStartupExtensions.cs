@@ -1,3 +1,4 @@
+using Azure.Monitor.OpenTelemetry.Exporter;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Builder;
@@ -50,6 +51,15 @@ public static class OpenTelemetryStartupExtensions
                 logging.AddOtlpExporter(o => o.Endpoint = new Uri(opts.LogsOtlpExporterEndpoint));
             }
 
+            if (opts.UseAzureMonitor)
+            {
+                var connectionString = opts.ResolveAzureMonitorConnectionString();
+                if (!string.IsNullOrWhiteSpace(connectionString))
+                {
+                    logging.AddAzureMonitorLogExporter(o => o.ConnectionString = connectionString);
+                }
+            }
+
             if (opts.EnableConsoleExporters)
             {
                 logging.AddConsoleExporter();
@@ -89,6 +99,15 @@ public static class OpenTelemetryStartupExtensions
                     .AddSource(RabbitMqTelemetry.ActivitySourceName)
                     .AddOtlpExporter(o => o.Endpoint = new Uri(opts.OtlpExporterEndpoint));
 
+                if (opts.UseAzureMonitor)
+                {
+                    var connectionString = opts.ResolveAzureMonitorConnectionString();
+                    if (!string.IsNullOrWhiteSpace(connectionString))
+                    {
+                        builder.AddAzureMonitorTraceExporter(o => o.ConnectionString = connectionString);
+                    }
+                }
+
                 if (opts.EnableConsoleExporters)
                 {
                     builder.AddConsoleExporter();
@@ -102,6 +121,15 @@ public static class OpenTelemetryStartupExtensions
                     .AddAspNetCoreInstrumentation()
                     .AddMeter(serviceName)
                     .AddPrometheusExporter();
+
+                if (opts.UseAzureMonitor)
+                {
+                    var connectionString = opts.ResolveAzureMonitorConnectionString();
+                    if (!string.IsNullOrWhiteSpace(connectionString))
+                    {
+                        builder.AddAzureMonitorMetricExporter(o => o.ConnectionString = connectionString);
+                    }
+                }
 
                 if (opts.EnableConsoleExporters)
                 {

@@ -199,7 +199,7 @@ public sealed class DualValidatorTests : IAsyncLifetime, IDisposable
             signingCredentials: credentials);
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
-        
+
         var request = NewRequest(tokenString);
 
         var response = await _client.SendAsync(request);
