@@ -1,0 +1,44 @@
+parameters:
+  - name: environment
+    type: string
+  - name: aksServiceConnection
+    type: string
+  - name: namespace
+    type: string
+  - name: manifestPath
+    type: string
+  - name: imageName
+    type: string
+  - name: imageTag
+    type: string
+    default: '$(imageTag)'
+  - name: kubernetesCluster
+    type: string
+    default: ''
+  - name: resourceGroupName
+    type: string
+    default: ''
+  - name: secrets
+    type: object
+    default: []
+
+stages:
+  - stage: Deploy_${{ parameters.environment }}
+    displayName: Deploy to ${{ parameters.environment }}
+    dependsOn: Build
+    jobs:
+      - deployment: Deploy
+        displayName: Deploy manifests
+        pool:
+          vmImage: ubuntu-latest
+        environment: ${{ parameters.environment }}
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    echo "Deployment template skeleton for ${{ parameters.environment }}"
+                    echo "Namespace: ${{ parameters.namespace }}"
+                    echo "Manifest path: ${{ parameters.manifestPath }}"
+                    echo "Image: ${{ parameters.imageName }}:${{ parameters.imageTag }}"
+                  displayName: Show deployment inputs
