@@ -10,3 +10,12 @@ local-nuget-packages/
 # Local tools
 ralph/
 .claude/
+Infrastructure - Deployment/kube/
+Infrastructure - Deployment/azure-pipelines.yml
+Infrastructure - Deployment/Devops Agent Setup.md
+Infrastructure - Deployment/Dockerfile.build
+Infrastructure - Deployment/Dockerfile.run
+Infrastructure - Deployment/OVERVIEW.md
+Infrastructure - Deployment/SYSTEM_DESIGN.md
+Infrastructure - Deployment/TECH_STACK.md
+Infrastructure - Deployment/ARCHITECTURE.md
