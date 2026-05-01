@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apigateway
+  namespace: ecommerce-prod
+  labels:
+    app: apigateway
+    environment: prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: apigateway
+  template:
+    metadata:
+      labels:
+        app: apigateway
+        environment: prod
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      imagePullSecrets:
+        - name: acr-pull-secret
+      containers:
+        - name: apigateway
+          image: $(ACR_NAME).azurecr.io/apigateway:$(IMAGE_TAG)
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "300m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # YARP cluster destinations resolve via K8s DNS
+            # (e.g. http://auth-clusterip-service:8080) from appsettings.json.
+            # Override here if service names differ between environments.
+            - name: Authentication__AuthMicroserviceBaseAddress
+              value: http://auth-clusterip-service:8080
+            - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: appinsights-secret
+                  key: connection-string
+            - name: OpenTelemetry__Exporter
+              value: AzureMonitor
+            - name: OpenTelemetry__SamplingRatio
+              value: "0.1"
+            - name: OpenTelemetry__ServiceVersion
+              value: "1.0.0"
+            - name: OpenTelemetry__Environment
+              value: Production
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apigateway-clusterip-service
+  namespace: ecommerce-prod
+spec:
+  type: ClusterIP
+  selector:
+    app: apigateway
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: apigateway-hpa
+  namespace: ecommerce-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: apigateway
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
