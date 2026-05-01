@@ -26,11 +26,11 @@ There are two K8s folders in this repo. They are **not interchangeable**:
 | Folder | Purpose | Cluster targets |
 |---|---|---|
 | `kubernetes/` | Active manifests for this project. One file per service (`Deployment` + `Service`), plus infra (`sql.yaml`, `rabbitmq.yaml`, `redis.yaml`) and observability (`jaeger.yaml`, `prometheus.yaml`, `grafana.yaml`, …). | **Local K8s** (Docker Desktop, Minikube) and the early AKS dev environment. |
-| `Infrastructure - Deployment/kube/` | Reference / template AKS manifests. They include AKS-specific concerns (HPA, namespaces, Azure Application Insights env vars, image pulls from `*.azurecr.io`). | AKS only — they are not wired into the local stack. |
+| `Infrastructure - Deployment/kube/` *(not yet in repo)* | Reference / template AKS manifests (planned). Will include AKS-specific concerns (HPA, namespaces, Azure Application Insights env vars, image pulls from `*.azurecr.io`). | AKS only — not wired into the local stack. |
 
-**Apply only `kubernetes/` against your local cluster.** Files in
-`Infrastructure - Deployment/kube/` are reference patterns for the eventual AKS
-Dev/Staging/Prod manifests (Slices 6–8) and will be replaced as those slices land.
+**Apply only `kubernetes/` against your local cluster.** `Infrastructure - Deployment/kube/`
+does not yet exist — it will be added as the AKS Dev/Staging/Prod manifests land
+(Slices 6–8).
 
 ---
 
@@ -215,7 +215,7 @@ Every pod should be `Running` with `READY 1/1`. Every microservice should expose
 ### Health probes
 
 The manifests wire `/health/ready` and `/health/live` (see
-[Shared-Library](../../docs/wiki/Shared-Library.md)). Hit them through `kubectl exec`
+[Shared-Library](wiki/Shared-Library.md)). Hit them through `kubectl exec`
 to bypass `LoadBalancer` quirks on local clusters:
 
 ```bash
@@ -234,14 +234,14 @@ kubectl port-forward svc/apigateway-loadbalancer 8004:8004
 ```
 
 In another terminal, follow the smoke test in
-[Getting-Started](../../docs/wiki/Getting-Started.md#first-request--end-to-end-smoke-test):
+[Getting-Started](wiki/Getting-Started.md#first-request--end-to-end-smoke-test):
 register, log in, hit `/products`, place an order, watch the saga complete.
 
 You can confirm the saga ran by tailing logs across services:
 
 ```bash
-kubectl logs -l app=order-microservice --tail=50
-kubectl logs -l app=inventory-microservice --tail=50
+kubectl logs -l app=orderservice --tail=50
+kubectl logs -l app=inventoryservice --tail=50
 ```
 
 Look for `OrderCreatedEvent` → `StockReserved` → `OrderConfirmed`.
@@ -279,7 +279,7 @@ Order matters. SQL / Redis / RabbitMQ must be `Ready` before microservices start
 Delete the failing pods so they restart against the now-healthy infra:
 
 ```bash
-kubectl delete pods -l app=order-microservice
+kubectl delete pods -l app=orderservice
 ```
 
 Or apply the infra manifests first and wait for readiness before the microservice
