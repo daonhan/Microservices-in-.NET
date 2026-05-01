@@ -3,6 +3,7 @@ WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
+COPY ["Directory.Build.props", "./"]
 COPY ["product-microservice/Product.Service/Product.Service.csproj", "Product.Service/"]
 COPY ["local-nuget-packages/", "/local-nuget-packages/"]
 COPY ["product-microservice/nuget.config", "./"]

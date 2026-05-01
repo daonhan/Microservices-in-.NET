@@ -3,6 +3,7 @@ WORKDIR /app
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
+COPY ["Directory.Build.props", "./"]
 COPY ["payment-microservice/Payment.Service/Payment.Service.csproj", "Payment.Service/"]
 COPY ["local-nuget-packages/", "/local-nuget-packages/"]
 COPY ["payment-microservice/nuget.config", "./"]
