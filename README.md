@@ -234,6 +234,23 @@ cd inventory-microservice && dotnet test
 - **Integration tests** — `WebApplicationFactory<Program>`, real test databases with `IAsyncLifetime` cleanup
 - **Event tests** — End-to-end RabbitMQ publish/subscribe verification
 
+## Deployment
+
+The platform deploys to **Azure Kubernetes Service (AKS)** through per-service
+Azure Pipelines. Bicep provisions the cloud infrastructure (VNet, AKS, ACR,
+Azure SQL, Redis, Service Bus, Application Insights), each pipeline builds and
+pushes a Docker image to ACR, and deploy stages roll the image into one of
+three environments (`ecommerce-dev`, `ecommerce-staging`, `ecommerce-prod`).
+
+| Doc | What it covers |
+|---|---|
+| [OVERVIEW](Infrastructure%20-%20Deployment/docs/OVERVIEW.md) | Environments, deployment model, where everything lives |
+| [ARCHITECTURE](Infrastructure%20-%20Deployment/docs/ARCHITECTURE.md) | Cloud topology, network, AKS, data plane, observability |
+| [SYSTEM_DESIGN](Infrastructure%20-%20Deployment/docs/SYSTEM_DESIGN.md) | End-to-end CI/CD: build, test, push, deploy |
+| [TECH_STACK](Infrastructure%20-%20Deployment/docs/TECH_STACK.md) | Every Azure service and its role |
+| [Devops Agent Setup](Infrastructure%20-%20Deployment/docs/Devops%20Agent%20Setup.md) | Migrating from Microsoft-hosted to self-hosted agents |
+| [Local K8s Guide](docs/LOCAL_K8S_GUIDE.md) | Running the full stack on Docker Desktop / Minikube |
+
 ## Kubernetes Deployment
 
 ```bash
