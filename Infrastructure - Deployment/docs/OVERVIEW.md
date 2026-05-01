@@ -18,13 +18,14 @@ in **Azure Pipelines**.
 ## Environments
 
 Three environments are provisioned with the same Bicep templates and the
-same Kubernetes manifests, parameterized per environment:
+same Kubernetes manifests, parameterized per environment. The manifests
+live in the root [`kubernetes/`](../../kubernetes/) folder:
 
-| Environment | Namespace          | Branch trigger     | Replicas (min/max) | Notes                                  |
-|-------------|--------------------|--------------------|--------------------|----------------------------------------|
-| Dev         | `ecommerce-dev`    | `dev`, `deploy/*`  | 1 / 3              | Auto-deploy. RabbitMQ in-cluster.      |
-| Staging     | `ecommerce-staging`| `staging`          | 1 / 5              | Auto-deploy. Optional approval gate.   |
-| Production  | `ecommerce-prod`   | `prod`             | 2 / 10             | Approval gate. Nginx Ingress for `/api`.|
+| Environment | Namespace           | Branch trigger    | Agent pool           | Replicas (min/max) | Notes                                   |
+|-------------|---------------------|-------------------|----------------------|--------------------|-----------------------------------------|
+| Dev         | `ecommerce-dev`     | `dev`, `deploy/*` | Microsoft-hosted     | 1 / 3              | Auto-deploy. RabbitMQ in-cluster.       |
+| Staging     | `ecommerce-staging` | `staging`         | Self-hosted          | 1 / 5              | Private/VNet deploy path, approval gate.|
+| Production  | `ecommerce-prod`    | `prod`            | Self-hosted          | 2 / 10             | Private/VNet deploy path, Ingress.      |
 
 Each environment has its own Azure resource group, AKS cluster (or node
 pool), and managed services (Azure SQL, Azure Cache for Redis, Azure
@@ -43,8 +44,9 @@ The platform is designed to be learned and operated in three layers:
    manifests under [`kubernetes/`](../../kubernetes/). See
    [LOCAL_K8S_GUIDE.md](../../docs/LOCAL_K8S_GUIDE.md) for the step-by-step.
 3. **Azure cloud** — Bicep-provisioned AKS + ACR + managed Azure services,
-   deployed by per-service Azure Pipelines using the manifests under
-   [`Infrastructure - Deployment/kube/`](../kube/).
+   deployed by per-service Azure Pipelines using the same environment-specific
+   manifests under [`kubernetes/`](../../kubernetes/), for example
+   `kubernetes/aks-dev-order.yml`.
 
 ## Deployment model
 
@@ -62,7 +64,7 @@ Azure Pipelines (per-service azure-pipelines.yml)
     │
     └─ Deploy stage (per env, shared template)
           ├─ Create K8s secrets from pipeline variables
-          ├─ kubectl apply -f kube/aks-<env>-<service>.yml
+          ├─ kubectl apply -f kubernetes/aks-<env>-<service>.yml
           └─ Image tag substituted via KubernetesManifest@0
                   │
                   ▼
@@ -79,8 +81,7 @@ Azure Pipelines (per-service azure-pipelines.yml)
 | IaC (Bicep)                   | [`Infrastructure - Deployment/bicep/`](../bicep/)                    |
 | Pipeline templates            | [`Infrastructure - Deployment/pipelines/templates/`](../pipelines/templates/) |
 | Per-service pipelines         | `<service>-microservice/azure-pipelines.yml`                         |
-| AKS K8s manifests             | [`Infrastructure - Deployment/kube/`](../kube/)                      |
-| Local K8s manifests           | [`kubernetes/`](../../kubernetes/)                                   |
+| Kubernetes manifests (local + AKS) | [`kubernetes/`](../../kubernetes/)                             |
 | Dockerfiles                   | `<service>-microservice/<Service>.Service/Dockerfile`                |
 | PRD                           | [`docs/prd/azure-infrastructure-deployment.md`](../../docs/prd/azure-infrastructure-deployment.md) |
 | Implementation plan           | [`docs/plans/azure-infrastructure-deployment-plan.md`](../../docs/plans/azure-infrastructure-deployment-plan.md) |
@@ -90,5 +91,5 @@ Azure Pipelines (per-service azure-pipelines.yml)
 - [ARCHITECTURE.md](ARCHITECTURE.md) — cloud architecture, network topology, service mesh
 - [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) — end-to-end CI/CD flow with stage details
 - [TECH_STACK.md](TECH_STACK.md) — every Azure service, its purpose, and integration points
-- [Devops Agent Setup.md](Devops%20Agent%20Setup.md) — migrating from Microsoft-hosted to self-hosted agents
+- [Devops Agent Setup.md](Devops%20Agent%20Setup.md) — Dev on Microsoft-hosted agents; Staging/Prod on self-hosted agents
 - [LOCAL_K8S_GUIDE.md](../../docs/LOCAL_K8S_GUIDE.md) — running the platform on Docker Desktop Kubernetes / Minikube

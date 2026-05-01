@@ -24,7 +24,8 @@ Each pipeline `extends` the shared
 [`build-stage.yml`](../pipelines/templates/build-stage.yml) and one
 [`deploy-stage.yml`](../pipelines/templates/deploy-stage.yml) per
 environment, passing service-specific parameters (project path,
-Dockerfile path, namespace, secrets).
+Dockerfile path, namespace, manifest path under [`kubernetes/`](../../kubernetes/),
+secrets).
 
 ## Triggers
 
@@ -57,7 +58,9 @@ the build template fan out to all services.
 
 Defined once in
 [`pipelines/templates/build-stage.yml`](../pipelines/templates/build-stage.yml).
-Runs on Microsoft-hosted `ubuntu-latest`.
+Runs on Microsoft-hosted `ubuntu-latest`. Build remains hosted for all
+branches/environments because it only needs GitHub, NuGet, Docker, and ACR
+access; it does not need private AKS network reachability.
 
 | Step                                | Command / Task                                                                |
 |-------------------------------------|--------------------------------------------------------------------------------|
@@ -88,25 +91,27 @@ Defined once in
 Each per-service pipeline references it three times — Dev, Staging, Prod
 — with environment-specific parameters.
 
+Deploy stages use different agent pools by environment:
+
+| Environment | Agent pool       | Reason |
+|-------------|------------------|--------|
+| Dev         | Microsoft-hosted `ubuntu-latest` | Dev is intentionally reachable through the public/control-plane path for fast feedback and low operational overhead. |
+| Staging     | Self-hosted pool, e.g. `ecommerce-self-hosted` | Staging should exercise the private/VNet deployment path before production. |
+| Production  | Self-hosted pool, e.g. `ecommerce-self-hosted` | Production deployments should run from inside or near the AKS VNet, especially when AKS and data services use private endpoints. |
+
 ```yaml
 - template: ../../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
   parameters:
     environment: dev
-    azureSubscription: $(AKS_SERVICE_CONNECTION_DEV)
+    aksServiceConnection: $(DEV_AKS_SERVICE_CONNECTION)
     namespace: ecommerce-dev
-    manifestPath: Infrastructure - Deployment/kube/aks-dev-<service>.yml
-    imageRepository: $(ACR_NAME).azurecr.io/<service>
-    imageTag: $[ stageDependencies.Build.Build.outputs['ComputeTag.imageTag'] ]
+    manifestPath: kubernetes/aks-dev-<service>.yml
+    imageName: <service>
     secrets:
       - name: <service>-db-secret
-        items:
-          connection-string: $(DEV_<SERVICE>_DB_CONN)
+        arguments: --from-literal=connection-string=$(DEV_<SERVICE>_DB_CONNECTION_STRING)
       - name: appinsights-secret
-        items:
-          connection-string: $(DEV_APPLICATIONINSIGHTS_CONNECTION_STRING)
-      - name: acr-pull-secret
-        type: dockerRegistry
-        dockerRegistryEndpoint: $(ACR_SERVICE_CONNECTION)
+        arguments: --from-literal=connection-string=$(DEV_APPINSIGHTS_CONNECTION_STRING)
 ```
 
 Inside the deploy stage:
@@ -175,8 +180,8 @@ az acr login --name myacr
 docker push myacr.azurecr.io/$SERVICE:$TAG
 
 az aks get-credentials -g rg-ecommerce-$ENV -n aks-ecommerce-$ENV
-sed -i "s|\$(ACR_NAME)|myacr|g; s|\$(IMAGE_TAG)|$TAG|g" "Infrastructure - Deployment/kube/aks-$ENV-$SERVICE.yml"
-kubectl apply -f "Infrastructure - Deployment/kube/aks-$ENV-$SERVICE.yml"
+sed -i "s|\$(ACR_NAME)|myacr|g; s|\$(IMAGE_TAG)|$TAG|g" "kubernetes/aks-$ENV-$SERVICE.yml"
+kubectl apply -f "kubernetes/aks-$ENV-$SERVICE.yml"
 kubectl -n ecommerce-$ENV rollout status deploy/$SERVICE
 ```
 

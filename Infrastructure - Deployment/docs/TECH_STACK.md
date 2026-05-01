@@ -9,7 +9,7 @@
 
 | Service                              | Purpose                                                                                  | Configuration entry point                                                                 |
 |--------------------------------------|------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|
-| **Azure Kubernetes Service (AKS)**   | Managed Kubernetes hosting all 8 microservices and the Nginx Ingress (in Prod).         | [`bicep/modules/aks.bicep`](../bicep/modules/aks.bicep), per-env manifests in [`kube/`](../kube/) |
+| **Azure Kubernetes Service (AKS)**   | Managed Kubernetes hosting all 8 microservices and the Nginx Ingress (in Prod).         | [`bicep/modules/aks.bicep`](../bicep/modules/aks.bicep), per-env manifests in [`kubernetes/`](../../kubernetes/) |
 | **Azure Container Registry (ACR)**   | Private image registry. AKS attached via managed identity for image pulls.               | [`bicep/modules/acr.bicep`](../bicep/modules/acr.bicep), [`acr-pull-role.bicep`](../bicep/modules/acr-pull-role.bicep) |
 | **Azure Virtual Network (VNet)**     | Single VNet per environment. Subnets for AKS nodes and (future) private endpoints.       | [`bicep/modules/vnet.bicep`](../bicep/modules/vnet.bicep)                                  |
 
@@ -26,7 +26,7 @@
 | Service                              | Purpose                                                                                  | Switch                                                                                     |
 |--------------------------------------|------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
 | **Azure Service Bus (topics)**       | Managed pub/sub. Topics map 1:1 to integration event types.                              | Selected via `Messaging__Provider=AzureServiceBus`. Implementation: `AzureServiceBusEventBus` in `ECommerce.Shared`. |
-| **RabbitMQ (in-cluster)**            | Default messaging in Dev / local. Fanout exchange `ecommerce-exchange`.                  | Selected via `Messaging__Provider=RabbitMq` (default). Manifests in [`kube/aks-dev-rabbitmq.yml`](../kube/aks-dev-rabbitmq.yml), [`aks-staging-rabbitmq.yml`](../kube/aks-staging-rabbitmq.yml). |
+| **RabbitMQ (in-cluster)**            | Default messaging in Dev / local. Fanout exchange `ecommerce-exchange`.                  | Selected via `Messaging__Provider=RabbitMq` (default). Manifests in [`kubernetes/aks-dev-rabbitmq.yml`](../../kubernetes/aks-dev-rabbitmq.yml), [`kubernetes/aks-staging-rabbitmq.yml`](../../kubernetes/aks-staging-rabbitmq.yml). |
 
 Both providers expose the same `IEventBus`, so handlers and event types
 do not change when switching providers.
@@ -43,7 +43,7 @@ do not change when switching providers.
 
 | Service                              | Purpose                                                                                  | Notes                                                                                       |
 |--------------------------------------|------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
-| **Azure Pipelines**                  | Build, test, package, deploy. One YAML per microservice; shared templates.               | Microsoft-hosted `ubuntu-latest` agents. See [Devops Agent Setup.md](Devops%20Agent%20Setup.md) for self-hosted migration. |
+| **Azure Pipelines**                  | Build, test, package, deploy. One YAML per microservice; shared templates.               | Build + Dev deploy use Microsoft-hosted `ubuntu-latest`; Staging and Prod deploys use the self-hosted pool. See [Devops Agent Setup.md](Devops%20Agent%20Setup.md). |
 | **Azure DevOps Environments**        | Hosts approval gates and per-env service connections.                                    | Environments: `ecommerce-dev`, `ecommerce-staging`, `ecommerce-prod`.                       |
 | **GitHub**                           | Source of truth. Connected to Azure Pipelines via service connection.                    | No mirroring to Azure Repos.                                                                |
 
@@ -83,5 +83,5 @@ above. They live in `shared-libs/ECommerce.Shared`:
 - Cosmos DB (deferred — SQL covers current needs)
 - Azure Front Door / API Management (single Ingress is sufficient)
 - KEDA (HPA is sufficient at current scale)
-- Self-hosted agents (deferred — see [Devops Agent Setup.md](Devops%20Agent%20Setup.md))
+- Fully self-hosted pipelines (only Staging/Prod deploys require the self-hosted pool)
 - ArgoCD / Flux (pipeline-driven `kubectl apply` is sufficient)

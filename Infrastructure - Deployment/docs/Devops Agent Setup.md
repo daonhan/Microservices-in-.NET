@@ -1,19 +1,33 @@
 # DevOps Agent Setup — Migration Guide
 
-> Audience: operators who want to move from Microsoft-hosted Azure
-> Pipelines agents to **self-hosted agents** running inside (or near) the
-> AKS VNet.
+> Audience: operators who manage the Azure Pipelines agent split: Dev uses
+> Microsoft-hosted agents, while Staging and Production deploy from
+> **self-hosted agents** running inside (or near) the AKS VNet.
 >
-> Today the platform runs on Microsoft-hosted `ubuntu-latest` agents.
-> That is fine for the public-endpoint topology of Dev/Staging. Self-
-> hosted agents become necessary when:
+> The build stage and Dev deployments run on Microsoft-hosted
+> `ubuntu-latest` agents. Self-hosted agents are required for Staging and
+> Production when:
 >
 > - The AKS API server is set to **private cluster** mode
 > - SQL / Redis / Service Bus are switched to **private endpoints only**
 > - Pipelines need outbound IPs that fall inside an enterprise allow-list
 > - Build performance demands persistent NuGet / Docker layer caches
 
-This is a planning guide, not a step-by-step you have to follow today.
+This is both the target operating model and the migration guide for the
+self-hosted pool used by Staging and Production.
+
+## Agent split
+
+| Stage / environment | Agent type | Pool |
+|---------------------|------------|------|
+| Build               | Microsoft-hosted | `ubuntu-latest` |
+| Dev deploy          | Microsoft-hosted | `ubuntu-latest` |
+| Staging deploy      | Self-hosted | `ecommerce-self-hosted` (recommended name) |
+| Production deploy   | Self-hosted | `ecommerce-self-hosted` (recommended name) |
+
+Use Microsoft-hosted agents for fast Dev feedback. Use self-hosted agents
+for Staging and Production so deployments can reach private AKS API
+servers, private endpoints, and any network-restricted Azure resources.
 
 ## Decision: where to host
 
@@ -88,24 +102,27 @@ Azure DevOps after you connect the pool to the scale set.
 
 ## Pipeline switch
 
-Pipelines currently use `vmImage: ubuntu-latest` everywhere. To switch:
+The pipeline should keep Build and Dev on Microsoft-hosted agents and run
+Staging/Production deploy jobs on the self-hosted pool:
 
 ```yaml
-# Before (Microsoft-hosted)
+# Build and Dev deploy
 pool:
   vmImage: ubuntu-latest
 
-# After (self-hosted)
+# Staging and Production deploy
 pool:
   name: ecommerce-self-hosted
   demands:
     - Agent.OS -equals Linux
 ```
 
-Both forms are interchangeable. The shared
-[`build-stage.yml`](../pipelines/templates/build-stage.yml) hard-codes
-`vmImage: ubuntu-latest`; introduce a `pool` parameter when you make the
-move so per-environment pipelines can opt in:
+Both forms are interchangeable in Azure Pipelines, but they are used for
+different environments here. The shared
+[`build-stage.yml`](../pipelines/templates/build-stage.yml) should remain
+on `vmImage: ubuntu-latest`. The deploy template should expose a pool
+parameter so Dev can keep `ubuntu-latest` while Staging and Production
+pass the self-hosted pool:
 
 ```yaml
 parameters:
@@ -119,8 +136,8 @@ stages:
     pool: ${{ parameters.agentPool }}
 ```
 
-Each per-service pipeline then passes either the Microsoft-hosted form
-or `{ name: ecommerce-self-hosted }`.
+Each per-service pipeline then passes the Microsoft-hosted form for Dev
+and `{ name: ecommerce-self-hosted }` for Staging and Production.
 
 ## AKS access
 
@@ -162,10 +179,12 @@ Application Insights:
 
 ## Rollback
 
-The migration is a per-pipeline switch. To roll back, set `pool` back to
-`vmImage: ubuntu-latest`. The agent pool can keep running idle — Azure
-DevOps does not bill for unused self-hosted minutes (only the underlying
-VMSS).
+The migration is a per-environment switch. To roll back Staging or
+Production temporarily, set that deploy stage's `pool` back to
+`vmImage: ubuntu-latest` if the target AKS API server is publicly
+reachable. Dev and Build already use Microsoft-hosted agents. The agent
+pool can keep running idle — Azure DevOps does not bill for unused
+self-hosted minutes (only the underlying VMSS).
 
 ## Cost notes
 

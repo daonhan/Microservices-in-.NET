@@ -102,6 +102,10 @@ manifests.
 - **Autoscaling** — each `Deployment` has an `HorizontalPodAutoscaler`
   targeting 70% CPU, with min/max replica counts that grow per
   environment (1/3 Dev, 1/5 Staging, 2/10 Prod).
+- **Manifests** — environment-specific Kubernetes manifests live in the
+  root [`kubernetes/`](../../kubernetes/) folder (`aks-dev-*`,
+  `aks-staging-*`, `aks-prod-*`). Local and AKS workflows share this
+  folder instead of maintaining a second manifest tree.
 - **Ingress** — Nginx Ingress Controller in Production with path-based
   routing (`/api(/|$)(.*)` → `apigateway-clusterip-service:8080`).
 
