@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce-staging
+  labels:
+    environment: staging
+    managed-by: azure-pipelines
