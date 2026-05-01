@@ -1,0 +1,40 @@
+trigger:
+  branches:
+    include:
+      - dev
+      - staging
+      - prod
+      - deploy/*
+  paths:
+    include:
+      - api-gateway/*
+      - shared-libs/*
+      - Directory.Build.props
+      - Infrastructure - Deployment/pipelines/templates/*
+
+pr:
+  branches:
+    include:
+      - '*'
+  paths:
+    include:
+      - api-gateway/*
+      - shared-libs/*
+      - Directory.Build.props
+      - Infrastructure - Deployment/pipelines/templates/*
+
+variables:
+  - name: acrName
+    value: $(AcrName)
+  - name: acrServiceConnection
+    value: $(AcrServiceConnection)
+
+extends:
+  template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
+  parameters:
+    serviceName: api-gateway
+    solutionPath: api-gateway/ApiGateway.slnx
+    projectPath: api-gateway/ApiGateway/ApiGateway.csproj
+    dockerfilePath: api-gateway/ApiGateway/Dockerfile
+    acrName: $(acrName)
+    acrServiceConnection: $(acrServiceConnection)

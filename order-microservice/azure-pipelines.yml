@@ -1,0 +1,40 @@
+trigger:
+  branches:
+    include:
+      - dev
+      - staging
+      - prod
+      - deploy/*
+  paths:
+    include:
+      - order-microservice/*
+      - shared-libs/*
+      - Directory.Build.props
+      - Infrastructure - Deployment/pipelines/templates/*
+
+pr:
+  branches:
+    include:
+      - '*'
+  paths:
+    include:
+      - order-microservice/*
+      - shared-libs/*
+      - Directory.Build.props
+      - Infrastructure - Deployment/pipelines/templates/*
+
+variables:
+  - name: acrName
+    value: $(AcrName)
+  - name: acrServiceConnection
+    value: $(AcrServiceConnection)
+
+extends:
+  template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
+  parameters:
+    serviceName: order
+    solutionPath: order-microservice/Order.Service.slnx
+    projectPath: order-microservice/Order.Service/Order.Service.csproj
+    dockerfilePath: order-microservice/Order.Service/Dockerfile
+    acrName: $(acrName)
+    acrServiceConnection: $(acrServiceConnection)

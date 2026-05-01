@@ -1,0 +1,40 @@
+trigger:
+  branches:
+    include:
+      - dev
+      - staging
+      - prod
+      - deploy/*
+  paths:
+    include:
+      - auth-microservice/*
+      - shared-libs/*
+      - Directory.Build.props
+      - Infrastructure - Deployment/pipelines/templates/*
+
+pr:
+  branches:
+    include:
+      - '*'
+  paths:
+    include:
+      - auth-microservice/*
+      - shared-libs/*
+      - Directory.Build.props
+      - Infrastructure - Deployment/pipelines/templates/*
+
+variables:
+  - name: acrName
+    value: $(AcrName)
+  - name: acrServiceConnection
+    value: $(AcrServiceConnection)
+
+extends:
+  template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
+  parameters:
+    serviceName: auth
+    solutionPath: auth-microservice/Auth.Service.slnx
+    projectPath: auth-microservice/Auth.Service/Auth.Service.csproj
+    dockerfilePath: auth-microservice/Auth.Service/Dockerfile
+    acrName: $(acrName)
+    acrServiceConnection: $(acrServiceConnection)
