@@ -18,3 +18,22 @@ param kubernetesVersion = ''
 
 param serviceCidr = '10.1.0.0/16'
 param dnsServiceIP = '10.1.0.10'
+
+// ── SQL ──────────────────────────────────────────────────────────────────────
+param sqlAdminLogin = 'sqladmin'
+param dbSkuName = 'S1'
+param dbSkuTier = 'Standard'
+
+// ── Redis ─────────────────────────────────────────────────────────────────────
+param redisSkuFamily = 'C'
+param redisSkuName = 'Standard'
+param redisSkuCapacity = 1
+
+// ── Key Vault ─────────────────────────────────────────────────────────────────
+param keyVaultSku = 'standard'
+
+// ── Log Analytics ─────────────────────────────────────────────────────────────
+param logRetentionDays = 60
+
+// ── Service Bus ───────────────────────────────────────────────────────────────
+param serviceBusSku = 'Standard'

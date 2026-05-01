@@ -1,7 +1,15 @@
-// Main orchestration template for the e-commerce microservices Azure foundation.
+// Main orchestration template for the e-commerce microservices Azure platform.
 //
-// Deploys: VNet (with AKS, private-endpoints, and agents subnets), ACR, and an AKS
-// cluster wired to ACR via an AcrPull role assignment on the kubelet identity.
+// Deploys:
+//   - VNet (AKS, private-endpoints, agents subnets)
+//   - ACR + AcrPull role assignment
+//   - AKS cluster
+//   - Azure SQL Server + 6 service databases
+//   - Azure Cache for Redis
+//   - Azure Key Vault
+//   - Log Analytics Workspace
+//   - Application Insights
+//   - Azure Service Bus namespace + topics
 //
 // Per-environment values come from parameters/{dev,staging,prod}.bicepparam.
 
@@ -65,6 +73,55 @@ param serviceCidr string = '10.0.0.0/16'
 @description('AKS DNS service IP (must be inside serviceCidr).')
 param dnsServiceIP string = '10.0.0.10'
 
+// ── SQL ──────────────────────────────────────────────────────────────────────
+
+@description('SQL Server administrator login name.')
+param sqlAdminLogin string = 'sqladmin'
+
+@description('SQL Server administrator password.')
+@secure()
+param sqlAdminPassword string
+
+@description('Database SKU name (Basic for dev, S1/S2 for staging/prod).')
+param dbSkuName string = 'Basic'
+
+@description('Database SKU tier (Basic for dev, Standard for staging/prod).')
+param dbSkuTier string = 'Basic'
+
+// ── Redis ────────────────────────────────────────────────────────────────────
+
+@description('Redis SKU family (C = Classic, P = Premium).')
+@allowed(['C', 'P'])
+param redisSkuFamily string = 'C'
+
+@description('Redis SKU name.')
+@allowed(['Basic', 'Standard', 'Premium'])
+param redisSkuName string = 'Basic'
+
+@description('Redis SKU capacity (0-6).')
+@minValue(0)
+@maxValue(6)
+param redisSkuCapacity int = 0
+
+// ── Key Vault ─────────────────────────────────────────────────────────────────
+
+@description('Key Vault SKU tier.')
+@allowed(['standard', 'premium'])
+param keyVaultSku string = 'standard'
+
+// ── Log Analytics ─────────────────────────────────────────────────────────────
+
+@description('Log Analytics retention in days.')
+@minValue(30)
+@maxValue(730)
+param logRetentionDays int = 30
+
+// ── Service Bus ───────────────────────────────────────────────────────────────
+
+@description('Service Bus SKU.')
+@allowed(['Basic', 'Standard', 'Premium'])
+param serviceBusSku string = 'Standard'
+
 var commonTags = {
   workload: workload
   environment: environment
@@ -74,6 +131,12 @@ var commonTags = {
 var vnetName = '${workload}-${environment}-vnet'
 var aksName = '${workload}-${environment}-aks'
 var aksDnsPrefix = '${workload}-${environment}'
+var sqlServerName = '${workload}-${environment}-sql'
+var redisCacheName = '${workload}-${environment}-redis'
+var keyVaultName = '${workload}-${environment}-kv'
+var logWorkspaceName = '${workload}-${environment}-logs'
+var appInsightsName = '${workload}-${environment}-ai'
+var serviceBusName = '${workload}-${environment}-sb'
 
 module vnet 'modules/vnet.bicep' = {
   name: 'vnet-deploy'
@@ -124,6 +187,73 @@ module acrPull 'modules/acr-pull-role.bicep' = {
   }
 }
 
+module sql 'modules/sql.bicep' = {
+  name: 'sql-deploy'
+  params: {
+    sqlServerName: sqlServerName
+    location: location
+    adminLogin: sqlAdminLogin
+    adminPassword: sqlAdminPassword
+    dbSkuName: dbSkuName
+    dbSkuTier: dbSkuTier
+    tags: commonTags
+  }
+}
+
+module redis 'modules/redis.bicep' = {
+  name: 'redis-deploy'
+  params: {
+    redisCacheName: redisCacheName
+    location: location
+    skuFamily: redisSkuFamily
+    skuName: redisSkuName
+    skuCapacity: redisSkuCapacity
+    tags: commonTags
+  }
+}
+
+module keyVault 'modules/keyvault.bicep' = {
+  name: 'keyvault-deploy'
+  params: {
+    keyVaultName: keyVaultName
+    location: location
+    skuName: keyVaultSku
+    tags: commonTags
+  }
+}
+
+module monitor 'modules/monitor.bicep' = {
+  name: 'monitor-deploy'
+  params: {
+    workspaceName: logWorkspaceName
+    location: location
+    retentionInDays: logRetentionDays
+    tags: commonTags
+  }
+}
+
+module appInsights 'modules/appinsights.bicep' = {
+  name: 'appinsights-deploy'
+  params: {
+    appInsightsName: appInsightsName
+    location: location
+    workspaceId: monitor.outputs.workspaceId
+    tags: commonTags
+  }
+}
+
+module serviceBus 'modules/servicebus.bicep' = {
+  name: 'servicebus-deploy'
+  params: {
+    namespaceName: serviceBusName
+    location: location
+    skuName: serviceBusSku
+    tags: commonTags
+  }
+}
+
+// ── Outputs ───────────────────────────────────────────────────────────────────
+
 @description('Resource ID of the deployed VNet.')
 output vnetId string = vnet.outputs.vnetId
 
@@ -144,3 +274,21 @@ output aksName string = aks.outputs.aksName
 
 @description('FQDN of the AKS API server.')
 output aksFqdn string = aks.outputs.aksFqdn
+
+@description('FQDN of the SQL Server.')
+output sqlServerFqdn string = sql.outputs.sqlServerFqdn
+
+@description('SQL connection string prefix (append password to complete).')
+output sqlConnectionStringPrefix string = sql.outputs.connectionStringPrefix
+
+@description('Redis connection string (host:port,password=...,ssl=True).')
+output redisConnectionString string = redis.outputs.connectionString
+
+@description('URI of the Key Vault.')
+output keyVaultUri string = keyVault.outputs.keyVaultUri
+
+@description('Application Insights Connection String (APPLICATIONINSIGHTS_CONNECTION_STRING).')
+output appInsightsConnectionString string = appInsights.outputs.connectionString
+
+@description('Service Bus primary connection string.')
+output serviceBusConnectionString string = serviceBus.outputs.primaryConnectionString

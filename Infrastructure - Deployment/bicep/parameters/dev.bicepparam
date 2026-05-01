@@ -19,3 +19,23 @@ param kubernetesVersion = ''
 
 param serviceCidr = '10.0.0.0/16'
 param dnsServiceIP = '10.0.0.10'
+
+// ── SQL ──────────────────────────────────────────────────────────────────────
+// sqlAdminPassword must be supplied via --parameters sqlAdminPassword=<secret> or Key Vault ref at deploy time.
+param sqlAdminLogin = 'sqladmin'
+param dbSkuName = 'Basic'
+param dbSkuTier = 'Basic'
+
+// ── Redis ─────────────────────────────────────────────────────────────────────
+param redisSkuFamily = 'C'
+param redisSkuName = 'Basic'
+param redisSkuCapacity = 0
+
+// ── Key Vault ─────────────────────────────────────────────────────────────────
+param keyVaultSku = 'standard'
+
+// ── Log Analytics ─────────────────────────────────────────────────────────────
+param logRetentionDays = 30
+
+// ── Service Bus ───────────────────────────────────────────────────────────────
+param serviceBusSku = 'Standard'
