@@ -19,18 +19,22 @@ Use local K8s when the change touches a `*.yaml` under `kubernetes/`.
 
 ---
 
-## `kubernetes/` vs `Infrastructure - Deployment/kube/`
+## Which manifests do I apply?
 
-There are two K8s folders in this repo. They are **not interchangeable**:
+The `kubernetes/` folder holds **two distinct sets** of manifests, distinguished by
+filename prefix:
 
-| Folder | Purpose | Cluster targets |
+| Filename pattern | Purpose | Apply to |
 |---|---|---|
-| `kubernetes/` | Active manifests for this project. One file per service (`Deployment` + `Service`), plus infra (`sql.yaml`, `rabbitmq.yaml`, `redis.yaml`) and observability (`jaeger.yaml`, `prometheus.yaml`, `grafana.yaml`, …). | **Local K8s** (Docker Desktop, Minikube) and the early AKS dev environment. |
-| `Infrastructure - Deployment/kube/` *(not yet in repo)* | Reference / template AKS manifests (planned). Will include AKS-specific concerns (HPA, namespaces, Azure Application Insights env vars, image pulls from `*.azurecr.io`). | AKS only — not wired into the local stack. |
+| `<service>.yaml`, `sql.yaml`, `rabbitmq.yaml`, `redis.yaml`, observability YAMLs (`jaeger.yaml`, `prometheus.yaml`, `grafana.yaml`, `loki.yaml`, …) | **Local stack.** Single replica, no namespace, `LoadBalancer` services for easy access, `<USERNAME>/<service>:latest` image placeholders. | Docker Desktop, Minikube |
+| `aks-dev-*.yml`, `aks-staging-*.yml`, `aks-prod-*.yml`, `aks-prod-ingress.yml` | **AKS reference.** Per-environment namespaces (`ecommerce-dev`, `ecommerce-staging`, `ecommerce-prod`), HPAs, ACR image pulls, secret refs for Application Insights, Azure SQL, Redis, Service Bus. | AKS only |
 
-**Apply only `kubernetes/` against your local cluster.** `Infrastructure - Deployment/kube/`
-does not yet exist — it will be added as the AKS Dev/Staging/Prod manifests land
-(Slices 6–8).
+**Apply only the local-stack manifests against your laptop cluster.** The
+`aks-*.yml` files reference Azure-only secrets (ACR pull, App Insights connection
+strings) and will fail to start without them.
+
+> The `Infrastructure - Deployment/kube/` folder contains a few legacy adapter
+> manifests unrelated to this guide. Ignore it for local practice.
 
 ---
 
@@ -68,6 +72,27 @@ docker build -f api-gateway/ApiGateway/Dockerfile -t local/apigateway:latest .
 
 > Build context is the repo root (the trailing `.`) so `shared-libs/`,
 > `Directory.Build.props`, and `local-nuget-packages/` are visible to the Dockerfile.
+
+PowerShell equivalent (Windows / Docker Desktop):
+
+```powershell
+$services = @{
+    product   = 'product-microservice/Product.Service'
+    order     = 'order-microservice/Order.Service'
+    basket    = 'basket-microservice/Basket.Service'
+    auth      = 'auth-microservice/Auth.Service'
+    inventory = 'inventory-microservice/Inventory.Service'
+    shipping  = 'shipping-microservice/Shipping.Service'
+    payment   = 'payment-microservice/Payment.Service'
+    apigateway = 'api-gateway/ApiGateway'
+}
+
+foreach ($svc in $services.Keys) {
+    $tag = if ($svc -eq 'apigateway') { 'local/apigateway:latest' } else { "local/${svc}service:latest" }
+    docker build -f "$($services[$svc])/Dockerfile" -t $tag .
+    if ($LASTEXITCODE -ne 0) { throw "build failed for $svc" }
+}
+```
 
 Before applying manifests, replace `<USERNAME>/<service>:latest` with `local/<service>:latest`
 (see [Replace image references](#replace-image-references) below).
@@ -156,6 +181,17 @@ find kubernetes -name '*.yaml' -exec sed -i.bak '/image: local\//a\          ima
 The `*.bak` files are throwaway; clean them up with `find kubernetes -name '*.bak' -delete`
 when you are done. **Do not commit these substitutions** — they are local-only.
 
+PowerShell equivalent:
+
+```powershell
+Get-ChildItem kubernetes -Filter *.yaml | ForEach-Object {
+    (Get-Content $_.FullName) -replace '<USERNAME>/', 'local/' |
+        Set-Content $_.FullName
+}
+
+# Revert later with `git checkout -- kubernetes/`
+```
+
 ---
 
 ## Deploy the platform
@@ -198,6 +234,59 @@ kubectl get pods -w
 First start is slow: SQL Server alone takes ~60–90 s before its readiness probe passes.
 Microservices restart until SQL is reachable — that is expected on the first apply.
 
+### One-shot apply with readiness gates
+
+The same flow, scripted with `kubectl wait` between stages so microservices do not
+crash-loop while infra is still coming up:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 1. Infra
+kubectl apply -f kubernetes/sql.yaml -f kubernetes/rabbitmq.yaml -f kubernetes/redis.yaml
+kubectl wait --for=condition=ready pod -l app=mssql     --timeout=300s
+kubectl wait --for=condition=ready pod -l app=rabbitmq  --timeout=180s
+kubectl wait --for=condition=ready pod -l app=redis     --timeout=120s
+
+# 2. Observability (optional)
+kubectl apply \
+  -f kubernetes/otel-collector.yaml \
+  -f kubernetes/jaeger.yaml \
+  -f kubernetes/prometheus.yaml \
+  -f kubernetes/alertmanager.yaml \
+  -f kubernetes/loki.yaml \
+  -f kubernetes/grafana.yaml \
+  -f kubernetes/exporters.yaml
+
+# 3. Microservices (excludes aks-* manifests)
+for f in kubernetes/*-microservice.yaml kubernetes/api-gateway.yaml; do
+  kubectl apply -f "$f"
+done
+
+kubectl get pods
+```
+
+PowerShell equivalent:
+
+```powershell
+$ErrorActionPreference = 'Stop'
+
+kubectl apply -f kubernetes/sql.yaml -f kubernetes/rabbitmq.yaml -f kubernetes/redis.yaml
+kubectl wait --for=condition=ready pod -l app=mssql    --timeout=300s
+kubectl wait --for=condition=ready pod -l app=rabbitmq --timeout=180s
+kubectl wait --for=condition=ready pod -l app=redis    --timeout=120s
+
+Get-ChildItem kubernetes -Filter '*-microservice.yaml' |
+    ForEach-Object { kubectl apply -f $_.FullName }
+kubectl apply -f kubernetes/api-gateway.yaml
+
+kubectl get pods
+```
+
+> The glob `*-microservice.yaml` deliberately excludes `aks-dev-*.yml`,
+> `aks-staging-*.yml`, and `aks-prod-*.yml` — those are AKS-only.
+
 ---
 
 ## Verify
@@ -236,6 +325,23 @@ kubectl port-forward svc/apigateway-loadbalancer 8004:8004
 In another terminal, follow the smoke test in
 [Getting-Started](wiki/Getting-Started.md#first-request--end-to-end-smoke-test):
 register, log in, hit `/products`, place an order, watch the saga complete.
+
+A minimal scripted check (PowerShell — pairs well with the port-forward above):
+
+```powershell
+$base = 'http://localhost:8004'
+
+# Register + login
+$creds = @{ email = "test+$(Get-Random)@local"; password = 'Pa$$w0rd!' } | ConvertTo-Json
+Invoke-RestMethod "$base/auth/register" -Method Post -ContentType 'application/json' -Body $creds | Out-Null
+$token = (Invoke-RestMethod "$base/auth/login" -Method Post -ContentType 'application/json' -Body $creds).token
+$h = @{ Authorization = "Bearer $token" }
+
+# Browse + order
+$products = Invoke-RestMethod "$base/products" -Headers $h
+$order = @{ items = @(@{ productId = $products[0].id; quantity = 1 }) } | ConvertTo-Json
+Invoke-RestMethod "$base/orders" -Method Post -Headers $h -ContentType 'application/json' -Body $order
+```
 
 You can confirm the saga ran by tailing logs across services:
 
@@ -341,7 +447,15 @@ kubectl rollout restart deploy/productservice
 Tear everything down with one command:
 
 ```bash
-kubectl delete -f kubernetes/
+# Delete only local-stack manifests; ignore the aks-* ones
+for f in kubernetes/*.yaml; do kubectl delete -f "$f" --ignore-not-found; done
+```
+
+PowerShell:
+
+```powershell
+Get-ChildItem kubernetes -Filter *.yaml |
+    ForEach-Object { kubectl delete -f $_.FullName --ignore-not-found }
 ```
 
 For Minikube, you can also wipe the whole VM:
@@ -357,9 +471,14 @@ without losing Docker Desktop itself.
 
 ## Next steps
 
-- Once you are comfortable here, the same manifests will be promoted to AKS Dev
-  (Slice 6), Staging (Slice 7), and Prod (Slice 8). The local cluster is a faithful
-  proxy for the dev environment — if it works here, it should work there.
-- For the AKS-specific deltas (HPA, Application Insights, ACR image pulls), see
-  the manifests under `Infrastructure - Deployment/kube/` once they are migrated to
-  this project's services.
+- Once you are comfortable here, the AKS Dev/Staging/Prod manifests live alongside
+  the local ones in [kubernetes/](../kubernetes/) under the `aks-{env}-*.yml`
+  prefix. The local cluster is a faithful proxy for the dev environment — if it
+  works here, it should work there.
+- AKS-specific deltas (HPA, Application Insights, ACR image pulls, namespaces,
+  ingress) are visible by diffing a local manifest (e.g.
+  [kubernetes/product-microservice.yaml](../kubernetes/product-microservice.yaml))
+  against its AKS counterpart
+  ([kubernetes/aks-dev-product.yml](../kubernetes/aks-dev-product.yml)).
+- For the deployment pipeline that promotes images through these environments,
+  see [Infrastructure - Deployment/SYSTEM_DESIGN.md](../Infrastructure%20-%20Deployment/SYSTEM_DESIGN.md).
