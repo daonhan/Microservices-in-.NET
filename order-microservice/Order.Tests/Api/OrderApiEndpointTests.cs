@@ -42,7 +42,7 @@ public class OrderApiEndpointTests
         public Task CreateOrder(Order.Service.Models.Order order) => Task.CompletedTask;
         public Task<Order.Service.Models.Order?> GetCustomerOrderById(string customerId, string orderId) => Task.FromResult<Order.Service.Models.Order?>(null);
         public Task<Order.Service.Models.Order?> GetOrderById(Guid orderId) => Task.FromResult<Order.Service.Models.Order?>(null);
-        public Task Commit() => Task.CompletedTask;
+        public Task ExecuteAsync(Func<Task> unitOfWork) => unitOfWork();
     }
 
     [Fact]

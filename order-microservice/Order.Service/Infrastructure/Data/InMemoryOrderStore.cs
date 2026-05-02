@@ -16,5 +16,5 @@ internal class InMemoryOrderStore : IOrderStore
     public Task<Models.Order?> GetOrderById(Guid orderId) =>
         Task.FromResult(Orders.Values.FirstOrDefault(o => o.OrderId == orderId));
 
-    public Task Commit() => Task.CompletedTask;
+    public Task ExecuteAsync(Func<Task> unitOfWork) => unitOfWork();
 }

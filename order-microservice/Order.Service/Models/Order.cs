@@ -1,6 +1,6 @@
 namespace Order.Service.Models;
 
-internal class Order
+internal class Order : Entity
 {
     private readonly List<OrderProduct> _orderProducts = [];
 
@@ -44,6 +44,7 @@ internal class Order
             return false;
         }
         Status = OrderStatus.Confirmed;
+        Raise(new OrderConfirmedDomainEvent(OrderId, CustomerId));
         return true;
     }
 
@@ -54,6 +55,7 @@ internal class Order
             return false;
         }
         Status = OrderStatus.Cancelled;
+        Raise(new OrderCancelledDomainEvent(OrderId, CustomerId));
         return true;
     }
 }

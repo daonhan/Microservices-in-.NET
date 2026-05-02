@@ -1,7 +1,4 @@
-using System.Transactions;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
-using ECommerce.Shared.Infrastructure.Outbox;
-using Microsoft.EntityFrameworkCore;
 using Order.Service.Infrastructure.Data;
 using Order.Service.IntegrationEvents.Events;
 using Order.Service.Models;
@@ -11,20 +8,16 @@ namespace Order.Service.IntegrationEvents.EventHandlers;
 internal class PaymentAuthorizedEventHandler : IEventHandler<PaymentAuthorizedEvent>
 {
     private readonly IOrderStore _orderStore;
-    private readonly IOutboxStore _outboxStore;
 
-    public PaymentAuthorizedEventHandler(IOrderStore orderStore, IOutboxStore outboxStore)
+    public PaymentAuthorizedEventHandler(IOrderStore orderStore)
     {
         _orderStore = orderStore;
-        _outboxStore = outboxStore;
     }
 
     public async Task Handle(PaymentAuthorizedEvent @event)
     {
-        await _outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+        await _orderStore.ExecuteAsync(async () =>
         {
-            using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
             var order = await _orderStore.GetOrderById(@event.OrderId);
 
             if (order is null || order.Status != OrderStatus.PendingStock)
@@ -32,16 +25,7 @@ internal class PaymentAuthorizedEventHandler : IEventHandler<PaymentAuthorizedEv
                 return;
             }
 
-            if (!order.TryConfirm())
-            {
-                return;
-            }
-
-            await _orderStore.Commit();
-
-            await _outboxStore.AddOutboxEvent(new OrderConfirmedEvent(order.OrderId, order.CustomerId));
-
-            scope.Complete();
+            order.TryConfirm();
         });
     }
 }

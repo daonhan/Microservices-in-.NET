@@ -69,4 +69,53 @@ public class OrderTests
         Assert.False(result);
         Assert.Equal(OrderStatus.Cancelled, order.Status);
     }
+
+    [Fact]
+    public void TryConfirm_RaisesOrderConfirmedDomainEvent()
+    {
+        var order = new Service.Models.Order { CustomerId = "c-1" };
+
+        order.TryConfirm();
+        var events = order.DequeueDomainEvents();
+
+        var confirmed = Assert.IsType<OrderConfirmedDomainEvent>(Assert.Single(events));
+        Assert.Equal(order.OrderId, confirmed.OrderId);
+        Assert.Equal(order.CustomerId, confirmed.CustomerId);
+    }
+
+    [Fact]
+    public void TryCancel_RaisesOrderCancelledDomainEvent()
+    {
+        var order = new Service.Models.Order { CustomerId = "c-1" };
+
+        order.TryCancel();
+        var events = order.DequeueDomainEvents();
+
+        var cancelled = Assert.IsType<OrderCancelledDomainEvent>(Assert.Single(events));
+        Assert.Equal(order.OrderId, cancelled.OrderId);
+        Assert.Equal(order.CustomerId, cancelled.CustomerId);
+    }
+
+    [Fact]
+    public void TryConfirm_WhenNoOp_DoesNotRaiseDomainEvent()
+    {
+        var order = new Service.Models.Order { CustomerId = "c-1" };
+        order.TryConfirm();
+        order.DequeueDomainEvents();
+
+        order.TryConfirm();
+
+        Assert.Empty(order.DequeueDomainEvents());
+    }
+
+    [Fact]
+    public void DequeueDomainEvents_ClearsTheQueue()
+    {
+        var order = new Service.Models.Order { CustomerId = "c-1" };
+        order.TryConfirm();
+
+        order.DequeueDomainEvents();
+
+        Assert.Empty(order.DomainEvents);
+    }
 }
