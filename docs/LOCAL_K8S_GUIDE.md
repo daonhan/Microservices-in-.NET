@@ -261,7 +261,39 @@ Microservices restart until SQL is reachable — that is expected on the first a
 ### One-shot apply with readiness gates
 
 The same flow, scripted with `kubectl wait` between stages so microservices do not
-crash-loop while infra is still coming up:
+crash-loop while infra is still coming up. Use the wrappers in `scripts/`:
+
+```bash
+# Bash / WSL / macOS
+./scripts/apply-local-k8s.sh                       # full stack
+SKIP_OBSERVABILITY=1 ./scripts/apply-local-k8s.sh  # infra + services only
+TIMEOUT=600s ./scripts/apply-local-k8s.sh          # bump readiness timeout
+```
+
+```powershell
+# PowerShell
+./scripts/apply-local-k8s.ps1
+./scripts/apply-local-k8s.ps1 -SkipObservability
+./scripts/apply-local-k8s.ps1 -Timeout 600s
+```
+
+Both scripts:
+
+1. Apply `sql.yaml`, `rabbitmq.yaml`, `redis.yaml` and wait for each to be `Ready`.
+2. Apply the observability stack (unless skipped).
+3. Apply every `*-microservice.yaml` plus `api-gateway.yaml`, then wait for each
+   `app=<name>` selector to be `Ready`.
+4. Print a final `kubectl get pods` snapshot and a port-forward hint.
+
+If a readiness gate fails, the script prints the failing pod's events and exits
+non-zero — handy for CI smoke jobs.
+
+> The microservice glob deliberately matches only `*-microservice.yaml`, which
+> excludes `aks-dev-*.yml`, `aks-staging-*.yml`, and `aks-prod-*.yml` (those are
+> AKS-only and reference Azure secrets that do not exist locally).
+
+<details>
+<summary>Inline equivalent (no scripts)</summary>
 
 ```bash
 #!/usr/bin/env bash
@@ -291,25 +323,7 @@ done
 kubectl get pods
 ```
 
-PowerShell equivalent:
-
-```powershell
-$ErrorActionPreference = 'Stop'
-
-kubectl apply -f kubernetes/sql.yaml -f kubernetes/rabbitmq.yaml -f kubernetes/redis.yaml
-kubectl wait --for=condition=ready pod -l app=mssql    --timeout=300s
-kubectl wait --for=condition=ready pod -l app=rabbitmq --timeout=180s
-kubectl wait --for=condition=ready pod -l app=redis    --timeout=120s
-
-Get-ChildItem kubernetes -Filter '*-microservice.yaml' |
-    ForEach-Object { kubectl apply -f $_.FullName }
-kubectl apply -f kubernetes/api-gateway.yaml
-
-kubectl get pods
-```
-
-> The glob `*-microservice.yaml` deliberately excludes `aks-dev-*.yml`,
-> `aks-staging-*.yml`, and `aks-prod-*.yml` — those are AKS-only.
+</details>
 
 ---
 
@@ -346,25 +360,42 @@ Port-forward the gateway and reach the public surface:
 kubectl port-forward svc/apigateway-loadbalancer 8004:8004
 ```
 
-In another terminal, follow the smoke test in
-[Getting-Started](wiki/Getting-Started.md#first-request--end-to-end-smoke-test):
-register, log in, hit `/products`, place an order, watch the saga complete.
+In another terminal, run the wrapper:
 
-A minimal scripted check (PowerShell — pairs well with the port-forward above):
+```powershell
+./scripts/local-smoke-test.ps1
+# override the seeded admin credentials if you have changed them:
+./scripts/local-smoke-test.ps1 -Username 'me@example.com' -Password 'secret'
+```
+
+It logs in as the seeded administrator (`microservices@daonhan.com` —
+[Auth.Service/.../UserConfiguration.cs](../auth-microservice/Auth.Service/Infrastructure/Data/EntityFramework/Configurations/UserConfiguration.cs)),
+creates a product, places an order against it, and prints log-tail commands
+to verify the saga.
+
+The same flow inline (matches the actual gateway routes in
+[api-gateway/ApiGateway/appsettings.json](../api-gateway/ApiGateway/appsettings.json)
+— singular paths, no `/auth/register`, no `/products` listing):
 
 ```powershell
 $base = 'http://localhost:8004'
 
-# Register + login
-$creds = @{ email = "test+$(Get-Random)@local"; password = 'Pa$$w0rd!' } | ConvertTo-Json
-Invoke-RestMethod "$base/auth/register" -Method Post -ContentType 'application/json' -Body $creds | Out-Null
-$token = (Invoke-RestMethod "$base/auth/login" -Method Post -ContentType 'application/json' -Body $creds).token
+# 1. Login as the seeded administrator
+$loginBody = @{ Username = 'microservices@daonhan.com'; Password = 'oKNrqkO7iC#G' } | ConvertTo-Json
+$token = (Invoke-RestMethod "$base/login" -Method Post -ContentType 'application/json' -Body $loginBody).token
 $h = @{ Authorization = "Bearer $token" }
 
-# Browse + order
-$products = Invoke-RestMethod "$base/products" -Headers $h
-$order = @{ items = @(@{ productId = $products[0].id; quantity = 1 }) } | ConvertTo-Json
-Invoke-RestMethod "$base/orders" -Method Post -Headers $h -ContentType 'application/json' -Body $order
+# 2. Create a product (Admin route)
+$body = @{ Name = "smoke-$(Get-Random)"; Price = 9.99; ProductTypeId = 1 } | ConvertTo-Json
+$resp = Invoke-WebRequest "$base/product/" -Method Post -Headers $h -ContentType 'application/json' -Body $body
+$productId = [int]$resp.Content
+
+# 3. Read it back
+Invoke-RestMethod "$base/product/$productId" -Headers $h
+
+# 4. Place an order (triggers the saga)
+$orderBody = @{ OrderProducts = @(@{ ProductId = "$productId"; Quantity = 1 }) } | ConvertTo-Json
+Invoke-WebRequest "$base/order/cust-$(Get-Random)" -Method Post -Headers $h -ContentType 'application/json' -Body $orderBody
 ```
 
 You can confirm the saga ran by tailing logs across services:
@@ -419,21 +450,84 @@ manifests:
 kubectl wait --for=condition=ready pod -l app=mssql --timeout=180s
 ```
 
-### `MountVolume.SetUp failed` / `pod has unbound immediate PersistentVolumeClaims`
+### `MountVolume.SetUp failed` / `pod has unbound immediate PersistentVolumeClaims` / `PreBind plugin "VolumeBinding": binding volumes: context deadline exceeded`
 
-`sql.yaml` requests a `PersistentVolumeClaim` with `ReadWriteMany`. On Docker Desktop
-and Minikube, the default `StorageClass` only supports `ReadWriteOnce`. The PVC stays
-pending forever.
+**Verified fix on Docker Desktop.** [kubernetes/sql.yaml](../kubernetes/sql.yaml)
+requests a `PersistentVolumeClaim` with `ReadWriteMany`. Docker Desktop's only
+storage class is `rancher.io/local-path` (also Minikube's default), which **only
+supports `ReadWriteOnce`** — the PVC never binds and the `mssql` pod stays
+`Pending` forever. The scheduler logs:
 
-Fix locally by editing `kubernetes/sql.yaml` to use `ReadWriteOnce`:
-
-```yaml
-accessModes:
-  - ReadWriteOnce
+```text
+Warning  FailedScheduling  default-scheduler
+  running PreBind plugin "VolumeBinding": binding volumes: context deadline exceeded
 ```
 
-(Do not commit this — it is a local-only workaround. The `ReadWriteMany` mode is
-intentional for AKS.)
+#### Easy fix: let the apply scripts handle it
+
+Both [scripts/apply-local-k8s.ps1](../scripts/apply-local-k8s.ps1) and
+[scripts/apply-local-k8s.sh](../scripts/apply-local-k8s.sh) detect this
+automatically. They check the cluster's storage classes; if the only provisioners
+are `rancher.io/local-path`, `docker.io/hostpath`, or `k8s.io/minikube-hostpath`,
+they stream `kubernetes/sql.yaml` through an in-memory
+`ReadWriteMany` → `ReadWriteOnce` rewrite before piping it to `kubectl apply -f -`.
+**The file on disk is not modified**, so nothing to revert and nothing to forget.
+
+Override the auto-detection if needed:
+
+```powershell
+./scripts/apply-local-k8s.ps1 -LocalStorageFix on    # force rewrite
+./scripts/apply-local-k8s.ps1 -LocalStorageFix off   # never rewrite
+./scripts/apply-local-k8s.ps1 -LocalStorageFix auto  # default
+```
+
+```bash
+LOCAL_STORAGE_FIX=on   ./scripts/apply-local-k8s.sh
+LOCAL_STORAGE_FIX=off  ./scripts/apply-local-k8s.sh
+LOCAL_STORAGE_FIX=auto ./scripts/apply-local-k8s.sh   # default
+```
+
+#### Manual fix (when applying by hand)
+
+Confirm the symptom first:
+
+```powershell
+kubectl get storageclass
+# NAME                 PROVISIONER             ...
+# hostpath             rancher.io/local-path   ...
+# standard (default)   rancher.io/local-path   ...
+
+kubectl describe pvc mssql-claim   # STATUS will be Pending
+```
+
+Then edit [kubernetes/sql.yaml](../kubernetes/sql.yaml) to use `ReadWriteOnce`:
+
+```yaml
+spec:
+  accessModes:
+    - ReadWriteOnce   # was: ReadWriteMany
+```
+
+`accessModes` is immutable on an existing PVC, so delete and re-apply:
+
+```powershell
+kubectl delete -f kubernetes/sql.yaml --ignore-not-found
+kubectl apply  -f kubernetes/sql.yaml
+kubectl get pvc -w   # wait until mssql-claim shows STATUS=Bound, then Ctrl+C
+```
+
+```bash
+kubectl delete -f kubernetes/sql.yaml --ignore-not-found
+kubectl apply  -f kubernetes/sql.yaml
+kubectl get pvc -w   # wait until mssql-claim shows STATUS=Bound, then Ctrl+C
+```
+
+> **Do not commit this change.** The `ReadWriteMany` mode is intentional for AKS
+> (Azure Files supports RWX). Revert before pushing:
+>
+> ```bash
+> git checkout -- kubernetes/sql.yaml
+> ```
 
 ### `connection refused` when port-forwarding
 

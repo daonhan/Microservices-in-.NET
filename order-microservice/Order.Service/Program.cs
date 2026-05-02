@@ -21,6 +21,14 @@ builder.Services.AddOutbox(builder.Configuration);
 builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration["Redis:Configuration"] ?? "localhost:6379");
 
+builder.Services.AddHttpClient<Order.Service.Infrastructure.Providers.IProductCatalogClient,
+    Order.Service.Infrastructure.Providers.HttpProductCatalogClient>(client =>
+{
+    var baseUrl = builder.Configuration["ProductService:BaseUrl"]
+        ?? "http://product-clusterip-service:8080";
+    client.BaseAddress = new Uri(baseUrl);
+});
+
 builder.Services.AddScoped<Order.Service.Models.IProductPriceProvider, Order.Service.Infrastructure.Providers.RedisProductPriceProvider>();
 
 builder.AddPlatformOpenApi("order");
@@ -30,7 +38,8 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddRabbitMqSubscriberService(builder.Configuration)
     .AddEventHandler<PaymentAuthorizedEvent, PaymentAuthorizedEventHandler>()
     .AddEventHandler<PaymentFailedEvent, PaymentFailedEventHandler>()
-    .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>();
+    .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>()
+    .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>();
 
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation(),

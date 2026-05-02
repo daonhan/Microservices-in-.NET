@@ -71,6 +71,8 @@ spec:
                 secretKeyRef:
                   name: messaging-secret
                   key: rabbitmq-host
+            - name: ProductService__BaseUrl
+              value: http://product-clusterip-service:8080
             - name: APPLICATIONINSIGHTS_CONNECTION_STRING
               valueFrom:
                 secretKeyRef:

@@ -11,6 +11,21 @@ public static class JwksEndpoint
     {
         routeBuilder.MapGet("/.well-known/jwks.json", GetJwks)
             .AllowAnonymous();
+
+        routeBuilder.MapGet("/.well-known/openid-configuration", GetOpenIdConfiguration)
+            .AllowAnonymous();
+    }
+
+    internal static JsonHttpResult<OpenIdConfigurationDocument> GetOpenIdConfiguration(HttpContext httpContext)
+    {
+        var issuer = $"{httpContext.Request.Scheme}://{httpContext.Request.Host.Value}";
+        var doc = new OpenIdConfigurationDocument(
+            issuer: issuer,
+            jwks_uri: $"{issuer}/.well-known/jwks.json",
+            id_token_signing_alg_values_supported: new[] { SecurityAlgorithms.RsaSha256 });
+
+        httpContext.Response.Headers.CacheControl = "public, max-age=300";
+        return TypedResults.Json(doc);
     }
 
     internal static JsonHttpResult<JwksDocument> GetJwks(
@@ -45,3 +60,8 @@ public static class JwksEndpoint
 public record JwksDocument(Jwk[] keys);
 
 public record Jwk(string kty, string use, string alg, string kid, string n, string e);
+
+public record OpenIdConfigurationDocument(
+    string issuer,
+    string jwks_uri,
+    string[] id_token_signing_alg_values_supported);

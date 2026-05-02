@@ -46,6 +46,10 @@ spec:
               value: rabbitmq-clusterip-service
             - name: ConnectionStrings__Default
               value: Server=mssql-clusterip-service,1433;Database=Order;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True
+            - name: Redis__Configuration
+              value: redis-clusterip-service:6379
+            - name: ProductService__BaseUrl
+              value: http://product-clusterip-service:8080
             - name: OpenTelemetry__OtlpExporterEndpoint
               value: http://jaeger-clusterip-service:4317
             - name: OpenTelemetry__LogsOtlpExporterEndpoint
