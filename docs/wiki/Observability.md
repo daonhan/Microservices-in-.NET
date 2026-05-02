@@ -7,7 +7,7 @@ Every service emits **traces**, **metrics**, and **logs** via OpenTelemetry. Eve
 ```mermaid
 graph LR
     subgraph Services
-        A[Basket] & B[Order] & C[Product] & D[Auth] & E[Inventory] & F[Gateway] & G[Shipping]
+        A[Basket] & B[Order] & C[Product] & D[Auth] & E[Inventory] & F[Gateway] & G[Shipping] & H[Payment]
     end
     Services -- OTLP traces/logs --> OC[OTel Collector]
     Services -- /metrics scrape --> PR[Prometheus]
@@ -67,6 +67,11 @@ Services register counters/histograms via `MetricFactory` from [Shared-Library](
 - `time_to_dispatch_seconds` — histogram, time from creation to dispatch
 - `time_to_delivery_seconds` — histogram, time from creation to delivered
 - `rate_shopping_quote_spread` — histogram, price spread on quote
+
+### Payment metrics
+
+- `payments_total{status}` — counter, incremented on payment status transitions
+- `payment_authorize_latency_ms` — histogram, time spent authorizing through the configured payment gateway
 
 ## Tracing across the bus
 

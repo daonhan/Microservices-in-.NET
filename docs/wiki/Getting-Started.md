@@ -4,7 +4,7 @@ This page gets a developer from a fresh clone to a running stack with traces, me
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/) (optional — only for Kubernetes)
 - A shell (PowerShell, bash, or zsh)
@@ -15,7 +15,7 @@ This page gets a developer from a fresh clone to a running stack with traces, me
 docker compose up --build
 ```
 
-This starts six microservices plus SQL Server, RabbitMQ, Redis, OTel Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki, and Prometheus exporters for RabbitMQ, Redis, and SQL Server.
+This starts eight microservices plus SQL Server, RabbitMQ, Redis, OTel Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki, and Prometheus exporters for RabbitMQ, Redis, and SQL Server.
 
 Verify endpoints:
 
@@ -74,6 +74,7 @@ cd order-microservice     && dotnet test
 cd product-microservice   && dotnet test
 cd inventory-microservice && dotnet test
 cd shipping-microservice  && dotnet test
+cd payment-microservice   && dotnet test
 cd api-gateway            && dotnet test
 ```
 

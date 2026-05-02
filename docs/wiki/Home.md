@@ -1,6 +1,6 @@
 # E-Commerce Microservices Platform — Wiki
 
-Welcome to the reference wiki for the **E-Commerce Microservices Platform**, a production-ready .NET 8 microservice reference implementation. This wiki is the canonical narrative layer over the source code.
+Welcome to the reference wiki for the **E-Commerce Microservices Platform**, a production-ready .NET 10 microservice reference implementation. This wiki is the canonical narrative layer over the source code.
 
 If you just want to clone and run it, see the repository [README](https://github.com/daonhan/Microservices-in-.NET#getting-started). The wiki is organized around how people actually encounter the system.
 
@@ -57,7 +57,7 @@ See [Architecture](Architecture) for the full story.
 
 ## Tech stack summary
 
-- **.NET 8**, ASP.NET Core Minimal APIs, C# 12
+- **.NET 10**, ASP.NET Core Minimal APIs
 - **RabbitMQ** fanout exchange for async events
 - **EF Core + SQL Server** per service; **Redis** for Basket
 - **YARP** API Gateway (Ocelot retained as runtime-switchable fallback)
