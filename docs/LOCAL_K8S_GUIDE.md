@@ -49,6 +49,30 @@ strings) and will fail to start without them.
 
 Build the service images from the repo root:
 
+### One-shot scripts (recommended)
+
+Wrappers that build all 8 images with the repo root as build context:
+
+```bash
+# Bash / WSL / macOS
+./scripts/build-local-images.sh                  # tag = latest
+TAG=dev ./scripts/build-local-images.sh          # custom tag
+PARALLEL=1 ./scripts/build-local-images.sh       # parallel (xargs -P 4)
+```
+
+```powershell
+# PowerShell (Windows / Docker Desktop)
+./scripts/build-local-images.ps1
+./scripts/build-local-images.ps1 -Tag dev
+./scripts/build-local-images.ps1 -Parallel       # PowerShell 7+
+```
+
+> For Minikube, run `eval "$(minikube docker-env)"` (bash) or
+> `minikube docker-env --shell powershell | Invoke-Expression` (pwsh) **before**
+> running the script so images land in the cluster's image store.
+
+### Manual one-by-one
+
 ```bash
 # Example: product
 docker build -f product-microservice/Product.Service/Dockerfile -t local/productservice:latest .
