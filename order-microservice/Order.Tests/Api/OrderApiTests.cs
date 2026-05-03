@@ -32,6 +32,7 @@ public class OrderApiTests : IntegrationTestBase
         // Arrange
         var order = new Service.Models.Order { CustomerId = "1" };
         await OrderContext.CreateOrder(order);
+        await OrderContext.SaveChangesAsync();
 
         // Act
         var response = await HttpClient.GetAsync($"/{order.CustomerId}/{order.OrderId}");

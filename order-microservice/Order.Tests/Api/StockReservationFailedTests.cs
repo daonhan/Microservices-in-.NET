@@ -17,6 +17,7 @@ public class StockReservationFailedTests : IntegrationTestBase
     {
         var order = new Service.Models.Order { CustomerId = "cx-1" };
         await OrderContext.CreateOrder(order);
+        await OrderContext.SaveChangesAsync();
 
         await DispatchAsync(new StockReservationFailedEvent(order.OrderId,
             [new FailedItem(1, 5, 2)]));
@@ -32,6 +33,7 @@ public class StockReservationFailedTests : IntegrationTestBase
         var order = new Service.Models.Order { CustomerId = "cx-2" };
         order.TryCancel();
         await OrderContext.CreateOrder(order);
+        await OrderContext.SaveChangesAsync();
 
         await DispatchAsync(new StockReservationFailedEvent(order.OrderId,
             [new FailedItem(1, 3, 0)]));

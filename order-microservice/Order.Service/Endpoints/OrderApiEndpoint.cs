@@ -1,12 +1,7 @@
-using System.Globalization;
-using System.Transactions;
-using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability.Metrics;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Distributed;
 using Order.Service.ApiModels;
 using Order.Service.Infrastructure.Data;
-using Order.Service.IntegrationEvents.Events;
+using Order.Service.Models;
 
 namespace Order.Service.Endpoints;
 
@@ -18,8 +13,8 @@ public static class OrderApiEndpoint
         routeBuilder.MapGet("/{customerId}/{orderId}", GetOrder);
     }
 
-    internal static async Task<IResult> CreateOrder(IOutboxStore outboxStore,
-        IOrderStore orderStore, Order.Service.Models.IProductPriceProvider priceProvider, MetricFactory metricFactory,
+    internal static async Task<IResult> CreateOrder(
+        IOrderStore orderStore, IProductPriceProvider priceProvider, MetricFactory metricFactory,
         string customerId, CreateOrderRequest request)
     {
         var order = new Models.Order
@@ -35,20 +30,9 @@ public static class OrderApiEndpoint
         var uniqueProductIds = order.OrderProducts.Select(p => p.ProductId).Distinct().ToList();
         var unitPrices = await priceProvider.GetUnitPricesAsync(uniqueProductIds);
 
-        await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
-        {
-            using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+        order.Submit(unitPrices);
 
-            await orderStore.CreateOrder(order);
-
-            var items = order.OrderProducts
-                .Select(p => new OrderItem(p.ProductId, p.Quantity, unitPrices[p.ProductId]))
-                .ToList();
-
-            await outboxStore.AddOutboxEvent(new OrderCreatedEvent(order.OrderId, customerId, items));
-
-            scope.Complete();
-        });
+        await orderStore.ExecuteAsync(() => orderStore.CreateOrder(order));
 
         var orderCounter = metricFactory.Counter("total-orders", "Orders");
         orderCounter.Add(1);

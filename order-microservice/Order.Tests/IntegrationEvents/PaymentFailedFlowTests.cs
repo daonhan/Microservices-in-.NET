@@ -18,6 +18,7 @@ public class PaymentFailedFlowTests : IntegrationTestBase
     {
         var order = new Service.Models.Order { CustomerId = "cust-1" };
         await OrderContext.CreateOrder(order);
+        await OrderContext.SaveChangesAsync();
 
         await DispatchAsync(new PaymentFailedEvent(
             PaymentId: Guid.NewGuid(),
@@ -44,6 +45,7 @@ public class PaymentFailedFlowTests : IntegrationTestBase
         var order = new Service.Models.Order { CustomerId = "cust-2" };
         order.TryCancel();
         await OrderContext.CreateOrder(order);
+        await OrderContext.SaveChangesAsync();
 
         await DispatchAsync(new PaymentFailedEvent(
             PaymentId: Guid.NewGuid(),

@@ -37,6 +37,14 @@ internal class Order : Entity
         }
     }
 
+    public void Submit(IReadOnlyDictionary<string, decimal> unitPrices, string currency = "USD")
+    {
+        var items = _orderProducts
+            .Select(p => new OrderItemSnapshot(p.ProductId, p.Quantity, unitPrices[p.ProductId]))
+            .ToList();
+        Raise(new OrderCreatedDomainEvent(OrderId, CustomerId, items, currency));
+    }
+
     public bool TryConfirm()
     {
         if (Status != OrderStatus.PendingStock)

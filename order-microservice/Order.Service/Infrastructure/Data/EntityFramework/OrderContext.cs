@@ -31,10 +31,10 @@ internal class OrderContext : DbContext, IOrderStore
         modelBuilder.ApplyConfiguration(new OrderProductConfiguration());
     }
 
-    public async Task CreateOrder(Models.Order order)
+    public Task CreateOrder(Models.Order order)
     {
         Orders.Add(order);
-        await SaveChangesAsync(acceptAllChangesOnSuccess: false);
+        return Task.CompletedTask;
     }
 
     public async Task<Models.Order?> GetCustomerOrderById(string customerId, string orderId)
@@ -84,6 +84,11 @@ internal class OrderContext : DbContext, IOrderStore
 
     private static Event Translate(IDomainEvent domainEvent) => domainEvent switch
     {
+        OrderCreatedDomainEvent e => new OrderCreatedEvent(
+            e.OrderId,
+            e.CustomerId,
+            e.Items.Select(i => new OrderItem(i.ProductId, i.Quantity, i.UnitPrice)).ToList(),
+            e.Currency),
         OrderConfirmedDomainEvent e => new OrderConfirmedEvent(e.OrderId, e.CustomerId),
         OrderCancelledDomainEvent e => new OrderCancelledEvent(e.OrderId, e.CustomerId),
         _ => throw new InvalidOperationException(
