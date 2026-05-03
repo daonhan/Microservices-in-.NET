@@ -3,6 +3,8 @@
 Manifests live under [`kubernetes/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/kubernetes). Each file is self-contained (`Deployment` + `Service`) so you can apply them individually.
 
 > **Local vs Azure.** This page covers running the platform on local Kubernetes (Docker Desktop / Minikube) using the un-prefixed manifests. The same folder also holds per-environment AKS manifests (`aks-dev-*.yml`, `aks-staging-*.yml`, `aks-prod-*.yml`) consumed by Azure Pipelines — see [Azure-Deployment](Azure-Deployment) for the cloud flow.
+>
+> For a step-by-step walkthrough (image build, Docker Desktop / Minikube setup, troubleshooting `ImagePullBackOff` and PVC `ReadWriteMany` issues), see [Local-Kubernetes-Guide](Local-Kubernetes-Guide).
 
 ## Apply order
 

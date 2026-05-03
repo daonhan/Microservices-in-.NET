@@ -50,7 +50,7 @@ See [Architecture](Architecture) for the full story.
 | Learn the shared building blocks | [Shared-Library](Shared-Library) |
 | Write tests the house way | [Testing](Testing) |
 | Watch it in production | [Observability](Observability) |
-| Deploy to Kubernetes (local) | [Kubernetes-Deployment](Kubernetes-Deployment) |
+| Deploy to Kubernetes (local) | [Kubernetes-Deployment](Kubernetes-Deployment) · [Local-Kubernetes-Guide](Local-Kubernetes-Guide) |
 | Deploy to Azure (AKS + CI/CD) | [Azure-Deployment](Azure-Deployment) |
 | Contribute a change | [Contributing](Contributing) |
 | Diagnose a problem | [Troubleshooting](Troubleshooting) |
