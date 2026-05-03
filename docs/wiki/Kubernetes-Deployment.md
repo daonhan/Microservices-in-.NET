@@ -2,6 +2,8 @@
 
 Manifests live under [`kubernetes/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/kubernetes). Each file is self-contained (`Deployment` + `Service`) so you can apply them individually.
 
+> **Local vs Azure.** This page covers running the platform on local Kubernetes (Docker Desktop / Minikube) using the un-prefixed manifests. The same folder also holds per-environment AKS manifests (`aks-dev-*.yml`, `aks-staging-*.yml`, `aks-prod-*.yml`) consumed by Azure Pipelines — see [Azure-Deployment](Azure-Deployment) for the cloud flow.
+
 ## Apply order
 
 Infrastructure first, observability next, microservices last.
@@ -72,3 +74,9 @@ kubectl port-forward svc/api-gateway-clusterip-service 8004:8004
 ```
 
 Then follow the smoke test in [Getting-Started](Getting-Started#first-request--end-to-end-smoke-test).
+
+## Deploying to Azure (AKS)
+
+The AKS manifests (`aks-{env}-{service}.yml`) are deployed by per-service Azure Pipelines after a `docker push` to ACR — image tag substitution happens at deploy time via `KubernetesManifest@0`. Bicep provisions the cluster, ACR, SQL, Redis, Service Bus, Key Vault, and Application Insights.
+
+See [Azure-Deployment](Azure-Deployment) for the full topology, environment matrix, pipeline templates, and provider switches (`Messaging__Provider`, `OpenTelemetry__Exporter`).

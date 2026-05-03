@@ -14,6 +14,7 @@ A snapshot of where the platform is heading. Intent here is aspirational; author
 - ✅ Combined Swagger UI at the gateway (OpenAPI aggregation, dev/staging only) — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-ApiGateway-OpenApi-Aggregation.md)
 - ✅ Full observability stack (Jaeger, Prometheus, Alertmanager, Grafana, Loki) with alerts — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Observability.md)
 - ✅ Kubernetes manifests for services + infra + observability
+- ✅ Azure cloud deployment — Bicep IaC (VNet, AKS, ACR, SQL, Redis, Key Vault, Monitor, Service Bus), per-service Azure Pipelines (build + multi-env deploy), Dev/Staging/Prod AKS manifests with Ingress, Azure Service Bus adapter for `IEventBus`, Application Insights via Azure Monitor OTel exporter — [Epic #33](https://github.com/daonhan/Microservices-in-.NET/issues/33) · [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/azure-infrastructure-deployment.md) · [Plan](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/plans/azure-infrastructure-deployment-plan.md) · wiki: [Azure-Deployment](Azure-Deployment)
 - ✅ Public Wiki (this wiki) — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Wiki.md)
 
 ## In flight

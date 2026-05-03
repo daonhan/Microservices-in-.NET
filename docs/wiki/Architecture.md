@@ -45,6 +45,7 @@ graph TD
 | **API Gateway owns public auth** | JWT validation and role checks happen at the gateway. Downstream services still validate the token but trust the gateway for routing. |
 | **DTO vs Domain separation** | `ApiModels/` holds request/response DTOs; `Models/` holds internal domain entities. |
 | **Shared cross-cutting library** | `ECommerce.Shared` centralizes JWT, EventBus, Outbox, Observability, Health — see [Shared-Library](Shared-Library). |
+| **Pluggable messaging & telemetry providers** | `Messaging__Provider` switches between `RabbitMqEventBus` and `AzureServiceBusEventBus`; `OpenTelemetry__Exporter` switches between local OTLP and Application Insights. Same `IEventBus`, same handlers. See [Azure-Deployment](Azure-Deployment). |
 
 
 ## Saga: Order ↔ Inventory ↔ Payment ↔ Shipping

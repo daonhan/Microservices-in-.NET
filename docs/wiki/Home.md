@@ -50,7 +50,8 @@ See [Architecture](Architecture) for the full story.
 | Learn the shared building blocks | [Shared-Library](Shared-Library) |
 | Write tests the house way | [Testing](Testing) |
 | Watch it in production | [Observability](Observability) |
-| Deploy to Kubernetes | [Kubernetes-Deployment](Kubernetes-Deployment) |
+| Deploy to Kubernetes (local) | [Kubernetes-Deployment](Kubernetes-Deployment) |
+| Deploy to Azure (AKS + CI/CD) | [Azure-Deployment](Azure-Deployment) |
 | Contribute a change | [Contributing](Contributing) |
 | Diagnose a problem | [Troubleshooting](Troubleshooting) |
 | See what's next | [Roadmap](Roadmap) |
@@ -64,3 +65,4 @@ See [Architecture](Architecture) for the full story.
 - **OpenTelemetry** → Jaeger (traces), Prometheus (metrics), Loki (logs), Grafana (dashboards), Alertmanager
 - **xUnit + NSubstitute + WebApplicationFactory** for tests
 - **Docker Compose** and **Kubernetes** manifests for deployment
+- **Azure** (AKS, ACR, Azure SQL, Redis, Service Bus, Application Insights) provisioned via **Bicep** and deployed via **Azure Pipelines** — see [Azure-Deployment](Azure-Deployment)

@@ -23,6 +23,7 @@
 - [Testing](Testing)
 - [Observability](Observability)
 - [Kubernetes-Deployment](Kubernetes-Deployment)
+- [Azure-Deployment](Azure-Deployment)
 
 **Operations**
 - [Troubleshooting](Troubleshooting)
