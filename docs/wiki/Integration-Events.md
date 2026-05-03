@@ -6,7 +6,7 @@ All cross-service communication happens through events published to a single Rab
 
 | Event | Publisher | Subscribers |
 |---|---|---|
-| `ProductCreatedEvent` | [Product](Service-Product) | [Inventory](Service-Inventory) |
+| `ProductCreatedEvent` | [Product](Service-Product) | [Inventory](Service-Inventory), [Order](Service-Order) (price cache) |
 | `ProductPriceUpdatedEvent` | Product | [Basket](Service-Basket) |
 | `OrderCreatedEvent` | [Order](Service-Order) | [Basket](Service-Basket), [Inventory](Service-Inventory), [Payment](Service-Payment) |
 | `OrderConfirmedEvent` | Order | Inventory |
