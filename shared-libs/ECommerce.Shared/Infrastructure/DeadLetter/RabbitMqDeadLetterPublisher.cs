@@ -35,7 +35,8 @@ internal sealed class RabbitMqDeadLetterPublisher : IDeadLetterPublisher
         properties.Headers = new Dictionary<string, object>
         {
             [RabbitMqTopology.EventTypeHeader] = Encoding.UTF8.GetBytes(request.EventType),
-            [RabbitMqTopology.ReplayedFromHeader] = Encoding.UTF8.GetBytes(request.FailureId.ToString())
+            [RabbitMqTopology.ReplayedFromHeader] = Encoding.UTF8.GetBytes(request.FailureId.ToString()),
+            [RabbitMqTopology.CorrelationIdHeader] = Encoding.UTF8.GetBytes(correlationId.ToString())
         };
 
         var body = Encoding.UTF8.GetBytes(request.Payload);

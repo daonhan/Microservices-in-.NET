@@ -38,17 +38,32 @@ public sealed partial class DeadLetterReplayer : IDeadLetterReplayer
             replayedBy = "unknown";
         }
 
+        using var activity = DeadLetterMetrics.ActivitySource.StartActivity(
+            "dlq.replay", System.Diagnostics.ActivityKind.Producer);
+        activity?.SetTag("dlq.failure_id", failureId.ToString());
+        activity?.SetTag("dlq.replayed_by", replayedBy);
+
         var message = await _store.GetAsync(failureId, cancellationToken);
         if (message is null)
         {
             LogReplayRefused(_logger, failureId, "not_found", replayedBy);
+            activity?.SetTag("dlq.outcome", "not_found");
             return new DeadLetterReplayResult(DeadLetterReplayOutcome.NotFound, null, "not_found", null);
+        }
+
+        activity?.SetTag("dlq.event_type", message.EventType);
+        activity?.SetTag("dlq.original_queue", message.OriginalQueue);
+        activity?.SetTag("dlq.service", message.Service);
+        if (message.CorrelationId is { } correlationId)
+        {
+            activity?.SetTag("messaging.correlation_id", correlationId.ToString());
         }
 
         if (message.Status != DeadLetterStatus.Pending)
         {
             LogReplayRefused(_logger, failureId, $"status_{message.Status}", replayedBy);
             RecordOutcome(message, outcome: "failure");
+            activity?.SetTag("dlq.outcome", $"not_pending_{message.Status}");
             return new DeadLetterReplayResult(DeadLetterReplayOutcome.NotPending, null, $"status_{message.Status}", message);
         }
 
@@ -66,8 +81,11 @@ public sealed partial class DeadLetterReplayer : IDeadLetterReplayer
         {
             LogReplayPublishFailed(_logger, ex, failureId, replayedBy);
             RecordOutcome(message, outcome: "failure");
+            activity?.SetTag("dlq.outcome", "publish_failed");
             return new DeadLetterReplayResult(DeadLetterReplayOutcome.PublishFailed, null, ex.Message, message);
         }
+
+        activity?.SetTag("dlq.new_message_id", newMessageId.ToString());
 
         var marked = await _store.MarkReplayedAsync(failureId, replayedBy, cancellationToken);
         if (!marked)
@@ -76,11 +94,13 @@ public sealed partial class DeadLetterReplayer : IDeadLetterReplayer
             // so operators investigate; do not silently swallow.
             LogReplayRefused(_logger, failureId, "concurrent_transition", replayedBy);
             RecordOutcome(message, outcome: "failure");
+            activity?.SetTag("dlq.outcome", "concurrent_transition");
             return new DeadLetterReplayResult(DeadLetterReplayOutcome.NotPending, newMessageId, "concurrent_transition", message);
         }
 
         LogReplaySuccess(_logger, message.Id, message.EventType, message.OriginalQueue, message.Service, newMessageId, replayedBy);
         RecordOutcome(message, outcome: "success");
+        activity?.SetTag("dlq.outcome", "success");
         return new DeadLetterReplayResult(DeadLetterReplayOutcome.Success, newMessageId, null, message);
     }
 

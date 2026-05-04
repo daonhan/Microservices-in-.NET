@@ -112,4 +112,34 @@ public sealed class DeadLetterReplayerTests
         Assert.Equal(DeadLetterReplayOutcome.Success, result.Outcome);
         await store.Received(1).MarkReplayedAsync(msg.Id, "unknown", Arg.Any<CancellationToken>());
     }
+
+    [Fact]
+    public async Task Given_pending_message_When_ReplayAsync_Then_emits_activity_tagged_with_correlation_id_and_outcome()
+    {
+        var (replayer, store, publisher) = Build();
+        var msg = NewPending();
+        store.GetAsync(msg.Id, Arg.Any<CancellationToken>()).Returns(msg);
+        store.MarkReplayedAsync(msg.Id, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        publisher.Publish(Arg.Any<DeadLetterReplayRequest>()).Returns(Guid.NewGuid());
+
+        var captured = new List<System.Diagnostics.Activity>();
+        using var listener = new System.Diagnostics.ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "ECommerce.Shared.DeadLetter",
+            Sample = (ref System.Diagnostics.ActivityCreationOptions<System.Diagnostics.ActivityContext> _) =>
+                System.Diagnostics.ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => captured.Add(activity),
+        };
+        System.Diagnostics.ActivitySource.AddActivityListener(listener);
+
+        var result = await replayer.ReplayAsync(msg.Id, "alice");
+
+        Assert.Equal(DeadLetterReplayOutcome.Success, result.Outcome);
+        var replayActivity = Assert.Single(captured, a => a.OperationName == "dlq.replay");
+        Assert.Equal(msg.CorrelationId!.Value.ToString(), replayActivity.GetTagItem("messaging.correlation_id"));
+        Assert.Equal(msg.Id.ToString(), replayActivity.GetTagItem("dlq.failure_id"));
+        Assert.Equal(msg.EventType, replayActivity.GetTagItem("dlq.event_type"));
+        Assert.Equal(msg.OriginalQueue, replayActivity.GetTagItem("dlq.original_queue"));
+        Assert.Equal("success", replayActivity.GetTagItem("dlq.outcome"));
+    }
 }
