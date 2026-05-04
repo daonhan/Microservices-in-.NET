@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
@@ -36,5 +37,39 @@ public static class OperatorModule
             var result = await store.ListAsync(filter, cancellationToken);
             return Results.Ok(result);
         });
+
+        group.MapPost("/{id:guid}/replay", async (
+            Guid id,
+            IDeadLetterReplayer replayer,
+            ClaimsPrincipal user,
+            CancellationToken cancellationToken) =>
+        {
+            var replayedBy = user.FindFirstValue(JwtClaimTypes.Subject)
+                ?? user.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? user.Identity?.Name
+                ?? "unknown";
+
+            var result = await replayer.ReplayAsync(id, replayedBy, cancellationToken);
+
+            return result.Outcome switch
+            {
+                DeadLetterReplayOutcome.Success =>
+                    Results.Accepted($"/operator/api/failures/{id}", new { id, newMessageId = result.NewMessageId }),
+                DeadLetterReplayOutcome.NotFound =>
+                    Results.NotFound(new { id, reason = result.FailureReason }),
+                DeadLetterReplayOutcome.NotPending =>
+                    Results.Conflict(new { id, reason = result.FailureReason }),
+                _ =>
+                    Results.Problem(
+                        title: "Replay failed during publish",
+                        detail: result.FailureReason,
+                        statusCode: StatusCodes.Status502BadGateway)
+            };
+        });
     }
+}
+
+internal static class JwtClaimTypes
+{
+    public const string Subject = "sub";
 }

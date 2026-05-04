@@ -13,4 +13,5 @@ public static class RabbitMqTopology
     public const string StackTraceHeader = "x-stack-trace";
     public const string AttemptsHeader = "x-attempts";
     public const string FailedAtHeader = "x-failed-at";
+    public const string ReplayedFromHeader = "x-replayed-from";
 }

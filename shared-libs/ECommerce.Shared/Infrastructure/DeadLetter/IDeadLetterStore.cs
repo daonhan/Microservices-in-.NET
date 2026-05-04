@@ -9,6 +9,12 @@ public interface IDeadLetterStore
     Task<DeadLetterPage> ListAsync(DeadLetterFilter filter, CancellationToken cancellationToken = default);
 
     Task<DeadLetterMessage?> GetAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically transitions a Pending message to Replayed and stamps replay metadata.
+    /// Returns false if the message is missing or no longer Pending.
+    /// </summary>
+    Task<bool> MarkReplayedAsync(Guid id, string replayedBy, CancellationToken cancellationToken = default);
 }
 
 public sealed record DeadLetterFilter(

@@ -151,7 +151,10 @@ public partial class RabbitMqHostedService : IHostedService
 
         SetActivityContext(activity, eventArgs.RoutingKey, OpenTelemetryMessagingConventions.ReceiveOperation);
 
-        var eventName = eventArgs.RoutingKey;
+        // When a message is replayed via the default exchange (routingKey = queue name),
+        // the original event type is carried in the x-event-type header. Prefer it when present
+        // so the existing handler dispatch by event-type-name keeps working.
+        var eventName = ReadEventTypeHeader(eventArgs.BasicProperties) ?? eventArgs.RoutingKey;
         var message = Encoding.UTF8.GetString(eventArgs.Body.Span);
 
         activity?.SetTag("message", message);
@@ -202,6 +205,22 @@ public partial class RabbitMqHostedService : IHostedService
 
     private static string Truncate(string value, int max) =>
         value.Length <= max ? value : value[..max];
+
+    private static string? ReadEventTypeHeader(IBasicProperties? properties)
+    {
+        if (properties?.Headers is null ||
+            !properties.Headers.TryGetValue(RabbitMqTopology.EventTypeHeader, out var value))
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            byte[] bytes => Encoding.UTF8.GetString(bytes),
+            string s => s,
+            _ => value.ToString()
+        };
+    }
 
     private static ResiliencePipeline BuildHandlerPipeline(int retryCount)
     {

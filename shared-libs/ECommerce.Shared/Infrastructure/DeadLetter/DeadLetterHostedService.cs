@@ -18,10 +18,9 @@ public sealed partial class DeadLetterHostedService : IHostedService
     private static partial void LogCaptureFailed(ILogger logger, Exception ex);
 
 
-    public const string MeterName = "ECommerce.Shared.DeadLetter";
+    public const string MeterName = DeadLetterMetrics.MeterName;
 
-    private static readonly Meter Meter = new(MeterName);
-    private static readonly Counter<long> CapturedCounter = Meter.CreateCounter<long>(
+    private static readonly Counter<long> CapturedCounter = DeadLetterMetrics.Meter.CreateCounter<long>(
         "dlq_messages_total",
         description: "Number of messages captured into the dead-letter store");
 
@@ -131,7 +130,8 @@ public sealed partial class DeadLetterHostedService : IHostedService
             FailureReason = failureReason,
             StackTrace = stackTrace,
             Attempts = attempts,
-            FailedAt = failedAt
+            FailedAt = failedAt,
+            CorrelationId = Guid.NewGuid()
         };
     }
 

@@ -66,4 +66,19 @@ public sealed class DeadLetterDbContext : DbContext, IDeadLetterStore
 
     public Task<DeadLetterMessage?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
         DeadLetterMessages.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public async Task<bool> MarkReplayedAsync(Guid id, string replayedBy, CancellationToken cancellationToken = default)
+    {
+        var entity = await DeadLetterMessages.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (entity is null || entity.Status != DeadLetterStatus.Pending)
+        {
+            return false;
+        }
+
+        entity.Status = DeadLetterStatus.Replayed;
+        entity.ReplayedAt = DateTime.UtcNow;
+        entity.ReplayedBy = replayedBy;
+        await SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }
