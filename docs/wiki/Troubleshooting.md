@@ -20,6 +20,45 @@ docker compose up
 
 EF Core `EnableRetryOnFailure` and Polly retries for RabbitMQ cover transient failures once everything is up.
 
+## Docker API named pipe not found (`npipe://.../docker-<id>`)
+
+**Symptom**: local runs fail with errors like:
+
+```text
+failed to connect to the docker API at npipe://\\.\pipe\docker-<id>
+open \\.\pipe\docker-<id>: The system cannot find the file specified.
+```
+
+This usually appears when using local Kubernetes tooling (`kubectl`, Minikube docker-env,
+or scripts that build images) after Docker Desktop restarted, and the calling shell/process
+still points to a stale Docker endpoint.
+
+**Fix (Windows / PowerShell)**:
+
+```powershell
+# 1) Clear stale process-level overrides
+Remove-Item Env:DOCKER_HOST -ErrorAction SilentlyContinue
+Remove-Item Env:DOCKER_CONTEXT -ErrorAction SilentlyContinue
+
+# 2) Re-select a known-good context
+docker context use desktop-linux
+
+# 3) Validate daemon connectivity
+docker version
+docker context ls
+```
+
+If you use Minikube's Docker daemon, re-run docker-env in the same shell before rebuilding images:
+
+```powershell
+minikube docker-env | Invoke-Expression
+./scripts/build-local-images.ps1
+./scripts/apply-local-k8s.ps1
+```
+
+If the error persists, restart Docker Desktop (or `com.docker.service`) and reopen the terminal,
+because parent processes can keep stale environment values.
+
 ## Migrations don't apply
 
 **Symptom**: 500s with SQL errors about missing tables.
