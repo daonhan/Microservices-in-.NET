@@ -115,6 +115,30 @@ public sealed class RabbitMqDeadLetterIntegrationTests : IAsyncLifetime
         Assert.Equal(0u, GetMessageCount(queueName));
     }
 
+    [Fact]
+    public async Task Given_event_with_correlation_id_When_dead_lettered_Then_correlation_header_round_trips_to_dlq()
+    {
+        var queueName = $"shared-tests-corr-{Guid.NewGuid():N}";
+        var correlationId = Guid.NewGuid();
+
+        await using var host = BuildHost<TestEvent, RecordingHandler>(queueName, retryCount: 1,
+            handler => handler.Mode = HandlerMode.AlwaysFail);
+
+        await host.StartHostedServiceAsync();
+        await WaitForQueueAsync(queueName);
+
+        PublishWithCorrelationId(new TestEvent { Payload = "trace-me", CorrelationId = correlationId }, correlationId);
+
+        Assert.True(await host.Handler.WaitForCallsAsync(2, TimeSpan.FromSeconds(10)));
+
+        var deadLettered = await PollForMessageAsync(RabbitMqTopology.DeadLetterQueueName, TimeSpan.FromSeconds(5));
+        Assert.NotNull(deadLettered);
+
+        var headerValue = ReadHeaderString(deadLettered.BasicProperties, RabbitMqTopology.CorrelationIdHeader);
+        Assert.Equal(correlationId.ToString(), headerValue);
+        Assert.Equal(correlationId.ToString(), deadLettered.BasicProperties.CorrelationId);
+    }
+
     private TestHost BuildHost<TEvent, THandler>(string queueName, int retryCount, Action<THandler> configure)
         where TEvent : Event
         where THandler : class, IEventHandler<TEvent>, new()
@@ -148,6 +172,24 @@ public sealed class RabbitMqDeadLetterIntegrationTests : IAsyncLifetime
             routingKey: @event.GetType().Name,
             mandatory: false,
             basicProperties: null,
+            body: json);
+    }
+
+    private void PublishWithCorrelationId(Event @event, Guid correlationId)
+    {
+        var json = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(@event, @event.GetType());
+        using var channel = _testConnection!.CreateModel();
+        var properties = channel.CreateBasicProperties();
+        properties.CorrelationId = correlationId.ToString();
+        properties.Headers = new Dictionary<string, object>
+        {
+            [RabbitMqTopology.CorrelationIdHeader] = Encoding.UTF8.GetBytes(correlationId.ToString()),
+        };
+        channel.BasicPublish(
+            exchange: RabbitMqTopology.ExchangeName,
+            routingKey: @event.GetType().Name,
+            mandatory: false,
+            basicProperties: properties,
             body: json);
     }
 

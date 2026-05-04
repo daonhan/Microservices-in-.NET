@@ -56,6 +56,15 @@ public class RabbitMqEventBus : IEventBus
                     properties.Headers[key] = value;
                 });
 
+            if (@event.CorrelationId is { } correlationId)
+            {
+                properties.CorrelationId = correlationId.ToString();
+                properties.Headers ??= new Dictionary<string, object>();
+                properties.Headers[RabbitMqTopology.CorrelationIdHeader] =
+                    System.Text.Encoding.UTF8.GetBytes(correlationId.ToString());
+                activity?.SetTag("messaging.correlation_id", correlationId.ToString());
+            }
+
             SetActivityContext(activity, routingKey, OpenTelemetryMessagingConventions.PublishOperation);
 
             channel.ExchangeDeclare(

@@ -151,6 +151,12 @@ public partial class RabbitMqHostedService : IHostedService
 
         SetActivityContext(activity, eventArgs.RoutingKey, OpenTelemetryMessagingConventions.ReceiveOperation);
 
+        var inboundCorrelationId = ReadCorrelationId(eventArgs.BasicProperties);
+        if (inboundCorrelationId is not null)
+        {
+            activity?.SetTag("messaging.correlation_id", inboundCorrelationId);
+        }
+
         // When a message is replayed via the default exchange (routingKey = queue name),
         // the original event type is carried in the x-event-type header. Prefer it when present
         // so the existing handler dispatch by event-type-name keeps working.
@@ -220,6 +226,32 @@ public partial class RabbitMqHostedService : IHostedService
             string s => s,
             _ => value.ToString()
         };
+    }
+
+    private static string? ReadCorrelationId(IBasicProperties? properties)
+    {
+        if (properties is null)
+        {
+            return null;
+        }
+
+        if (properties.Headers is not null &&
+            properties.Headers.TryGetValue(RabbitMqTopology.CorrelationIdHeader, out var headerValue))
+        {
+            var fromHeader = headerValue switch
+            {
+                byte[] bytes => Encoding.UTF8.GetString(bytes),
+                string s => s,
+                _ => headerValue?.ToString()
+            };
+
+            if (!string.IsNullOrWhiteSpace(fromHeader))
+            {
+                return fromHeader;
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(properties.CorrelationId) ? null : properties.CorrelationId;
     }
 
     private static ResiliencePipeline BuildHandlerPipeline(int retryCount)

@@ -119,6 +119,9 @@ public sealed partial class DeadLetterHostedService : IHostedService
             ? parsed
             : DateTime.UtcNow;
 
+        var correlationId = ReadCorrelationId(headers, eventArgs.BasicProperties?.CorrelationId)
+            ?? Guid.NewGuid();
+
         return new DeadLetterMessage
         {
             Id = Guid.NewGuid(),
@@ -131,8 +134,19 @@ public sealed partial class DeadLetterHostedService : IHostedService
             StackTrace = stackTrace,
             Attempts = attempts,
             FailedAt = failedAt,
-            CorrelationId = Guid.NewGuid()
+            CorrelationId = correlationId
         };
+    }
+
+    private static Guid? ReadCorrelationId(IDictionary<string, object>? headers, string? amqpCorrelationId)
+    {
+        var headerValue = ReadHeaderString(headers, RabbitMqTopology.CorrelationIdHeader);
+        if (Guid.TryParse(headerValue, out var fromHeader))
+        {
+            return fromHeader;
+        }
+
+        return Guid.TryParse(amqpCorrelationId, out var fromAmqp) ? fromAmqp : null;
     }
 
     private static string? ReadHeaderString(IDictionary<string, object>? headers, string key)
