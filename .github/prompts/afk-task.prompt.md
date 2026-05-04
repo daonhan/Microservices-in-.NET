@@ -1,16 +1,28 @@
 ---
-description: "Pick the next AFK GitHub issue, implement one task end-to-end, run feedback loops, then commit and update the issue."
+description: "Pick the next AFK GitHub issue(s), implement end-to-end, run feedback loops, then commit and update the issue."
 name: "AFK Task"
-argument-hint: "Optional: issue number or focus area (e.g. 'tests', 'gateway')"
+argument-hint: "[count] [focus]  e.g. '3 tests' or '1' or 'gateway'"
 agent: "agent"
 model: "Claude Opus 4.7 (copilot)"
 ---
 
 # Goal
 
-Complete **one** AFK task end-to-end: select → implement → verify → commit → update issue. Do not batch multiple tasks.
+Complete AFK tasks end-to-end: select → implement → verify → commit → update issue.
 
-If the user passed an argument (`${input:focus}`), prefer issues matching it. Otherwise, follow the priority list below.
+## Argument parsing
+
+`${input:focus}` may contain:
+- A leading integer `N` → run the full loop **N times** (default `N=1`).
+- A remaining string → focus area (issue number or keyword like `tests`, `gateway`).
+
+Examples:
+- *(empty)* → 1 task, no focus
+- `3` → 3 tasks back-to-back
+- `2 gateway` → 2 tasks preferring gateway-related issues
+- `42` → ambiguous: if `42` matches an open issue number, treat as focus; otherwise treat as count. Prefer count when it is small (≤20) **and** no issue with that number exists.
+
+After each completed task, loop back to step 1 until `N` is reached or `NO MORE TASKS`. Between tasks, ensure `git status` is clean before starting the next.
 
 ## 1. Context gathering (read-only)
 
@@ -34,11 +46,13 @@ Pick **one** issue, prioritized in this order:
 4. Polish & quick wins
 5. Refactors
 
+If a focus argument was provided, prefer issues matching it (title, label, or body) before falling back to the priority list.
+
 State the chosen issue number, title, and *why* you picked it before writing any code.
 
 ## 3. Exploration
 
-Repo conventions live in [CLAUDE.md](../../CLAUDE.md) — read it before touching unfamiliar areas. Key facts to respect without re-deriving:
+Repo conventions live in [CLAUDE.md](../../.claude/CLAUDE.md) — read it before touching unfamiliar areas. Key facts to respect without re-deriving:
 
 - Per-service `.slnx` solutions; no root `.sln`. Operate from the service directory.
 - All projects target `net10.0`. `TreatWarningsAsErrors` is on — analyzer warnings break the build.
@@ -49,20 +63,16 @@ Repo conventions live in [CLAUDE.md](../../CLAUDE.md) — read it before touchin
 
 Use the `Explore` subagent for anything broader than a few files.
 
-## 4. Tracer bullets for new features
+## 4. Implementation
 
-Tracer bullets are small slices of functionality that go through all layers of the system, allowing you to test and validate your approach early. This helps in identifying potential issues and ensures that the overall architecture is sound before investing significant time in development.
-
-TL;DR - build a tiny, end-to-end slice of the feature first, then expand it out.
-
-## 5. Implementation
+For new features, start with a **tracer bullet**: a tiny, end-to-end slice through all layers that validates the approach early. Expand it out only after the slice works.
 
 - Smallest change that resolves the issue. No speculative refactors. No "improvements" to adjacent code.
 - Match existing style.
 - Follow TDD when fixing a bug: write a failing test that reproduces it, then make it pass.
 - Every changed line should trace directly to the issue.
 
-## 6. Feedback loops (must pass before commit)
+## 5. Feedback loops (must pass before commit)
 
 Run from the affected service directory:
 
@@ -82,7 +92,7 @@ dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
 
 Pre-commit hook (`.husky/task-runner.json`) re-runs `dotnet format`, `dotnet build`, and the basket test suite — do not bypass with `--no-verify`.
 
-## 7. Commit
+## 6. Commit
 
 A single commit:
 
@@ -96,10 +106,15 @@ git commit -am "<≤72-char subject describing the change>"
 
 Do **not** `git push` — pushing is a human-confirmed step.
 
-## 8. Update the issue
+## 7. Update the issue
 
 - If the task is fully complete: `gh issue close <N> --comment "<one-line summary + commit sha>"`.
 - If partially complete (blocked / scope grew / follow-up needed): `gh issue comment <N> --body "<what was done, what remains, why>"` and leave the issue open.
+
+## 8. Loop or stop
+
+- If more iterations remain in `N`, return to step 1 and pick the next issue. Print a short banner like `--- Task k/N complete, starting next ---`.
+- After the final iteration, print a summary: issue numbers handled, commit SHAs, anything left open.
 
 ## Stop conditions
 
@@ -108,4 +123,5 @@ Stop and surface to the user — do **not** improvise — when:
 - A destructive action would be needed (`git push`, `git reset --hard`, dropping data, deleting branches).
 - The chosen issue requires architectural decisions not already in the issue or `docs/`.
 - Feedback loops fail in a way you cannot diagnose after one focused attempt.
-- You finish the single task. (Do not pick up another.)
+- `git status` is dirty at the start of a new iteration.
+- `NO MORE TASKS` before reaching `N`.
