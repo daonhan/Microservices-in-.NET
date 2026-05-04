@@ -17,7 +17,7 @@ public class AuthContextVerifyUserLoginTests
         _options = new DbContextOptionsBuilder<AuthContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
-        
+
         _hasherMock = Substitute.For<IPasswordHasher<User>>();
     }
 
@@ -34,10 +34,10 @@ public class AuthContextVerifyUserLoginTests
         // Arrange
         using var context = await CreateContextAsync();
         var password = "CorrectPassword";
-        
+
         _hasherMock.VerifyHashedPassword(
-            Arg.Any<User>(), 
-            Arg.Any<string>(), 
+            Arg.Any<User>(),
+            Arg.Any<string>(),
             password)
             .Returns(PasswordVerificationResult.Success);
 
@@ -59,10 +59,10 @@ public class AuthContextVerifyUserLoginTests
         // Arrange
         using var context = await CreateContextAsync();
         var password = "WrongPassword";
-        
+
         _hasherMock.VerifyHashedPassword(
-            Arg.Any<User>(), 
-            Arg.Any<string>(), 
+            Arg.Any<User>(),
+            Arg.Any<string>(),
             password)
             .Returns(PasswordVerificationResult.Failed);
 
@@ -101,10 +101,10 @@ public class AuthContextVerifyUserLoginTests
         // Arrange
         using var context = await CreateContextAsync();
         var password = "CorrectPasswordNeedsRehash";
-        
+
         _hasherMock.VerifyHashedPassword(
-            Arg.Any<User>(), 
-            Arg.Any<string>(), 
+            Arg.Any<User>(),
+            Arg.Any<string>(),
             password)
             .Returns(PasswordVerificationResult.SuccessRehashNeeded);
 

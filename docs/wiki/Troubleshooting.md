@@ -72,6 +72,42 @@ dotnet ef database update
 
 Repeat per service.
 
+## EF tooling fails on a path with spaces
+
+**Symptom**: `dotnet ef migrations add ...` fails while loading a project under a path
+with spaces, often with an assembly-load error such as `ECommerce.Shared` not being
+resolved.
+
+**Fix**: run EF tooling through a no-space path to the same checkout. On Windows, a
+junction keeps the working tree in one place while giving the .NET tooling a simpler
+path.
+
+```powershell
+New-Item -ItemType Directory -Path C:\src -Force
+New-Item -ItemType Junction -Path C:\src\nhamnhi -Target "D:\Preparing\Microservices in .NET\Nhamnhi"
+
+cd C:\src\nhamnhi\shared-libs\ECommerce.Shared
+dotnet restore
+dotnet ef dbcontext list --project .\ECommerce.Shared.csproj
+dotnet ef migrations add Add_DeadLetterMessage --context ECommerce.Shared.Infrastructure.DeadLetter.DeadLetterDbContext --project .\ECommerce.Shared.csproj
+```
+
+Before committing a hand-written or generated migration, verify the model snapshot is
+in sync:
+
+```powershell
+cd C:\src\nhamnhi
+dotnet ef migrations has-pending-model-changes `
+  --context ECommerce.Shared.Infrastructure.DeadLetter.DeadLetterDbContext `
+  --project .\shared-libs\ECommerce.Shared\ECommerce.Shared.csproj
+```
+
+Expected output when the migration matches the model:
+
+```text
+No changes have been made to the model since the last migration.
+```
+
 ## JWT rejected by downstream service
 
 **Symptom**: Gateway accepts the token but the service returns 401.
@@ -124,6 +160,37 @@ See [Service-API-Gateway](Service-API-Gateway).
 **Symptom**: Order or Inventory integration tests wait for an event that never arrives.
 
 **Fix**: ensure `sql`, `rabbitmq`, and `redis` are running (`docker compose up sql rabbitmq redis -d`). Check `IntegrationTestBase` bindings match the event the code publishes.
+
+## Tests fail on WSL `/mnt/d` with `MSB3248` or `No such device`
+
+**Symptom**: `ApiGateway.Tests` or `Basket.Tests` fail to build from a Windows drive
+mounted into WSL, with an MSBuild assembly resolution error like `MSB3248` and
+`"No such device"`. The same projects build or test successfully from Windows PowerShell or
+from copied/prebuilt binaries under `/tmp`.
+
+**Likely cause**: .NET/MSBuild assembly probing is hitting a DrvFs mount edge case,
+not a project-file problem.
+
+**Fix options**:
+
+1. Run the repo from Windows PowerShell when the checkout lives on `D:`.
+2. Or copy the checkout to the WSL native filesystem and run there. WSL must have a
+   .NET SDK that supports the repo target framework (`net10.0`).
+
+```bash
+dotnet --list-sdks
+
+mkdir -p ~/src
+rsync -a --delete "/mnt/d/Preparing/Microservices in .NET/Nhamnhi/" ~/src/Nhamnhi/
+cd ~/src/Nhamnhi
+
+dotnet restore
+dotnet test basket-microservice/Basket.Tests/Basket.Tests.csproj
+dotnet test api-gateway/ApiGateway.Tests/ApiGateway.Tests.csproj
+```
+
+If WSL reports `NETSDK1045`, install a .NET SDK that supports `net10.0` inside WSL
+before retesting. Windows having .NET 10 installed does not make it available to WSL.
 
 ## Kubernetes pods `CrashLoopBackOff`
 

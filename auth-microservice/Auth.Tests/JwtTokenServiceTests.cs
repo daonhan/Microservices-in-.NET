@@ -33,7 +33,7 @@ public class JwtTokenServiceTests
 
         // Assert
         Assert.NotNull(token);
-        
+
         var handler = new JwtSecurityTokenHandler();
         var jwt = handler.ReadJwtToken(token.Token);
 
