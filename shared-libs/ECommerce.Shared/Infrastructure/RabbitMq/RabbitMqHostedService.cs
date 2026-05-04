@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using ECommerce.Shared.Infrastructure.EventBus;
@@ -6,32 +7,48 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Observability;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
+using Polly;
+using Polly.Retry;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
 namespace ECommerce.Shared.Infrastructure.RabbitMq;
 
-public class RabbitMqHostedService : IHostedService
+public partial class RabbitMqHostedService : IHostedService
 {
-    private const string ExchangeName = "ecommerce-exchange";
+    [LoggerMessage(EventId = 1, Level = LogLevel.Error,
+        Message = "Handler for {EventType} on queue {Queue} failed after {Attempts} attempts; dead-lettering.")]
+    private static partial void LogHandlerFailed(ILogger logger, Exception ex, string eventType, string queue, int attempts);
+
 
     private readonly IServiceProvider _serviceProvider;
     private readonly EventHandlerRegistration _handlerRegistrations;
     private readonly EventBusOptions _eventBusOptions;
+    private readonly RabbitMqOptions _rabbitMqOptions;
     private readonly ActivitySource _activitySource;
+    private readonly ILogger<RabbitMqHostedService> _logger;
     private readonly TextMapPropagator _propagator = Propagators.DefaultTextMapPropagator;
+    private readonly ResiliencePipeline _handlerPipeline;
+    private IModel? _channel;
 
     public RabbitMqHostedService(IServiceProvider serviceProvider,
         IOptions<EventHandlerRegistration> handlerRegistrations,
         IOptions<EventBusOptions> eventBusOptions,
-        RabbitMqTelemetry rabbitMqTelemetry)
+        IOptions<RabbitMqOptions> rabbitMqOptions,
+        RabbitMqTelemetry rabbitMqTelemetry,
+        ILogger<RabbitMqHostedService> logger)
     {
         _serviceProvider = serviceProvider;
         _handlerRegistrations = handlerRegistrations.Value;
         _eventBusOptions = eventBusOptions.Value;
+        _rabbitMqOptions = rabbitMqOptions.Value;
         _activitySource = rabbitMqTelemetry.ActivitySource;
+        _logger = logger;
+        _handlerPipeline = BuildHandlerPipeline(_rabbitMqOptions.HandlerRetryCount);
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -41,28 +58,16 @@ public class RabbitMqHostedService : IHostedService
             var rabbitMQConnection = _serviceProvider.GetRequiredService<IRabbitMqConnection>();
 
             var channel = rabbitMQConnection.Connection.CreateModel();
+            _channel = channel;
 
-            channel.ExchangeDeclare(
-                exchange: ExchangeName,
-                type: "fanout",
-                durable: false,
-                autoDelete: false,
-                null);
-
-            channel.QueueDeclare(
-                queue: _eventBusOptions.QueueName,
-                durable: false,
-                exclusive: false,
-                autoDelete: false,
-                arguments: null);
+            DeclareTopology(channel, _eventBusOptions.QueueName);
 
             var consumer = new EventingBasicConsumer(channel);
-
             consumer.Received += OnMessageReceived;
 
             channel.BasicConsume(
                 queue: _eventBusOptions.QueueName,
-                autoAck: true,
+                autoAck: false,
                 consumer: consumer,
                 consumerTag: string.Empty,
                 noLocal: false,
@@ -73,7 +78,7 @@ public class RabbitMqHostedService : IHostedService
             {
                 channel.QueueBind(
                     queue: _eventBusOptions.QueueName,
-                    exchange: ExchangeName,
+                    exchange: RabbitMqTopology.ExchangeName,
                     routingKey: eventName,
                     arguments: null);
             }
@@ -83,11 +88,55 @@ public class RabbitMqHostedService : IHostedService
         return Task.CompletedTask;
     }
 
+    internal static void DeclareTopology(IModel channel, string queueName)
+    {
+        channel.ExchangeDeclare(
+            exchange: RabbitMqTopology.ExchangeName,
+            type: "fanout",
+            durable: false,
+            autoDelete: false,
+            arguments: null);
+
+        channel.ExchangeDeclare(
+            exchange: RabbitMqTopology.DeadLetterExchangeName,
+            type: "fanout",
+            durable: true,
+            autoDelete: false,
+            arguments: null);
+
+        channel.QueueDeclare(
+            queue: RabbitMqTopology.DeadLetterQueueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            arguments: null);
+
+        channel.QueueBind(
+            queue: RabbitMqTopology.DeadLetterQueueName,
+            exchange: RabbitMqTopology.DeadLetterExchangeName,
+            routingKey: string.Empty,
+            arguments: null);
+
+        var queueArgs = new Dictionary<string, object>
+        {
+            ["x-dead-letter-exchange"] = RabbitMqTopology.DeadLetterExchangeName
+        };
+
+        channel.QueueDeclare(
+            queue: queueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            arguments: queueArgs);
+    }
+
     private void OnMessageReceived(object? sender, BasicDeliverEventArgs eventArgs)
     {
+        var channel = ((EventingBasicConsumer)sender!).Model;
+
         var parentContext = _propagator.Extract(default, eventArgs.BasicProperties, (properties, key) =>
         {
-            if (properties.Headers.TryGetValue(key, out var value))
+            if (properties.Headers is not null && properties.Headers.TryGetValue(key, out var value))
             {
                 var bytes = value as byte[];
                 return [Encoding.UTF8.GetString(bytes!)];
@@ -107,19 +156,64 @@ public class RabbitMqHostedService : IHostedService
 
         activity?.SetTag("message", message);
 
-        using var scope = _serviceProvider.CreateScope();
-
         if (!_handlerRegistrations.EventTypes.TryGetValue(eventName, out var eventType))
         {
+            channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
             return;
         }
 
-        var @event = JsonSerializer.Deserialize(message, eventType) as Event;
-
-        foreach (var handler in scope.ServiceProvider.GetKeyedServices<IEventHandler>(eventType))
+        var attempts = 0;
+        try
         {
-            handler.Handle(@event!);
+            _handlerPipeline.Execute(_ =>
+            {
+                attempts++;
+                using var scope = _serviceProvider.CreateScope();
+                var @event = JsonSerializer.Deserialize(message, eventType) as Event;
+
+                foreach (var handler in scope.ServiceProvider.GetKeyedServices<IEventHandler>(eventType))
+                {
+                    handler.Handle(@event!);
+                }
+            }, CancellationToken.None);
+
+            channel.BasicAck(eventArgs.DeliveryTag, multiple: false);
         }
+        catch (Exception ex)
+        {
+            LogHandlerFailed(_logger, ex, eventName, _eventBusOptions.QueueName, attempts);
+
+            EnrichHeadersForDeadLetter(eventArgs.BasicProperties, eventName, attempts, ex);
+            channel.BasicNack(eventArgs.DeliveryTag, multiple: false, requeue: false);
+        }
+    }
+
+    private void EnrichHeadersForDeadLetter(IBasicProperties properties, string eventName, int attempts, Exception ex)
+    {
+        properties.Headers ??= new Dictionary<string, object>();
+        properties.Headers[RabbitMqTopology.OriginalQueueHeader] = Encoding.UTF8.GetBytes(_eventBusOptions.QueueName);
+        properties.Headers[RabbitMqTopology.EventTypeHeader] = Encoding.UTF8.GetBytes(eventName);
+        properties.Headers[RabbitMqTopology.ServiceHeader] = Encoding.UTF8.GetBytes(_eventBusOptions.QueueName);
+        properties.Headers[RabbitMqTopology.FailureReasonHeader] = Encoding.UTF8.GetBytes(Truncate($"{ex.GetType().FullName}: {ex.Message}", 1024));
+        properties.Headers[RabbitMqTopology.StackTraceHeader] = Encoding.UTF8.GetBytes(Truncate(ex.ToString(), 16 * 1024));
+        properties.Headers[RabbitMqTopology.AttemptsHeader] = attempts;
+        properties.Headers[RabbitMqTopology.FailedAtHeader] = Encoding.UTF8.GetBytes(DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+    }
+
+    private static string Truncate(string value, int max) =>
+        value.Length <= max ? value : value[..max];
+
+    private static ResiliencePipeline BuildHandlerPipeline(int retryCount)
+    {
+        var retry = new RetryStrategyOptions
+        {
+            ShouldHandle = new PredicateBuilder().Handle<Exception>(),
+            MaxRetryAttempts = Math.Max(0, retryCount),
+            BackoffType = DelayBackoffType.Exponential,
+            Delay = TimeSpan.FromMilliseconds(200)
+        };
+
+        return new ResiliencePipelineBuilder().AddRetry(retry).Build();
     }
 
     private static void SetActivityContext(Activity? activity, string routingKey, string operation)
@@ -134,6 +228,7 @@ public class RabbitMqHostedService : IHostedService
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
+        _channel?.Dispose();
         return Task.CompletedTask;
     }
 }

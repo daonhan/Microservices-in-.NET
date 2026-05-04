@@ -18,7 +18,8 @@ public static class OcelotGatewayModule
         // UsePrometheusExporter rather than being swallowed by Ocelot's router.
         app.MapWhen(
             ctx => !ctx.Request.Path.StartsWithSegments("/health")
-                && !ctx.Request.Path.StartsWithSegments("/metrics"),
+                && !ctx.Request.Path.StartsWithSegments("/metrics")
+                && !ctx.Request.Path.StartsWithSegments("/operator"),
             branch => branch.UseOcelot().GetAwaiter().GetResult());
 
         return Task.CompletedTask;

@@ -15,7 +15,7 @@ namespace ECommerce.Shared.Infrastructure.RabbitMq;
 
 public class RabbitMqEventBus : IEventBus
 {
-    private const string ExchangeName = "ecommerce-exchange";
+    private const string ExchangeName = RabbitMqTopology.ExchangeName;
 
     private readonly IRabbitMqConnection _rabbitMqConnection;
     private readonly ActivitySource _activitySource;
