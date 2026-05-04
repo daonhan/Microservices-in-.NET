@@ -6,4 +6,9 @@ public class OutboxEvent
     public required string EventType { get; set; }
     public required string Data { get; set; }
     public bool Sent { get; set; }
+    public OutboxEventStatus Status { get; set; } = OutboxEventStatus.Pending;
+    public int Attempts { get; set; }
+    public string? LastError { get; set; }
+    public DateTime? LastAttemptAt { get; set; }
+    public Guid? CorrelationId { get; set; }
 }

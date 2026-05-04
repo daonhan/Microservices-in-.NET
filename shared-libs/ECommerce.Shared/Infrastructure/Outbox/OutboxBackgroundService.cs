@@ -11,6 +11,7 @@ namespace ECommerce.Shared.Infrastructure.Outbox;
 public partial class OutboxBackgroundService : BackgroundService
 {
     private readonly TimeSpan _period;
+    private readonly int _maxAttempts;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<OutboxBackgroundService> _logger;
 
@@ -21,6 +22,7 @@ public partial class OutboxBackgroundService : BackgroundService
         _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
         _period = TimeSpan.FromSeconds(outboxOptions.Value.PublishIntervalInSeconds);
+        _maxAttempts = outboxOptions.Value.MaxAttempts;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -40,12 +42,20 @@ public partial class OutboxBackgroundService : BackgroundService
 
             foreach (var unpublishedEvent in unpublishedEvents)
             {
-                var @event = JsonSerializer.Deserialize(unpublishedEvent.Data,
-                    Type.GetType(unpublishedEvent.EventType)!) as Event;
+                try
+                {
+                    var @event = JsonSerializer.Deserialize(unpublishedEvent.Data,
+                        Type.GetType(unpublishedEvent.EventType)!) as Event;
 
-                await eventBus.PublishAsync(@event!);
+                    await eventBus.PublishAsync(@event!);
 
-                await outboxStore.MarkOutboxEventAsPublished(unpublishedEvent.Id);
+                    await outboxStore.MarkOutboxEventAsPublished(unpublishedEvent.Id);
+                }
+                catch (Exception ex)
+                {
+                    LogPublishFailure(_logger, unpublishedEvent.Id, ex);
+                    await outboxStore.RecordPublishFailure(unpublishedEvent.Id, ex.ToString(), _maxAttempts);
+                }
             }
 
             if (unpublishedEvents.Count != 0)
@@ -67,4 +77,7 @@ public partial class OutboxBackgroundService : BackgroundService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "No unpublished events to send")]
     private static partial void LogNoEvents(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Failed to publish outbox event {OutboxEventId}")]
+    private static partial void LogPublishFailure(ILogger logger, Guid outboxEventId, Exception exception);
 }

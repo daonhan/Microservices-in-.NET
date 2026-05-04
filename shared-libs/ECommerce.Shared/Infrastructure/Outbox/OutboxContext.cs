@@ -33,14 +33,23 @@ internal sealed class OutboxContext : DbContext, IOutboxStore
         {
             Id = @event.Id,
             EventType = @event.GetType().AssemblyQualifiedName!,
-            Data = JsonSerializer.Serialize(@event)
+            Data = JsonSerializer.Serialize(@event),
+            Status = OutboxEventStatus.Pending,
+            CorrelationId = TryParseTraceIdAsGuid(System.Diagnostics.Activity.Current?.TraceId.ToString())
         });
 
         await SaveChangesAsync();
     }
 
     public Task<List<OutboxEvent>> GetUnpublishedOutboxEvents()
-        => OutboxEvents.Where(o => !o.Sent).ToListAsync();
+        => OutboxEvents
+            .Where(o => !o.Sent && o.Status == OutboxEventStatus.Pending)
+            .ToListAsync();
+
+    public Task<List<OutboxEvent>> GetFailedOutboxEvents()
+        => OutboxEvents
+            .Where(o => o.Status == OutboxEventStatus.Failed)
+            .ToListAsync();
 
     public async Task MarkOutboxEventAsPublished(Guid outboxEventId)
     {
@@ -53,5 +62,36 @@ internal sealed class OutboxContext : DbContext, IOutboxStore
         }
     }
 
+    public async Task RecordPublishFailure(Guid outboxEventId, string error, int maxAttempts)
+    {
+        var outboxEvent = await OutboxEvents.FindAsync(outboxEventId);
+
+        if (outboxEvent is null)
+        {
+            return;
+        }
+
+        outboxEvent.Attempts += 1;
+        outboxEvent.LastError = error;
+        outboxEvent.LastAttemptAt = DateTime.UtcNow;
+
+        if (outboxEvent.Attempts >= maxAttempts)
+        {
+            outboxEvent.Status = OutboxEventStatus.Failed;
+        }
+
+        await SaveChangesAsync();
+    }
+
     public IExecutionStrategy CreateExecutionStrategy() => Database.CreateExecutionStrategy();
+
+    private static Guid? TryParseTraceIdAsGuid(string? traceId)
+    {
+        if (string.IsNullOrEmpty(traceId) || traceId.Length < 32)
+        {
+            return null;
+        }
+
+        return Guid.TryParseExact(traceId[..32], "N", out var guid) ? guid : null;
+    }
 }

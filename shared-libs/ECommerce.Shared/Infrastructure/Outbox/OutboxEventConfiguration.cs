@@ -15,5 +15,10 @@ public class OutboxEventConfiguration : IEntityTypeConfiguration<OutboxEvent>
 
         builder.Property(o => o.Data)
             .IsRequired();
+
+        builder.Property(o => o.Status)
+            .HasConversion<int>();
+
+        builder.HasIndex(o => new { o.Sent, o.Status });
     }
 }
