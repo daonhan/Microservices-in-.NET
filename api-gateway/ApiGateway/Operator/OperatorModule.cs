@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ApiGateway.Operator.OutboxPolling;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
@@ -15,6 +16,16 @@ public static class OperatorModule
         builder.Services.AddRabbitMqEventBus(builder.Configuration);
         builder.Services.AddDeadLetter(builder.Configuration);
         builder.Services.AddRequireOperatorPolicy();
+
+        var pollerOptions = new OutboxPollerOptions();
+        builder.Configuration.GetSection(OutboxPollerOptions.SectionName).Bind(pollerOptions);
+        builder.Services.AddSingleton(pollerOptions);
+
+        if (pollerOptions.Enabled)
+        {
+            builder.Services.AddHttpClient<IOutboxFailureClient, OutboxFailureClient>();
+            builder.Services.AddHostedService<OutboxFailurePoller>();
+        }
     }
 
     public static void MapEndpoints(WebApplication app)
