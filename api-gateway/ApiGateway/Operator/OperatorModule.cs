@@ -87,6 +87,21 @@ public static class OperatorModule
                         statusCode: StatusCodes.Status502BadGateway)
             };
         });
+
+        group.MapPost("/{id:guid}/discard", async (
+            Guid id,
+            DiscardRequest? request,
+            IDeadLetterDiscarder discarder,
+            ClaimsPrincipal user,
+            CancellationToken cancellationToken) =>
+        {
+            var discardedBy = user.FindFirstValue(JwtClaimTypes.Subject)
+                ?? user.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? user.Identity?.Name
+                ?? "unknown";
+
+            return await DiscardFailure(id, request, discardedBy, discarder, cancellationToken);
+        });
     }
 
     public static async Task<IResult> GetFailureDetail(
@@ -110,9 +125,44 @@ public static class OperatorModule
 
         return Results.Ok(new DeadLetterDetailResponse(message, traceUrl));
     }
+
+    public static async Task<IResult> DiscardFailure(
+        Guid id,
+        DiscardRequest? request,
+        string discardedBy,
+        IDeadLetterDiscarder discarder,
+        CancellationToken cancellationToken)
+    {
+        var reason = request?.Reason;
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return Results.BadRequest(new { id, error = "discard reason is required" });
+        }
+
+        var result = await discarder.DiscardAsync(id, discardedBy, reason, cancellationToken);
+
+        return result.Outcome switch
+        {
+            DeadLetterDiscardOutcome.Success =>
+                Results.Accepted($"/operator/api/failures/{id}", new { id, discardedBy, reason }),
+            DeadLetterDiscardOutcome.NotFound =>
+                Results.NotFound(new { id, reason = result.FailureReason }),
+            DeadLetterDiscardOutcome.NotPending =>
+                Results.Conflict(new { id, reason = result.FailureReason }),
+            DeadLetterDiscardOutcome.ReasonRequired =>
+                Results.BadRequest(new { id, error = "discard reason is required" }),
+            _ =>
+                Results.Problem(
+                    title: "Discard failed",
+                    detail: result.FailureReason,
+                    statusCode: StatusCodes.Status500InternalServerError)
+        };
+    }
 }
 
 public sealed record DeadLetterDetailResponse(DeadLetterMessage Message, string? TraceUrl);
+
+public sealed record DiscardRequest(string Reason);
 
 internal static class JwtClaimTypes
 {

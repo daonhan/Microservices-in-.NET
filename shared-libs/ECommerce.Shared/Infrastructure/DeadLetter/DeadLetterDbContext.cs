@@ -86,4 +86,20 @@ public sealed class DeadLetterDbContext : DbContext, IDeadLetterStore
         await SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    public async Task<bool> MarkDiscardedAsync(Guid id, string discardedBy, string discardReason, CancellationToken cancellationToken = default)
+    {
+        var entity = await DeadLetterMessages.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (entity is null || entity.Status != DeadLetterStatus.Pending)
+        {
+            return false;
+        }
+
+        entity.Status = DeadLetterStatus.Discarded;
+        entity.DiscardedAt = DateTime.UtcNow;
+        entity.DiscardedBy = discardedBy;
+        entity.DiscardReason = discardReason;
+        await SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }

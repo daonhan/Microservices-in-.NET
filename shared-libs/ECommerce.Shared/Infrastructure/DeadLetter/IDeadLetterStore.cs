@@ -15,6 +15,12 @@ public interface IDeadLetterStore
     /// Returns false if the message is missing or no longer Pending.
     /// </summary>
     Task<bool> MarkReplayedAsync(Guid id, string replayedBy, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically transitions a Pending message to Discarded and stamps discard metadata.
+    /// Returns false if the message is missing or no longer Pending.
+    /// </summary>
+    Task<bool> MarkDiscardedAsync(Guid id, string discardedBy, string discardReason, CancellationToken cancellationToken = default);
 }
 
 public sealed record DeadLetterFilter(

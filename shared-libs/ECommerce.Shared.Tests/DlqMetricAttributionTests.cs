@@ -195,6 +195,9 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
         public Task<bool> MarkReplayedAsync(Guid id, string replayedBy, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
+        public Task<bool> MarkDiscardedAsync(Guid id, string discardedBy, string discardReason, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public async Task<bool> WaitForCaptureAsync(TimeSpan timeout)
         {
             var completed = await Task.WhenAny(_captured.Task, Task.Delay(timeout));

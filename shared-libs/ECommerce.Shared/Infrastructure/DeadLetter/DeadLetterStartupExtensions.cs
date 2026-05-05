@@ -22,6 +22,7 @@ public static class DeadLetterStartupExtensions
         services.AddScoped<IDeadLetterStore>(sp => sp.GetRequiredService<DeadLetterDbContext>());
         services.AddSingleton<IDeadLetterPublisher, RabbitMqDeadLetterPublisher>();
         services.AddScoped<IDeadLetterReplayer, DeadLetterReplayer>();
+        services.AddScoped<IDeadLetterDiscarder, DeadLetterDiscarder>();
         services.AddHostedService<DeadLetterHostedService>();
 
         return services;
