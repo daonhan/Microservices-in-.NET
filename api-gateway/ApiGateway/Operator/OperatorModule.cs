@@ -29,11 +29,12 @@ public static class OperatorModule
             DeadLetterStatus? status,
             DateTime? from,
             DateTime? to,
+            DeadLetterOrigin? origin,
             int page = 1,
             int pageSize = 50,
             CancellationToken cancellationToken = default) =>
         {
-            var filter = new DeadLetterFilter(service, eventType, status, from, to, page, pageSize);
+            var filter = new DeadLetterFilter(service, eventType, status, from, to, page, pageSize, origin);
             var result = await store.ListAsync(filter, cancellationToken);
             return Results.Ok(result);
         });

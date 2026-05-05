@@ -29,8 +29,10 @@ internal sealed class DeadLetterMessageConfiguration : IEntityTypeConfiguration<
         builder.Property(x => x.DiscardedBy).HasColumnName("discarded_by").HasMaxLength(256);
         builder.Property(x => x.DiscardReason).HasColumnName("discard_reason").HasMaxLength(1024);
         builder.Property(x => x.CorrelationId).HasColumnName("correlation_id");
+        builder.Property(x => x.Origin).HasColumnName("origin").HasConversion<int>().HasDefaultValue(Models.DeadLetterOrigin.DeadLetter);
 
         builder.HasIndex(x => x.FailedAt);
         builder.HasIndex(x => x.Status);
+        builder.HasIndex(x => x.Origin);
     }
 }

@@ -19,6 +19,7 @@ public class DeadLetterMessage
     public string? DiscardedBy { get; set; }
     public string? DiscardReason { get; set; }
     public Guid? CorrelationId { get; set; }
+    public DeadLetterOrigin Origin { get; set; } = DeadLetterOrigin.DeadLetter;
 }
 
 public enum DeadLetterStatus

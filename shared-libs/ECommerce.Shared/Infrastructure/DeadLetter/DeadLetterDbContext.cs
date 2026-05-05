@@ -51,6 +51,11 @@ public sealed class DeadLetterDbContext : DbContext, IDeadLetterStore
             query = query.Where(x => x.FailedAt <= filter.To.Value);
         }
 
+        if (filter.Origin.HasValue)
+        {
+            query = query.Where(x => x.Origin == filter.Origin.Value);
+        }
+
         var page = Math.Max(1, filter.Page);
         var pageSize = Math.Clamp(filter.PageSize, 1, 200);
 

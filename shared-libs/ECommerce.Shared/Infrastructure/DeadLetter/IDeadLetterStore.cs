@@ -24,7 +24,8 @@ public sealed record DeadLetterFilter(
     DateTime? From = null,
     DateTime? To = null,
     int Page = 1,
-    int PageSize = 50);
+    int PageSize = 50,
+    DeadLetterOrigin? Origin = null);
 
 public sealed record DeadLetterPage(
     IReadOnlyList<DeadLetterMessage> Items,
