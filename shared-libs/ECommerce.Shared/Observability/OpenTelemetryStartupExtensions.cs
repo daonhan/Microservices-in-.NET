@@ -1,4 +1,5 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
+using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Builder;
@@ -97,6 +98,7 @@ public static class OpenTelemetryStartupExtensions
                     .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(opts.SamplingRatio)))
                     .AddAspNetCoreInstrumentation()
                     .AddSource(RabbitMqTelemetry.ActivitySourceName)
+                    .AddSource(DeadLetterMetrics.ActivitySourceName)
                     .AddOtlpExporter(o => o.Endpoint = new Uri(opts.OtlpExporterEndpoint));
 
                 if (opts.UseAzureMonitor)
@@ -120,6 +122,7 @@ public static class OpenTelemetryStartupExtensions
                 builder
                     .AddAspNetCoreInstrumentation()
                     .AddMeter(serviceName)
+                    .AddMeter(DeadLetterMetrics.MeterName)
                     .AddPrometheusExporter();
 
                 if (opts.UseAzureMonitor)
