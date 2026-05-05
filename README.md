@@ -1,6 +1,6 @@
 # E-Commerce Microservices Platform
 
-A production-ready e-commerce system built with **.NET 8**, **ASP.NET Core Minimal APIs**, and **C# 12** — demonstrating microservice architecture patterns from domain decomposition through Kubernetes deployment.
+A production-ready e-commerce system built with **.NET 10**, **ASP.NET Core Minimal APIs**, and **C# 14** — demonstrating microservice architecture patterns from domain decomposition through Kubernetes deployment.
 
 ## Architecture
 
@@ -105,7 +105,7 @@ Each microservice follows a consistent layout:
 
 ### Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [kubectl](https://kubernetes.io/docs/tasks/tools/) (for Kubernetes deployment)
 
@@ -287,7 +287,7 @@ Services discover each other via Kubernetes DNS (e.g., `rabbitmq-clusterip-servi
 
 | Category | Technologies |
 |----------|-------------|
-| Framework | .NET 8, ASP.NET Core Minimal APIs, C# 12 |
+| Framework | .NET 10, ASP.NET Core Minimal APIs, C# 14 |
 | Messaging | RabbitMQ (fanout exchange, pub/sub) |
 | Data | EF Core (SQL Server), Redis (distributed cache) |
 | Testing | xUnit, NSubstitute, WebApplicationFactory |

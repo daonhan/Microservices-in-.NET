@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repo shape
 
-.NET microservices monorepo. Each top-level `*-microservice/` (and `api-gateway/`, `shared-libs/`) is an independent solution using a `.slnx` file (no root `.sln`). All projects target **net10.0** despite README mentioning .NET 8 — trust the `.csproj` files.
+.NET microservices monorepo. Each top-level `*-microservice/` (and `api-gateway/`, `shared-libs/`) is an independent solution using a `.slnx` file (no root `.sln`). All projects target **net10.0**.
 
 Services and ports (see `docker-compose.yaml`):
 
