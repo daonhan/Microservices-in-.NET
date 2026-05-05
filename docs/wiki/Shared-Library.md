@@ -26,8 +26,9 @@ graph LR
 
 | Extension | Purpose |
 |---|---|
-| `AddJwtAuthentication(IConfiguration)` | Configures JWT Bearer with HS256 and the standard claim map |
+| `AddJwtAuthentication(IConfiguration)` | Configures JWT Bearer (HS256 user tokens + RS256 service tokens via JWKS) and the standard claim map |
 | `UseJwtAuthentication()` | Middleware pair (`UseAuthentication()` + `UseAuthorization()`) |
+| `AddRequireOperatorPolicy()` / `AddRequireServicePolicy()` | Register the `RequireOperator` and `RequireService` authorization policies (see [Authorization policies](#authorization-policies)) |
 | `AddRabbitMqEventBus()` | Connection + channel management |
 | `AddRabbitMqEventPublisher()` | Registers `IEventBus` for publishing |
 | `AddRabbitMqSubscriberService()` | Hosts `RabbitMqHostedService` to consume events |
@@ -48,6 +49,17 @@ graph LR
 | `IRabbitMqConnection` | Shared connection with Polly retry |
 | `IOutboxStore` | Atomic "persist + enqueue event" primitive |
 | `MetricFactory` | Cached creation of Counters and Histograms |
+
+## Authorization policies
+
+`ECommerce.Shared.Authentication.AuthorizationPolicies` exposes named policies keyed off the `user_role` claim issued by [Service-Auth](Service-Auth):
+
+| Policy | Required `user_role` | Use case |
+|---|---|---|
+| `RequireOperator` | `Operator` | Operator-only UI/endpoints (e.g. DLQ replay UI in the gateway) |
+| `RequireService` | `service` | Service-to-service `/internal/*` endpoints called by other backends using a `client_credentials` token from `POST /token` |
+
+Apply with the standard `RequireAuthorization("RequireService")` on a Minimal API endpoint. The policy short-circuits with `403` if the JWT lacks the expected role.
 
 ## Transactional Outbox — why it matters
 

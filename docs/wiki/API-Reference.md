@@ -11,6 +11,7 @@ Consolidated listing of every public HTTP endpoint exposed through the Gateway. 
 | Method | Gateway route | Downstream | Auth |
 |---|---|---|---|
 | `POST` | `/login` | Auth `/login` | public |
+| `POST` | `/token` | Auth `/token` | public (OAuth2 `client_credentials`) |
 
 ## Product — [Service-Product](Service-Product)
 
