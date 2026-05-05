@@ -24,6 +24,7 @@ builder.Services.AddPlatformHealthChecks()
     .AddRabbitMqProbe(builder.Configuration["RabbitMq:HostName"] ?? "localhost");
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddRequireServicePolicy();
 
 builder.AddPlatformOpenApi("product");
 
@@ -40,6 +41,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.RegisterEndpoints();
+app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();
 
