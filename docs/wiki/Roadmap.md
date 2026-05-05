@@ -23,6 +23,7 @@ Tracked under [`docs/plans/`](https://github.com/daonhan/Microservices-in-.NET/t
 
 - `observability-polish.md` — dashboard coverage, SLO burn alerts
 - `inventory.md` — ongoing inventory enhancements
+- **Dead-letter queue + replay UI** — operator tool for failed events. Phases 1–3 (capture, store, replay endpoint), 5a–5b (outbox failure tracking + per-service `/internal/outbox/failed`), and 5c-tracer (Origin column + `?origin=` filter) are landed. Remaining: gateway pull-cache aggregation ([#53](https://github.com/daonhan/Microservices-in-.NET/issues/53)), Blazor operator UI + discard/batch endpoints ([#45](https://github.com/daonhan/Microservices-in-.NET/issues/45)), observability polish ([#47](https://github.com/daonhan/Microservices-in-.NET/issues/47)). Parent: [PRD #36](https://github.com/daonhan/Microservices-in-.NET/issues/36).
 
 ## Candidate future work
 
@@ -30,7 +31,6 @@ These are ideas, not commitments.
 
 - **Auto-sync wiki from `main`** — GitHub Action to mirror `docs/wiki/` → wiki remote on merge, removing the manual publish step from [Contributing](Contributing#editing-the-wiki).
 - **Real PSP integration** — slot a Stripe/Adyen implementation behind `IPaymentGateway` (the in-memory gateway is the v1 default; see [Service-Payment](Service-Payment)).
-- **Dead-letter queue + replay UI** — operator tool for failed events.
 - **Identity Server / OIDC** instead of the hand-rolled JWT issuer.
 - **Multi-tenancy** — tenant-scoped datastores and row-level auth.
 
