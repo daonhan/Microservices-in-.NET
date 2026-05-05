@@ -1,3 +1,4 @@
+using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
@@ -51,6 +52,9 @@ builder.Services.AddPlatformHealthChecks()
     .AddRedisProbe(builder.Configuration["Redis:Configuration"] ?? "localhost:6379")
     .AddRabbitMqProbe(builder.Configuration["RabbitMq:HostName"] ?? "localhost");
 
+builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddRequireServicePolicy();
+
 var app = builder.Build();
 
 app.UsePrometheusExporter();
@@ -65,8 +69,11 @@ if (app.Environment.IsDevelopment())
 app.UsePlatformOpenApi();
 
 app.RegisterEndpoints();
+app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();
+
+app.UseJwtAuthentication();
 
 app.Run();
 

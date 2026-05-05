@@ -4,6 +4,7 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using Microsoft.Extensions.DependencyInjection;
 using Order.Service.Infrastructure.Data.EntityFramework;
+using Order.Tests.Authentication;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -29,6 +30,13 @@ public class IntegrationTestBase : IClassFixture<OrderWebApplicationFactory>, ID
         OrderContext = scope.ServiceProvider.GetRequiredService<OrderContext>();
         HttpClient = webApplicationFactory.CreateClient();
         RabbitMqConnection = scope.ServiceProvider.GetRequiredService<IRabbitMqConnection>();
+    }
+
+    protected HttpClient CreateAuthenticatedClient(string role = "Administrator")
+    {
+        var client = Factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, role);
+        return client;
     }
 
     public void Subscribe<TEvent>() where TEvent : Event

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Order.Service.Infrastructure.Data.EntityFramework;
+using Order.Tests.Authentication;
 
 namespace Order.Tests;
 
@@ -28,7 +30,24 @@ public class OrderWebApplicationFactory : WebApplicationFactory<Program>, IAsync
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.ConfigureTestServices(ApplyMigrations);
+        builder.ConfigureTestServices(services =>
+        {
+            ApplyMigrations(services);
+            ConfigureTestAuthentication(services);
+        });
+    }
+
+    private static void ConfigureTestAuthentication(IServiceCollection services)
+    {
+        services.Configure<AuthenticationOptions>(options =>
+        {
+            options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+            options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+        });
+
+        services.AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                TestAuthHandler.SchemeName, _ => { });
     }
 
     private void ApplyMigrations(IServiceCollection services)

@@ -37,6 +37,7 @@ builder.Services.AddPlatformHealthChecks()
     .AddRabbitMqProbe(builder.Configuration["RabbitMq:HostName"] ?? "localhost");
 
 builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.Services.AddRequireServicePolicy();
 
 builder.Services.AddAuthorization(options =>
 {
@@ -66,6 +67,7 @@ if (app.Environment.IsDevelopment())
 app.Services.GetRequiredService<PaymentMetrics>();
 
 app.RegisterEndpoints();
+app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();
 
