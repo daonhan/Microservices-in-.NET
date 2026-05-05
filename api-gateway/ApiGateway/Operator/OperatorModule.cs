@@ -50,6 +50,15 @@ public static class OperatorModule
             return Results.Ok(result);
         });
 
+        group.MapGet("/{id:guid}", async (
+            Guid id,
+            IDeadLetterStore store,
+            IConfiguration configuration,
+            CancellationToken cancellationToken) =>
+        {
+            return await GetFailureDetail(id, store, configuration, cancellationToken);
+        });
+
         group.MapPost("/{id:guid}/replay", async (
             Guid id,
             IDeadLetterReplayer replayer,
@@ -79,7 +88,31 @@ public static class OperatorModule
             };
         });
     }
+
+    public static async Task<IResult> GetFailureDetail(
+        Guid id,
+        IDeadLetterStore store,
+        IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        var message = await store.GetAsync(id, cancellationToken);
+        if (message is null)
+        {
+            return Results.NotFound();
+        }
+
+        var traceUiBaseUrl = configuration["Operator:TraceUiBaseUrl"];
+        string? traceUrl = null;
+        if (message.CorrelationId.HasValue && !string.IsNullOrWhiteSpace(traceUiBaseUrl))
+        {
+            traceUrl = traceUiBaseUrl.TrimEnd('/') + "/" + message.CorrelationId.Value;
+        }
+
+        return Results.Ok(new DeadLetterDetailResponse(message, traceUrl));
+    }
 }
+
+public sealed record DeadLetterDetailResponse(DeadLetterMessage Message, string? TraceUrl);
 
 internal static class JwtClaimTypes
 {
