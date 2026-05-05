@@ -31,6 +31,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.RegisterEndpoints();
+app.RegisterServiceTokenEndpoint();
 app.RegisterJwksEndpoint();
 
 app.Run();

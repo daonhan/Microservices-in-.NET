@@ -18,5 +18,10 @@ public static class TokenStartupExtensions
         services.AddSingleton<IRsaKeyProvider, PemFileRsaKeyProvider>();
 
         services.AddScoped<ITokenService, JwtTokenService>();
+
+        var serviceClientOptions = new ServiceClientOptions();
+        configuration.GetSection(ServiceClientOptions.SectionName).Bind(serviceClientOptions);
+        services.AddSingleton(serviceClientOptions);
+        services.AddScoped<IServiceTokenService, ServiceTokenService>();
     }
 }
