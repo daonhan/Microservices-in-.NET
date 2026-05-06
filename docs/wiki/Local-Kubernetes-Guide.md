@@ -28,7 +28,7 @@ filename prefix:
 
 | Filename pattern | Purpose | Apply to |
 |---|---|---|
-| `<service>.yaml`, `sql.yaml`, `rabbitmq.yaml`, `redis.yaml`, observability YAMLs (`jaeger.yaml`, `prometheus.yaml`, `grafana.yaml`, `loki.yaml`, …) | **Local stack.** Single replica, no namespace, `LoadBalancer` services for easy access, `<USERNAME>/<service>:latest` image placeholders. | Docker Desktop, Minikube |
+| `<service>.yaml`, `sql.yaml`, `rabbitmq.yaml`, `redis.yaml`, observability YAMLs (`jaeger.yaml`, `prometheus.yaml`, `grafana.yaml`, `loki.yaml`, …) | **Local stack.** Single replica, no namespace, `LoadBalancer` services for easy access, `<USERNAME>/<service>:latest` image placeholders rewritten at apply time by `scripts/apply-local-k8s.*`. | Docker Desktop, Minikube |
 | `aks-dev-*.yml`, `aks-staging-*.yml`, `aks-prod-*.yml`, `aks-prod-ingress.yml` | **AKS reference.** Per-environment namespaces (`ecommerce-dev`, `ecommerce-staging`, `ecommerce-prod`), HPAs, ACR image pulls, secret refs for Application Insights, Azure SQL, Redis, Service Bus. | AKS only |
 
 **Apply only the local-stack manifests against your laptop cluster.** The
@@ -45,8 +45,9 @@ strings) and will fail to start without them.
 - Docker Desktop **or** Minikube installed.
 - `kubectl` on `PATH`. (`kubectl version --client`)
 - Local images for each microservice. The `kubernetes/*.yaml` manifests reference
-  `image: <USERNAME>/<service>:latest` — you will replace `<USERNAME>` with a tag
-  that points at images present in your local Docker daemon (or push to a registry).
+  `image: <USERNAME>/<service>:latest` as a registry-agnostic placeholder. The
+  apply scripts rewrite `<USERNAME>` to `local` (configurable) **in memory** at
+  deploy time — the YAML files on disk are never modified.
 - ~6 GB RAM free for the cluster (SQL Server is the heavy one).
 
 Build the service images from the repo root:
@@ -120,8 +121,8 @@ foreach ($svc in $services.Keys) {
 }
 ```
 
-Before applying manifests, replace `<USERNAME>/<service>:latest` with `local/<service>:latest`
-(see [Replace image references](#replace-image-references) below).
+No manifest edits are required: `scripts/apply-local-k8s.*` substitutes the
+`<USERNAME>` placeholder at apply time. See [Deploy the platform](#deploy-the-platform).
 
 ---
 
@@ -191,31 +192,36 @@ in the cluster's image store — no registry round-trip needed.
 
 ---
 
-## Replace image references
+## Image references
 
-Manifests under `kubernetes/` use `<USERNAME>/<service>:latest`. Before applying, swap
-that placeholder for your local tag. A one-shot in-place edit:
+The app manifests (`kubernetes/*-microservice.yaml` and
+[`kubernetes/api-gateway.yaml`](https://github.com/daonhan/Microservices-in-.NET/blob/main/kubernetes/api-gateway.yaml))
+ship with a registry-agnostic placeholder:
 
-```bash
-# Replace <USERNAME> with "local"
-find kubernetes -name '*.yaml' -exec sed -i.bak 's|<USERNAME>/|local/|g' {} +
-
-# Optional: also force IfNotPresent so the kubelet does not try to pull from a registry
-find kubernetes -name '*.yaml' -exec sed -i.bak '/image: local\//a\          imagePullPolicy: IfNotPresent' {} +
+```yaml
+image: <USERNAME>/<service>:latest
 ```
 
-The `*.bak` files are throwaway; clean them up with `find kubernetes -name '*.bak' -delete`
-when you are done. **Do not commit these substitutions** — they are local-only.
+`scripts/apply-local-k8s.ps1` / `scripts/apply-local-k8s.sh` rewrite this in
+memory at apply time and pipe the result into `kubectl apply -f -`. The files on
+disk are never modified, so there is nothing to revert and nothing to keep out
+of commits.
 
-PowerShell equivalent:
+Defaults:
+
+- Prefix is `local` (matches `scripts/build-local-images.*`).
+- When the prefix is `local`, an `imagePullPolicy: IfNotPresent` line is
+  injected next to each `image:` so kubelet uses the local Docker cache instead
+  of trying to pull from a registry.
+
+Point at a real registry without editing any YAML:
 
 ```powershell
-Get-ChildItem kubernetes -Filter *.yaml | ForEach-Object {
-    (Get-Content $_.FullName) -replace '<USERNAME>/', 'local/' |
-        Set-Content $_.FullName
-}
+./scripts/apply-local-k8s.ps1 -ImagePrefix ghcr.io/daonhan
+```
 
-# Revert later with `git checkout -- kubernetes/`
+```bash
+IMAGE_PREFIX=ghcr.io/daonhan ./scripts/apply-local-k8s.sh
 ```
 
 ---
@@ -224,6 +230,13 @@ Get-ChildItem kubernetes -Filter *.yaml | ForEach-Object {
 
 Apply order matters: infra → observability → microservices. Otherwise pods crash-loop
 waiting on dependencies that have not been scheduled yet.
+
+The recommended path is the [scripted apply](#one-shot-apply-with-readiness-gates)
+below — it handles ordering, the `<USERNAME>` rewrite, and readiness gates in one
+command. The raw `kubectl apply` flow is shown here for reference; if you use
+it, the manifests still contain `<USERNAME>/<service>:latest` and pods will end
+up in `InvalidImageName` until you go through the scripts (or pre-render the
+YAML yourself).
 
 ```bash
 # 1. Infrastructure
@@ -270,6 +283,7 @@ crash-loop while infra is still coming up. Use the wrappers in [`scripts/`](http
 ./scripts/apply-local-k8s.sh                       # full stack
 SKIP_OBSERVABILITY=1 ./scripts/apply-local-k8s.sh  # infra + services only
 TIMEOUT=600s ./scripts/apply-local-k8s.sh          # bump readiness timeout
+IMAGE_PREFIX=ghcr.io/daonhan ./scripts/apply-local-k8s.sh  # use a real registry
 ```
 
 ```powershell
@@ -277,14 +291,17 @@ TIMEOUT=600s ./scripts/apply-local-k8s.sh          # bump readiness timeout
 ./scripts/apply-local-k8s.ps1
 ./scripts/apply-local-k8s.ps1 -SkipObservability
 ./scripts/apply-local-k8s.ps1 -Timeout 600s
+./scripts/apply-local-k8s.ps1 -ImagePrefix ghcr.io/daonhan
 ```
 
 Both scripts:
 
 1. Apply `sql.yaml`, `rabbitmq.yaml`, `redis.yaml` and wait for each to be `Ready`.
 2. Apply the observability stack (unless skipped).
-3. Apply every `*-microservice.yaml` plus `api-gateway.yaml`, then wait for each
-   `app=<name>` selector to be `Ready`.
+3. Stream every `*-microservice.yaml` plus `api-gateway.yaml` through an
+   in-memory `<USERNAME>/` → `${IMAGE_PREFIX}/` rewrite (default `local`),
+   injecting `imagePullPolicy: IfNotPresent` when the prefix is `local`,
+   then wait for each `app=<name>` selector to be `Ready`.
 4. Print a final `kubectl get pods` snapshot and a port-forward hint.
 
 If a readiness gate fails, the script prints the failing pod's events and exits
@@ -317,9 +334,13 @@ kubectl apply \
   -f kubernetes/grafana.yaml \
   -f kubernetes/exporters.yaml
 
-# 3. Microservices (excludes aks-* manifests)
+# 3. Microservices (excludes aks-* manifests).
+#    The `<USERNAME>/` placeholder is rewritten to `local/` and
+#    `imagePullPolicy: IfNotPresent` is injected per image.
 for f in kubernetes/*-microservice.yaml kubernetes/api-gateway.yaml; do
-  kubectl apply -f "$f"
+  sed -e 's|<USERNAME>/|local/|g' \
+      -e '/^[[:space:]]*image:[[:space:]]*local\//a\
+          imagePullPolicy: IfNotPresent' "$f" | kubectl apply -f -
 done
 
 kubectl get pods
@@ -425,13 +446,44 @@ appear within ~10 s of a request.
 
 ## Troubleshooting
 
+### `InvalidImageName`
+
+Symptom (from `kubectl describe pod <name>`):
+
+```
+Failed to apply default image tag "<USERNAME>/apigateway:latest":
+couldn't parse image name: invalid reference format
+```
+
+You ran `kubectl apply -f kubernetes/` directly. The manifests intentionally
+ship with a `<USERNAME>/<service>:latest` placeholder (registry-agnostic,
+committed) — the angle brackets are not valid in a Docker reference, so kubelet
+rejects the spec.
+
+Fix: re-deploy through the wrapper, which rewrites the placeholder in memory:
+
+```powershell
+./scripts/apply-local-k8s.ps1                        # default prefix `local`
+./scripts/apply-local-k8s.ps1 -ImagePrefix ghcr.io/daonhan
+```
+
+```bash
+./scripts/apply-local-k8s.sh
+IMAGE_PREFIX=ghcr.io/daonhan ./scripts/apply-local-k8s.sh
+```
+
+Then `kubectl rollout restart deployment <name>` (or just `./scripts/apply-local-k8s.*`
+again) to recreate the broken pods.
+
 ### `ImagePullBackOff` / `ErrImagePull`
 
 The cluster cannot find your image.
 
-- **Docker Desktop**: confirm the image exists with `docker images | grep local/`. Make sure
-  the manifest is using `local/<service>:latest` (not `<USERNAME>/`). Add
-  `imagePullPolicy: IfNotPresent` to skip registry lookups.
+- **Docker Desktop**: confirm the image exists with `docker images | grep local/`.
+  Make sure you deployed via `scripts/apply-local-k8s.*` (which rewrites
+  `<USERNAME>/` → `local/` and adds `imagePullPolicy: IfNotPresent`); a raw
+  `kubectl apply -f kubernetes/` will leave the placeholder in place and produce
+  `InvalidImageName` instead of `ImagePullBackOff`.
 - **Minikube**: you forgot `eval "$(minikube docker-env)"` before building. Re-run it
   and rebuild. Verify with `minikube ssh -- docker images | grep local/`.
 

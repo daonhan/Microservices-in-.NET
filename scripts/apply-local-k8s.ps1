@@ -7,11 +7,19 @@
     Applies infra -> observability -> microservices, with `kubectl wait`
     readiness gates between stages so dependent pods do not crash-loop.
 
-    Assumes you have already built local images (./scripts/build-local-images.ps1)
-    and replaced <USERNAME>/ with local/ in kubernetes/*.yaml.
+    Assumes you have already built local images (./scripts/build-local-images.ps1).
+    The `<USERNAME>/` placeholder in kubernetes/*-microservice.yaml + api-gateway.yaml
+    is rewritten in-memory at apply time using -ImagePrefix (default `local`),
+    so the manifests on disk stay registry-agnostic.
 
 .PARAMETER Timeout
     `kubectl wait` timeout for each pod readiness check. Default: `300s`.
+
+.PARAMETER ImagePrefix
+    Replaces the `<USERNAME>` placeholder in app manifests at apply time.
+    Default: `local` (matches build-local-images.ps1). When `local`, an
+    `imagePullPolicy: IfNotPresent` line is injected next to each `image:`
+    so kubelet does not try to pull from a registry.
 
 .PARAMETER SkipObservability
     Skip the Jaeger/Prometheus/Grafana/Loki/OTel stack.
@@ -33,6 +41,7 @@
 [CmdletBinding()]
 param(
     [string]$Timeout = '300s',
+    [string]$ImagePrefix = 'local',
     [switch]$SkipObservability,
     [ValidateSet('off','on','auto')]
     [string]$LocalStorageFix = 'auto'
@@ -77,6 +86,24 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'kubectl apply (sql) failed' }
     }
 
+    function Apply-AppManifest {
+        param([string]$Path)
+        # Rewrite `<USERNAME>/` -> `$ImagePrefix/` in-memory; the file on disk is
+        # left untouched so manifests stay registry-agnostic.
+        $yaml = (Get-Content -Raw $Path) -replace '<USERNAME>/', "$ImagePrefix/"
+        if ($ImagePrefix -eq 'local') {
+            # Local images are not in any registry; force IfNotPresent so kubelet
+            # uses the daemon's image cache instead of attempting to pull.
+            $yaml = [regex]::Replace(
+                $yaml,
+                '(?m)^(?<indent>[ \t]+)image:\s*(?<ref>local/[^\s]+)\s*$',
+                { param($m) "$($m.Groups['indent'].Value)image: $($m.Groups['ref'].Value)`r`n$($m.Groups['indent'].Value)imagePullPolicy: IfNotPresent" }
+            )
+        }
+        $yaml | kubectl apply -f -
+        if ($LASTEXITCODE -ne 0) { throw "kubectl apply failed for $Path" }
+    }
+
     $rewriteSql = switch ($LocalStorageFix) {
         'on'   { $true }
         'off'  { $false }
@@ -109,15 +136,11 @@ try {
         Write-Host '==> 2/3 Observability skipped (-SkipObservability)' -ForegroundColor Yellow
     }
 
-    Write-Host '==> 3/3 Microservices' -ForegroundColor Cyan
+    Write-Host "==> 3/3 Microservices (image prefix: $ImagePrefix)" -ForegroundColor Cyan
     # Filter excludes aks-dev-*.yml / aks-staging-*.yml / aks-prod-*.yml
     Get-ChildItem kubernetes -Filter '*-microservice.yaml' |
-        ForEach-Object {
-            kubectl apply -f $_.FullName
-            if ($LASTEXITCODE -ne 0) { throw "kubectl apply failed for $($_.Name)" }
-        }
-    kubectl apply -f kubernetes/api-gateway.yaml
-    if ($LASTEXITCODE -ne 0) { throw 'kubectl apply (api-gateway) failed' }
+        ForEach-Object { Apply-AppManifest -Path $_.FullName }
+    Apply-AppManifest -Path 'kubernetes/api-gateway.yaml'
 
     # Auth dev-keys: in Development the auth service signs JWTs from PEM files
     # at /app/dev-keys. The base manifest does not commit a Secret/volume

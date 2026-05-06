@@ -15,9 +15,15 @@
 #                                                      #   only local-path /
 #                                                      #   hostpath provisioners
 #                                                      #   are present
+#   IMAGE_PREFIX=local     ...                         # default; replaces the
+#                                                      #   <USERNAME> placeholder
+#                                                      #   in microservice + gateway
+#                                                      #   manifests at apply time
 #
-# Assumes you have already built local images (./scripts/build-local-images.sh)
-# and replaced <USERNAME>/ with local/ in kubernetes/*.yaml.
+# Assumes you have already built local images (./scripts/build-local-images.sh).
+# The `<USERNAME>/` placeholder in kubernetes/*-microservice.yaml +
+# api-gateway.yaml is rewritten in-memory at apply time using IMAGE_PREFIX,
+# so the manifests on disk stay registry-agnostic.
 
 set -euo pipefail
 
@@ -27,6 +33,22 @@ cd "$SCRIPT_DIR/.."
 TIMEOUT="${TIMEOUT:-300s}"
 SKIP_OBSERVABILITY="${SKIP_OBSERVABILITY:-0}"
 LOCAL_STORAGE_FIX="${LOCAL_STORAGE_FIX:-auto}"
+IMAGE_PREFIX="${IMAGE_PREFIX:-local}"
+
+apply_app_manifest() {
+  # Rewrite `<USERNAME>/` -> `${IMAGE_PREFIX}/` in-memory; the file on disk is
+  # left untouched so manifests stay registry-agnostic. When the prefix is
+  # `local`, also inject `imagePullPolicy: IfNotPresent` so kubelet uses the
+  # daemon's image cache instead of attempting to pull.
+  local f="$1"
+  if [[ "$IMAGE_PREFIX" == "local" ]]; then
+    sed -e "s|<USERNAME>/|${IMAGE_PREFIX}/|g" \
+        -e '/^[[:space:]]*image:[[:space:]]*local\//a\
+          imagePullPolicy: IfNotPresent' "$f" | kubectl apply -f -
+  else
+    sed -e "s|<USERNAME>/|${IMAGE_PREFIX}/|g" "$f" | kubectl apply -f -
+  fi
+}
 
 rwx_supported() {
   # Returns 0 if any StorageClass uses a provisioner that supports RWX.
@@ -77,12 +99,12 @@ else
   echo "==> 2/3 Observability skipped (SKIP_OBSERVABILITY=1)"
 fi
 
-echo "==> 3/3 Microservices"
+echo "==> 3/3 Microservices (image prefix: $IMAGE_PREFIX)"
 # Glob excludes aks-dev-*.yml / aks-staging-*.yml / aks-prod-*.yml.
 for f in kubernetes/*-microservice.yaml; do
-  kubectl apply -f "$f"
+  apply_app_manifest "$f"
 done
-kubectl apply -f kubernetes/api-gateway.yaml
+apply_app_manifest kubernetes/api-gateway.yaml
 
 # Auth dev-keys: in Development the auth service signs JWTs from PEM files
 # at /app/dev-keys. The base manifest does not commit a Secret/volume for
