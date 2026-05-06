@@ -1,0 +1,155 @@
+# PRD — Payment domain-event depth + shared Outbox unit-of-work
+
+## Problem Statement
+
+As a developer working in this repo, I have to repeat the same transactional ceremony every time I publish an Integration Event. In the **Payment** service, every state-transition endpoint (Capture, Refund, and any future Authorize/Void/partial-refund) opens its own `TransactionScope`, calls the EF Core execution strategy, mutates the `Payment` model, manually constructs an Integration Event, calls `IOutboxStore.AddOutboxEvent`, and completes the scope. The same shape is duplicated in **Inventory** event handlers and **Shipping** endpoints.
+
+This is a shallow seam in two ways:
+
+1. **Payment is shallow compared to Order.** The `Order` aggregate raises domain events and `OrderContext.ExecuteAsync` translates them into Integration Events on the Outbox in one transaction. The `Payment` aggregate has no domain events; every Payment endpoint reconstructs the publish-and-persist dance by hand. State-transition rules and event-emission rules are spread across the endpoint surface instead of concentrated in one module.
+2. **The Outbox interface is too low-level.** `IOutboxStore` exposes the primitives (`CreateExecutionStrategy`, `AddOutboxEvent`) and forces every caller to learn EF execution strategies, ambient transactions, and event construction. Cross-cutting concerns that belong on this seam (OTEL spans for outbox writes, idempotency keys, retry policy) have no single home.
+
+The deletion test confirms both:
+
+- Delete the ceremony in any one Payment endpoint and the same shape reappears at the next state transition. There is no Payment module that earns its keep.
+- Delete `IOutboxStore` and the work doesn't concentrate — it scatters into every publishing service. The Outbox Module is currently a primitive bag whose interface is nearly as wide as its implementation.
+
+## Solution
+
+Pull the Order pattern down into Payment, and at the same time deepen the shared Outbox seam so that every publishing service (Payment, Inventory, Shipping, future) gets the same atomic "do work + emit events" semantics.
+
+From a developer's perspective:
+
+- A Payment endpoint loads the `Payment` aggregate, calls `payment.Capture(...)` (or `Refund`, `Authorize`), and asks the `PaymentContext` to execute and persist. The Integration Event arrives in the Outbox automatically. The endpoint never sees `TransactionScope`, never constructs an Integration Event, never calls `AddOutboxEvent`.
+- Inventory event handlers and Shipping endpoints publish through the same deepened Outbox seam: they describe the unit of work and the events that go with it; the Outbox Module owns the strategy, the scope, and the persistence.
+- Adding a new Payment state transition (partial refund, void) is one method on the `Payment` aggregate plus one new domain-event type plus one new translation entry. No new transactional plumbing.
+- Tests for Payment state transitions are pure model tests with no EF, no outbox, no RabbitMQ. Tests for the Payment context assert atomicity (work + events commit together; on failure both roll back). Endpoint tests shrink to thin smoke tests.
+
+## User Stories
+
+1. As a Payment service developer, I want the `Payment` aggregate to own Authorize / Capture / Refund state transitions, so that the rules of the state machine live in one place I can test without spinning up EF Core.
+2. As a Payment service developer, I want the `Payment` aggregate to raise a domain event for each state transition, so that callers do not have to remember to construct an Integration Event after every transition.
+3. As a Payment service developer, I want `PaymentContext.ExecuteAsync` to translate Payment domain events into Integration Events on the Outbox in the same transaction as the state change, so that I cannot accidentally publish without persisting or persist without publishing.
+4. As a Payment service developer, I want the Capture endpoint to shrink to "load aggregate, call `Capture`, save through context", so that the endpoint contains zero transactional plumbing.
+5. As a Payment service developer, I want the Refund endpoint to shrink in the same way, so that the two endpoints look like siblings rather than copy-pasted ceremony.
+6. As a Payment service developer, I want partial-refund and other future transitions to be additive on the aggregate plus a new translation entry, so that I never copy a `TransactionScope` block again.
+7. As a saga participant maintaining Payment, I want illegal state transitions (Capture before Authorize, Refund before Capture) to throw from the aggregate, so that the rules are enforced regardless of which endpoint or handler triggered them.
+8. As a saga participant maintaining Payment, I want idempotent re-application of the same transition (Capture on an already-Captured payment) to behave consistently with how Order handles it, so that the saga's at-least-once delivery semantics do not corrupt state.
+9. As a developer working on `ECommerce.Shared`, I want a deep "outbox unit-of-work" interface that takes a unit of work and a set of events and commits them atomically, so that publishing services stop hand-rolling `CreateExecutionStrategy + TransactionScope + AddOutboxEvent + Complete`.
+10. As a developer working on `ECommerce.Shared`, I want the deepened Outbox interface to be the single place that owns the EF execution strategy and the ambient transaction, so that retry, tracing, and idempotency policy can be added once and apply everywhere.
+11. As a developer working in Inventory, I want `OrderCreatedEventHandler` to express its work as "reserve stock and emit `StockReserved`" through the new Outbox seam, so that the handler is no longer responsible for transaction ceremony.
+12. As a developer working in Shipping, I want shipment-mutation endpoints to use the new Outbox seam, so that Shipping reaches parity with Inventory and Payment on this concern.
+13. As a developer reading the codebase, I want `IOutboxStore`'s low-level primitives (`CreateExecutionStrategy`, raw `AddOutboxEvent`) to remain available only for the new unit-of-work module's implementation, so that callers cannot accidentally bypass the deepened seam.
+14. As an operator, I want OTEL spans for every outbox unit-of-work invocation, so that I can see "started → committed" or "started → rolled back" across every publishing service.
+15. As an operator, I want the unit-of-work to surface a single metric for outbox transactional failures across all services, so that retry storms and broken aggregates are visible in Grafana without per-service instrumentation.
+16. As a developer writing tests, I want to verify Payment state transitions without instantiating `PaymentContext`, `IOutboxStore`, or the payment gateway, so that the model tests run fast and stay focused on domain rules.
+17. As a developer writing tests, I want to verify that `PaymentContext.ExecuteAsync` commits state and Integration Events together, and rolls both back on failure, so that the atomicity guarantee is regression-tested.
+18. As a developer writing tests, I want to verify that the new Outbox unit-of-work behaves the same way (atomic commit, atomic rollback) when used directly against an arbitrary `DbContext`, so that adoption in Inventory and Shipping is safe.
+19. As a developer writing tests, I want existing `WebApplicationFactory<Program>`-based Payment endpoint tests to continue passing with minimal changes, so that the refactor is observably behaviour-preserving at the HTTP boundary.
+20. As a developer adopting the new pattern in another service, I want the Payment service to read like a worked example of "aggregate raises domain event → context translates → endpoint stays thin", so that I can copy the pattern into Shipping without re-deriving it.
+21. As a maintainer of `ECommerce.Shared`, I want the package version to be bumped when the deepened Outbox seam is shipped, so that consumers explicitly opt into the new interface per the local-NuGet-feed workflow (ADR-0005).
+22. As a CI maintainer, I want `dotnet format` and `TreatWarningsAsErrors` to keep passing, so that nothing in this refactor relies on style or warning exemptions beyond what the repo already documents.
+
+## Implementation Decisions
+
+### Modules
+
+**Modified — `Payment` aggregate (Payment service `Models/`)**
+- Owns Authorize / Capture / Refund state machine and any future transitions. State transitions become methods on the aggregate, not free-floating field assignments inside endpoints.
+- Raises domain events for each transition: a `PaymentAuthorizedDomainEvent`, a `PaymentCapturedDomainEvent`, and a `PaymentRefundedDomainEvent`. Domain events are dequeued by the context after persistence, mirroring the `Order` pattern.
+- Inherits or composes with the same `Entity` / `IDomainEvent` base used by `Order`. The shared base lives in `ECommerce.Shared` (or in Order today and gets promoted to shared if not already there).
+
+**Modified — `PaymentContext` (Payment service `Infrastructure/Data/EntityFramework/`)**
+- Gains an `ExecuteAsync(Func<Task>)` that mirrors `OrderContext.ExecuteAsync`. Internally it now goes through the new shared Outbox unit-of-work module rather than re-implementing the strategy + scope locally.
+- Owns the translation table from Payment domain events to Payment Integration Events (`PaymentAuthorizedDomainEvent → PaymentAuthorizedEvent`, `PaymentCapturedDomainEvent → PaymentCapturedEvent`, `PaymentRefundedDomainEvent → PaymentRefundedEvent`).
+- The translation table is the single place where Payment Integration Event shapes are constructed.
+
+**New — Outbox unit-of-work module (`shared-libs/ECommerce.Shared/Infrastructure/Outbox`)**
+- Deep seam: callers describe a unit of work to execute against a `DbContext` plus a set of `Event`s to enqueue, and the module commits both atomically.
+- Owns the EF execution strategy, the ambient `TransactionScope`, the call to `SaveChangesAsync`, the calls to `AddOutboxEvent`, and the `scope.Complete()`.
+- Owns OTEL instrumentation for outbox transactional work and the single metric for outbox-transaction outcomes.
+- Surface is intentionally narrow: one operation that takes the unit of work and the events; an overload or shape that supports "events depend on the result of the unit of work" (so Order/Payment can dequeue domain events after `SaveChangesAsync`).
+
+**Modified — `IOutboxStore` (`shared-libs/ECommerce.Shared/Infrastructure/Outbox`)**
+- Stays as the lower-level primitive for adding events and creating execution strategies. The new unit-of-work module is built on top of it; `IOutboxStore` is no longer the recommended caller-facing seam for transactional publishing.
+- No public method is removed in this PRD; deprecation of caller-facing usage is signalled by docs and by all in-repo callers migrating off it.
+
+**Modified — Payment endpoints (`Endpoints/PaymentApiEndpoints.cs`)**
+- Capture and Refund endpoints lose their `outboxStore.CreateExecutionStrategy().ExecuteAsync(...)` blocks and their direct `AddOutboxEvent` calls. They become: load aggregate → check state / call gateway → call `paymentContext.ExecuteAsync(() => { aggregate.Transition(...); return Task.CompletedTask; })` → record metrics → return response.
+- Authorize is in scope to fit the same shape as Capture and Refund (today the Payment service may construct Payments outside the aggregate transition pattern; this PRD aligns it).
+
+**Modified — Inventory `OrderCreatedEventHandler` and any other handler/endpoint that currently uses the `CreateExecutionStrategy + TransactionScope + AddOutboxEvent` pattern**
+- Migrated to the new Outbox unit-of-work module so the deepened seam has at least two real adopters in addition to Payment (proof the seam is real, not hypothetical).
+
+**Modified — Shipping endpoints that publish events**
+- Migrated to the new Outbox unit-of-work module. Shipping does not get the full domain-event-translation treatment in this PRD (that is a separate, larger refactor — see *Out of Scope*); it just adopts the deepened Outbox seam.
+
+### Architectural decisions
+
+- **No central orchestrator is introduced.** ADR-0008 (saga choreography) stands. Payment continues to react to events and emit events; this PRD only changes how Payment internally couples state changes to event publication.
+- **No change to Integration Event shapes.** `PaymentCapturedEvent`, `PaymentRefundedEvent`, `PaymentAuthorizedEvent` keep their existing fields. Subscribers (Order, Shipping) see no contract change.
+- **No change to RabbitMQ topology.** Fanout exchange `ecommerce-exchange` and the DLQ stay as-is (ADR-0004).
+- **No change to the database-per-service decision** (ADR-0007) or the JWT/JWKS model (ADR-0003).
+- **`ECommerce.Shared` version is bumped** when the new Outbox unit-of-work ships, per the local-NuGet-feed workflow (ADR-0005). Consumers opt in by upgrading their `<PackageReference>`.
+- **Domain events are an internal concern.** `IDomainEvent` and the dequeueing machinery are not exposed to event subscribers. Only Integration Events cross service boundaries.
+- **Aggregate translation tables are per-service.** Each context (Order today, Payment now, Shipping later) owns its own domain-event-to-Integration-event translation; `ECommerce.Shared` provides the dequeue/translate plumbing but not the mapping.
+- **Failure semantics are preserved.** If the gateway call (`gateway.CaptureAsync`, `gateway.RefundAsync`) is currently outside the transaction, it stays outside. The unit-of-work covers the database state change and the outbox enqueue; gateway side effects remain the endpoint's responsibility to sequence.
+
+### API contracts
+
+- Payment HTTP API is unchanged. Same routes, same request/response shapes, same status codes for success, conflict, and not-found.
+- `PaymentCapturedEvent`, `PaymentRefundedEvent`, `PaymentAuthorizedEvent` Integration Event payloads are unchanged.
+
+### Schema changes
+
+- None expected. The aggregate-with-domain-events pattern stores events in memory on the entity and dequeues them in the context; it does not require new persistent tables. Outbox tables remain as defined by ADR-0002.
+
+## Testing Decisions
+
+A good test in this repo asserts on **external behaviour** through the seam the user crosses. It does not assert on private fields, EF Core change-tracker entries, the raw rows in the outbox table, or which method was called on which mock. `Given_When_Then` naming is mandatory (the `CA1707` exemption exists for this).
+
+### Modules to test
+
+**`Payment` aggregate (model tests)**
+- New: pure model tests for state transitions and invariants. Authorize on a fresh payment succeeds; Capture before Authorize throws; Capture after Authorize succeeds and raises one `PaymentCapturedDomainEvent`; Refund before Capture throws; Refund after Capture succeeds and raises one `PaymentRefundedDomainEvent`; idempotent re-application matches the chosen Order semantics.
+- Prior art: `Order` model tests in `order-microservice/Order.Tests/`.
+
+**`PaymentContext.ExecuteAsync` (integration tests)**
+- New: with a real provider (LocalDB or Testcontainers SQL Server, whichever the repo already uses for Order context tests), assert that committing a transition writes both the `Payment` row change and the corresponding outbox row in one transaction; that throwing inside the unit of work rolls both back; that no Integration Event reaches the outbox if `SaveChangesAsync` fails.
+- Prior art: `OrderContext.ExecuteAsync` integration tests in `order-microservice/Order.Tests/`.
+
+**Outbox unit-of-work module (`ECommerce.Shared` integration tests)**
+- New: against a representative `DbContext`, assert atomic commit (state + events together), atomic rollback on a thrown exception, and that the OTEL span / metric is emitted on both success and failure paths.
+- Prior art: existing Outbox tests in `shared-libs/ECommerce.Shared.Tests` (whichever project hosts them).
+
+**Payment endpoints (`WebApplicationFactory<Program>` smoke)**
+- Existing endpoint tests should continue to pass with minimal changes. Where tests previously asserted on `IOutboxStore` mock interactions, they should be rewritten to assert on the visible HTTP contract and on the Integration Events that landed in the outbox.
+- Prior art: existing `PaymentApiEndpointTests` and the Order endpoint tests.
+
+**Inventory `OrderCreatedEventHandler` and Shipping endpoints (regression)**
+- Existing handler/endpoint tests are expected to keep passing after migration to the new Outbox unit-of-work, with no behaviour change at the seam they assert on. If a test fails because it was asserting on internal `TransactionScope` or `CreateExecutionStrategy` calls, that test was over-specifying and gets rewritten to assert on outcomes.
+
+### What we are NOT testing
+
+- We are not testing EF Core's execution strategy or `TransactionScope` itself.
+- We are not testing RabbitMQ delivery in this PRD (covered by existing `RabbitMqHostedService` and outbox-poller tests).
+- We are not adding new tests for `RedisProductPriceProvider`, gateway/DLQ behaviour, or unrelated services.
+
+## Out of Scope
+
+- **Shipping `IShipmentStore` deepening to saga-aware operations.** Item #3 from the architecture review is deliberately deferred. Shipping adopts the new Outbox seam in this PRD but does not get its own aggregate-with-domain-events refactor.
+- **A passive Saga state-machine module** (item #5 from the review). ADR-0008 stands; this PRD does not introduce any saga coordinator.
+- **Removing or refactoring the API Gateway dual-provider abstraction.** ADR-0001 stands.
+- **Splitting the Product price cache seam in Order.** Separate refactor.
+- **Auth aggregate / token lifecycle module.** Separate refactor.
+- **Changes to Integration Event payloads or RabbitMQ topology.** Out of scope.
+- **Changes to schema migrations or outbox table layout.** Out of scope.
+- **MediatR, AutoMapper, FluentValidation, Polly, Scrutor, Serilog adoption.** Explicitly forbidden by repo conventions.
+
+## Further Notes
+
+- The Order service is the worked example for the Payment-side change. Anywhere this PRD says "mirrors Order", the answer is "read `OrderContext.ExecuteAsync` and the `Order` aggregate, and bring Payment to the same shape."
+- The deepened Outbox seam in `ECommerce.Shared` is the load-bearing unlock. Once it lands, future deepening (Shipping aggregate, additional saga participants) is additive: write the aggregate, write the translation table, the seam is already there.
+- Per ADR-0005, after the `ECommerce.Shared` change: `dotnet pack -c Release` from `shared-libs/ECommerce.Shared`, push the resulting `.nupkg` to `local-nuget-packages/`, bump `<Version>`, and update each consumer's `<PackageReference>`. Consumers do not see the deepened seam until they upgrade.
+- Pre-commit (`.husky/task-runner.json`) only runs Basket tests. Payment, Inventory, Shipping, and `ECommerce.Shared` test suites must be run manually before pushing.
+- `Directory.Build.props` enforces `TreatWarningsAsErrors`; the migration must not introduce new warnings or rely on new `NoWarn` exemptions.
