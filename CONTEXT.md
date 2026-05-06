@@ -26,11 +26,27 @@
 
 ## Why I built it
 
-_Coming in phase 4._
+I built this repo to teach myself microservices in .NET 10 the way I'd want to be taught — by shipping a system that actually walks the hard paths, not by reading another tutorial that stops at "hello world over HTTP." My day job rarely lets me touch the parts of distributed systems I find most interesting: choreographed sagas, transactional outboxes, JWT issuance with JWKS, dead-letter handling, OpenTelemetry end-to-end. So I gave myself a portfolio-sized scope — seven services, a real gateway, real observability, real deployment manifests — and committed to learning each piece by making it work, breaking it, and writing about it.
+
+The second motivation is portfolio: I wanted one repository I can point a recruiter or a future teammate at and say "this is how I think about systems, this is how I work with AI tools, this is the depth I care about." Most of my professional code lives behind NDAs. This one is public on purpose.
+
+The third motivation is the AI-pair-programming workflow itself. I wanted to find out — concretely, on a non-trivial codebase — where Claude Code Pro and GitHub Copilot Pro+ each earn their keep, and where I'm still the one who has to make the call. The whole repo is the answer to that question.
 
 ## What it is
 
-_Coming in phase 4._
+A seven-service e-commerce platform on .NET 10, built to run locally in Docker Compose and to deploy to Kubernetes.
+
+- **Services.** Auth, Basket, Product, Order, Inventory, Payment, Shipping. One bounded context each, one datastore each, one `.slnx` solution each.
+- **Datastores.** SQL Server for everything except Basket, which uses Redis. Each service owns its schema; there is no shared database.
+- **Gateway.** A single API Gateway in front of the seven services that compiles **both** YARP and Ocelot and selects between them at boot via the `Gateway:Provider` flag. Same routes, same auth rules, same metrics either way.
+- **Auth.** RS256 JWTs issued by the Auth service and validated by every other service via the `/jwks` discovery endpoint — no shared secrets, no copy-pasted signing keys.
+- **Async backbone.** A RabbitMQ fanout exchange (`ecommerce-exchange`) with a dead-letter queue and an operator API exposed through the gateway. Publishers go through a transactional outbox so a crash between "committed" and "published" cannot desynchronise the system.
+- **Saga.** Order → Inventory → Payment → Shipping, choreographed through integration events. No central orchestrator; the workflow lives in the events themselves.
+- **Observability.** OpenTelemetry traces, metrics, and logs flow through an OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top and Alertmanager wired to a starter set of alerts.
+- **Deployment.** Docker Compose for local, Kubernetes manifests under `kubernetes/` for `dev`/`staging`/`prod`, and an Azure-flavoured infra/pipelines folder under `Infrastructure - Deployment/`.
+- **Shared library.** `ECommerce.Shared` is published as a NuGet package against a local feed (`local-nuget-packages/`) and consumed by every service via `<PackageReference>`, not via project references.
+
+If you want the runnable quickstart and the full per-service reference, that lives in the [README](README.md) and the [wiki](docs/wiki/Home.md). This page is the *why* and the *how I work*; those are the *what* and the *how to run*.
 
 ## Domain glossary
 
@@ -130,11 +146,33 @@ The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/REA
 
 ## AI workflow
 
-_Coming in phase 4._ How Claude Code Pro and GitHub Copilot Pro+ were used, and which boundaries I kept under direct human control.
+This repo was built as a deliberate experiment in pair-programming with two AI tools at once. The split that emerged after several months of work:
+
+- **Claude Code Pro** is my long-running, repo-aware partner. It reads `CLAUDE.md`, the PRDs, and the plans before it touches code, and it owns multi-file work: scaffolding new services, threading a saga step end-to-end, refactoring across all seven services when `ECommerce.Shared` changes, writing the integration tests that exercise `WebApplicationFactory<Program>` against a real database. AFK-style tasks (`.github/prompts/afk-task.prompt.md`) are written for it — pick an issue, implement the smallest end-to-end slice, run the feedback loops, commit. When I need *judgment* — "is this the right shape for the saga?", "is this `StockItem` aggregate the right boundary?" — that conversation happens with Claude.
+- **GitHub Copilot Pro+** is my in-editor reflex. Inline completions, single-method edits, test scaffolding, the boilerplate of a new endpoint or DTO, the "finish this LINQ query" moments. Copilot Chat is where I do quick, file-local exploration without spinning up a longer Claude session.
+
+The contract between me and either agent is written down, not improvised. PRDs in [docs/prd/](docs/prd/) define *what* a feature is and what its acceptance criteria look like. Plans in [docs/plans/](docs/plans/) decompose a PRD into tracer-bullet phases and explicit feedback loops. ADRs in [docs/adr/](docs/adr/) record the load-bearing choices so neither agent has to re-derive them. `CLAUDE.md` and `.github/copilot-instructions.md` lay out the repo conventions both must respect — `Given_When_Then` test names, DTOs in `ApiModels/` versus domain types in `Models/`, `dotnet format` and `TreatWarningsAsErrors` are non-negotiable. When an agent is wrong, it's almost always because the PRD or the ADR was wrong; fixing the doc fixes the next ten generations.
+
+Some boundaries I kept under direct human control on purpose:
+
+- **Security review.** Anything touching JWT issuance, JWKS publication, role-based authorization at the gateway, or secret handling I read line-by-line before merging. Agents draft; I approve.
+- **Deployment.** Docker Compose, Kubernetes manifests, Azure pipelines. I write or thoroughly review every manifest. Agents are good at scaffolding YAML and bad at noticing when a probe path or a resource limit is quietly wrong.
+- **Schema migrations.** EF Core migrations are generated locally, reviewed, and committed by hand. I never let an agent regenerate or hand-edit a migration that has already been applied.
+- **`git push`, releasing a new `ECommerce.Shared` version, closing issues without a commit reference.** Mechanical-but-irreversible steps stay on me.
+
+The net effect is that AI tools moved me from "can I learn this in my spare time?" to "I can ship a non-trivial system in my spare time and write about every choice." That delta is the actual product of this repo.
 
 ## What I learned
 
-_Coming in phase 4._
+In rough order of how surprising each one was:
+
+1. **Saga choreography vs orchestration is a real architectural choice, not a style preference.** Choosing choreography for Order → Inventory → Payment → Shipping (ADR-0008) made each service trivially testable in isolation but pushed the workflow into the events themselves — there is no single file that tells you the saga's shape. The trade-off is observable rather than theoretical: tracing across a choreographed saga in Jaeger is the only sane way to read the workflow back, which is why ADR-0009 stopped feeling optional.
+2. **Outbox semantics are subtler than the pattern's name suggests.** "Write the event in the same transaction as the state change" is the easy half. The hard half is the poller: idempotent publish, ordered drain per aggregate, dead-letter on poisoned messages, and an operator API to replay or discard them (ADR-0004). The outbox isn't done until the DLQ has a UX.
+3. **JWT issuance with JWKS discovery is more boring than I expected, and that's the point.** RS256 + `/jwks` (ADR-0003) means no service ever sees the signing key, no shared secret has to rotate across seven config files, and adding an eighth service is a three-line change. The first time I rotated a key in dev and nothing broke is the moment the design earned its keep.
+4. **OpenTelemetry wiring is 80% plumbing, 20% taste.** Getting traces, metrics, and logs through a single Collector into Jaeger/Prometheus/Loki is mechanical (ADR-0009). The interesting work is *what* to instrument: outbox lag, DLQ depth, saga step latency, RabbitMQ queue backlog. The dashboards and alerts (`HighHttpErrorRate`, `RabbitMqQueueBacklog`, `LowStockAlert`) are where the platform becomes operable rather than just observable.
+5. **A dual-gateway switch is a cheap insurance policy.** Compiling both YARP and Ocelot behind a `Gateway:Provider` flag (ADR-0001) cost a single afternoon and gave me a non-trivial migration story, an A/B comparison surface, and a rollback plan for free. The lesson generalises: when two stacks both look like "the right answer," make the choice runtime-switchable until production tells you which one wins.
+6. **Distributing a shared library as NuGet — even against a local feed — is qualitatively different from a project reference.** ADR-0005 forced me to think in versions: a breaking change in `ECommerce.Shared` requires a `<Version>` bump, a `dotnet pack`, a push to the local feed, and an explicit consumer upgrade. That ceremony is annoying for a hobby repo and exactly right for a real platform — it surfaces coupling that project references hide.
+7. **AI pair-programming earns its keep when the contract is written down.** The same agent on the same task produces wildly different output depending on whether it has a PRD, a plan, an ADR, and a `CLAUDE.md` to ground it. The quality of the docs is the ceiling of the agent's output. That insight reshaped how I write down anything I expect to revisit.
 
 ## Link tree
 
