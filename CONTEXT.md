@@ -42,17 +42,17 @@ _Coming in phase 3._ Will reuse the mermaid diagram from [README.md](README.md) 
 
 ## Architectural decisions
 
-_Coming in phase 2._ Index of nine ADRs under [docs/adr/](docs/adr/README.md):
+The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/README.md). Each is `Accepted` and links to the source folder(s) that implement it.
 
-1. ADR-0001 — API Gateway provider switch: YARP default with Ocelot fallback
-2. ADR-0002 — Transactional Outbox per publishing service
-3. ADR-0003 — RS256 JWT issuance with `/jwks` discovery
-4. ADR-0004 — RabbitMQ fanout exchange with dead-letter queue and operator API
-5. ADR-0005 — `ECommerce.Shared` distributed as a NuGet package via a local feed
-6. ADR-0006 — One `.slnx` solution per service; no root `.sln`
-7. ADR-0007 — EF Core with one database per service
-8. ADR-0008 — Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping
-9. ADR-0009 — OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack
+1. [ADR-0001](docs/adr/0001-api-gateway-yarp-default-ocelot-fallback.md) — API Gateway provider switch: YARP default with Ocelot fallback
+2. [ADR-0002](docs/adr/0002-transactional-outbox-per-publishing-service.md) — Transactional Outbox per publishing service
+3. [ADR-0003](docs/adr/0003-rs256-jwt-with-jwks-discovery.md) — RS256 JWT issuance with `/jwks` discovery
+4. [ADR-0004](docs/adr/0004-rabbitmq-fanout-with-dlq-and-operator-api.md) — RabbitMQ fanout exchange with dead-letter queue and operator API
+5. [ADR-0005](docs/adr/0005-ecommerce-shared-as-nuget-via-local-feed.md) — `ECommerce.Shared` distributed as a NuGet package via a local feed
+6. [ADR-0006](docs/adr/0006-one-slnx-solution-per-service.md) — One `.slnx` solution per service; no root `.sln`
+7. [ADR-0007](docs/adr/0007-ef-core-database-per-service.md) — EF Core with one database per service
+8. [ADR-0008](docs/adr/0008-saga-choreography-no-central-orchestrator.md) — Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping
+9. [ADR-0009](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md) — OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack
 
 ## AI workflow
 
