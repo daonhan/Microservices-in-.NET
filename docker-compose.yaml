@@ -136,6 +136,8 @@ services:
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
+      - "RabbitMq__HostName=host.docker.internal"
+      - "ConnectionStrings__DeadLetter=Server=host.docker.internal,1433;Database=DeadLetter;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "ReverseProxy__Clusters__auth-cluster__Destinations__default__Address=http://auth:8080"
       - "ReverseProxy__Clusters__product-cluster__Destinations__default__Address=http://product:8080"
       - "ReverseProxy__Clusters__basket-cluster__Destinations__default__Address=http://basket:8080"
