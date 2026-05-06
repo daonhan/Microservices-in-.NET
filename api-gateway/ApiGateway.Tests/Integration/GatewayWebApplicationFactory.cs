@@ -5,8 +5,10 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using ApiGateway.Gateway;
+using ApiGateway.Operator;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;
+using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Observability;
 using Microsoft.IdentityModel.Tokens;
 
@@ -35,7 +37,10 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
     public static async Task<GatewayTestHarness> CreateAsync(
         string provider,
         string downstreamStubBaseUrl,
-        string? environmentName = null)
+        string? environmentName = null,
+        IDeadLetterStore? deadLetterStore = null,
+        IDeadLetterReplayer? deadLetterReplayer = null,
+        IDeadLetterDiscarder? deadLetterDiscarder = null)
     {
         var rsa = RSA.Create(2048);
         var authPort = AllocatePort();
@@ -89,6 +94,18 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         builder.AddPlatformObservability("ApiGateway", customTracing: tracing => tracing.AddSource("Yarp.ReverseProxy"));
         builder.Services.AddPlatformHealthChecks();
 
+        var operatorEnabled = deadLetterStore is not null
+            || deadLetterReplayer is not null
+            || deadLetterDiscarder is not null;
+
+        if (operatorEnabled)
+        {
+            builder.Services.AddRequireOperatorPolicy();
+            builder.Services.AddSingleton(deadLetterStore ?? new NoopDeadLetterStore());
+            builder.Services.AddSingleton(deadLetterReplayer ?? new NoopDeadLetterReplayer());
+            builder.Services.AddSingleton(deadLetterDiscarder ?? new NoopDeadLetterDiscarder());
+        }
+
         var gatewayPort = AllocatePort();
         builder.WebHost.UseUrls($"http://localhost:{gatewayPort}");
 
@@ -96,6 +113,10 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         app.UsePrometheusExporter();
         app.MapPlatformHealthChecks();
         app.UseJwtAuthentication();
+        if (operatorEnabled)
+        {
+            OperatorModule.MapEndpoints(app);
+        }
         await app.UseConfiguredGatewayAsync();
         await app.StartAsync();
 
@@ -141,4 +162,34 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
     }
 
     private static string Base64UrlEncode(byte[] input) => Convert.ToBase64String(input).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+}
+
+internal sealed class NoopDeadLetterStore : IDeadLetterStore
+{
+    public Task CaptureAsync(ECommerce.Shared.Infrastructure.DeadLetter.Models.DeadLetterMessage message, CancellationToken cancellationToken = default) =>
+        Task.CompletedTask;
+
+    public Task<DeadLetterPage> ListAsync(DeadLetterFilter filter, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new DeadLetterPage(Array.Empty<ECommerce.Shared.Infrastructure.DeadLetter.Models.DeadLetterMessage>(), filter.Page, filter.PageSize, 0));
+
+    public Task<ECommerce.Shared.Infrastructure.DeadLetter.Models.DeadLetterMessage?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult<ECommerce.Shared.Infrastructure.DeadLetter.Models.DeadLetterMessage?>(null);
+
+    public Task<bool> MarkReplayedAsync(Guid id, string replayedBy, CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
+
+    public Task<bool> MarkDiscardedAsync(Guid id, string discardedBy, string discardReason, CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
+}
+
+internal sealed class NoopDeadLetterReplayer : IDeadLetterReplayer
+{
+    public Task<DeadLetterReplayResult> ReplayAsync(Guid failureId, string replayedBy, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new DeadLetterReplayResult(DeadLetterReplayOutcome.NotFound, null, "noop", null));
+}
+
+internal sealed class NoopDeadLetterDiscarder : IDeadLetterDiscarder
+{
+    public Task<DeadLetterDiscardResult> DiscardAsync(Guid failureId, string discardedBy, string discardReason, CancellationToken cancellationToken = default) =>
+        Task.FromResult(new DeadLetterDiscardResult(DeadLetterDiscardOutcome.NotFound, "noop", null));
 }

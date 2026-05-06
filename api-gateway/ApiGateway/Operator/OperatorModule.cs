@@ -4,6 +4,7 @@ using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
 using ECommerce.Shared.Infrastructure.RabbitMq;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ApiGateway.Operator;
 
@@ -90,7 +91,7 @@ public static class OperatorModule
 
         group.MapPost("/{id:guid}/discard", async (
             Guid id,
-            DiscardRequest? request,
+            [FromBody] DiscardRequest? request,
             IDeadLetterDiscarder discarder,
             ClaimsPrincipal user,
             CancellationToken cancellationToken) =>
@@ -104,7 +105,7 @@ public static class OperatorModule
         });
 
         group.MapPost("/replay-batch", async (
-            BatchReplayRequest? request,
+            [FromBody] BatchReplayRequest? request,
             IDeadLetterReplayer replayer,
             ClaimsPrincipal user,
             CancellationToken cancellationToken) =>
