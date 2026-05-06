@@ -1,3 +1,4 @@
+using ECommerce.Shared.Qa;
 using Inventory.Service.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -17,5 +18,15 @@ internal class StockItemConfiguration : IEntityTypeConfiguration<StockItem>
             .IsRowVersion();
 
         builder.Ignore(s => s.Available);
+
+        builder.HasData(
+            new StockItem
+            {
+                ProductId = QaPersonas.ProductHappyId,
+                TotalOnHand = QaPersonas.HappyPathStockOnHand,
+                TotalReserved = 0,
+                LowStockThreshold = QaPersonas.LowStockThreshold,
+                RowVersion = [1]
+            });
     }
 }

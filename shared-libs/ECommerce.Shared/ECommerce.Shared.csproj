@@ -4,7 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <VersionPrefix>2.8.0</VersionPrefix>
+    <IsPackable>true</IsPackable>
+    <VersionPrefix>2.8.1</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>

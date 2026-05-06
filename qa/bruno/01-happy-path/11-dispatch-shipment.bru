@@ -1,0 +1,35 @@
+meta {
+  name: 11 Dispatch shipment
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{shippingBaseUrl}}/{{shipmentId}}/dispatch
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "carrierKey": "fake-ground",
+    "shippingAddress": {
+      "recipient": "QA Happy Customer",
+      "line1": "1 QA Way",
+      "line2": null,
+      "city": "Testville",
+      "state": "WA",
+      "postalCode": "98052",
+      "country": "US"
+    },
+    "overrideQuote": null
+  }
+}

@@ -1,3 +1,4 @@
+using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -19,5 +20,15 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Models.Product>
 
         builder.HasOne(p => p.ProductType)
             .WithMany();
+
+        builder.HasData(
+            new Models.Product
+            {
+                Id = QaPersonas.ProductHappyId,
+                Name = QaPersonas.ProductHappyName,
+                Description = "QA happy-path product",
+                Price = QaPersonas.ProductHappyPrice,
+                ProductTypeId = 1
+            });
     }
 }

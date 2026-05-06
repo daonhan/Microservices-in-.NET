@@ -5,6 +5,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
+using ECommerce.Shared.Qa;
 using Payment.Service.Endpoints;
 using Payment.Service.Infrastructure.Data;
 using Payment.Service.Infrastructure.Data.EntityFramework;
@@ -55,11 +56,13 @@ app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
 app.UsePlatformOpenApi();
 
-if (app.Environment.IsDevelopment())
+if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 {
     app.MigrateDatabase();
     app.ApplyOutboxMigrations();
 }
+
+app.SeedQaData();
 
 // Force PaymentMetrics to be constructed at startup so the
 // `payments_total` counter is registered with OpenTelemetry

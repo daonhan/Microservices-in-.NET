@@ -48,6 +48,16 @@ namespace Product.Service.Migrations
                     b.HasIndex("ProductTypeId");
 
                     b.ToTable("Products");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 9001,
+                            Description = "QA happy-path product",
+                            Name = "product-happy",
+                            Price = 10.00m,
+                            ProductTypeId = 1
+                        });
                 });
 
             modelBuilder.Entity("Product.Service.Models.ProductType", b =>

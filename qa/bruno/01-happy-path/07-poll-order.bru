@@ -1,0 +1,15 @@
+meta {
+  name: 07 Poll order until confirmed
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{orderBaseUrl}}/{{customerHappyId}}/{{orderId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}

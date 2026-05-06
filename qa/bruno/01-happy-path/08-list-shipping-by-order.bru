@@ -1,0 +1,21 @@
+meta {
+  name: 08 List shipments by order
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{shippingBaseUrl}}/by-order/{{orderId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+script:post-response {
+  if (Array.isArray(res.body) && res.body.length > 0) {
+    bru.setVar("shipmentId", res.body[0].shipmentId || res.body[0].id);
+  }
+}

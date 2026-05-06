@@ -4,6 +4,7 @@ using Auth.Service.Services;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
+using ECommerce.Shared.Qa;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,10 +26,12 @@ app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
 app.UsePlatformOpenApi();
 
-if (app.Environment.IsDevelopment())
+if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 {
     app.MigrateDatabase();
 }
+
+app.SeedQaData();
 
 app.RegisterEndpoints();
 app.RegisterServiceTokenEndpoint();

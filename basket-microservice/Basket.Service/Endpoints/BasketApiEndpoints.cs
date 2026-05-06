@@ -2,6 +2,7 @@ using Basket.Service.ApiModels;
 using Basket.Service.Infrastructure.Data;
 using Basket.Service.Models;
 using ECommerce.Shared.Observability.Metrics;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 
 namespace Basket.Service.Endpoints;
@@ -17,11 +18,11 @@ public static class BasketApiEndpoints
         routeBuilder.MapDelete("/{customerId}", DeleteBasket);
     }
 
-    internal static async Task<CustomerBasket> GetBasket(IBasketStore basketStore, string customerId)
+    internal static async Task<CustomerBasket> GetBasket([FromServices] IBasketStore basketStore, string customerId)
         => await basketStore.GetBasketByCustomerId(customerId);
 
-    internal static async Task<IResult> CreateBasket(IBasketStore basketStore, IDistributedCache cache,
-        MetricFactory metricFactory,
+    internal static async Task<IResult> CreateBasket([FromServices] IBasketStore basketStore, [FromServices] IDistributedCache cache,
+        [FromServices] MetricFactory metricFactory,
         string customerId, CreateBasketRequest createBasketRequest)
     {
         var customerBasket = new CustomerBasket { CustomerId = customerId };
@@ -41,8 +42,8 @@ public static class BasketApiEndpoints
         return TypedResults.Created();
     }
 
-    internal static async Task<IResult> AddBasketProduct(IBasketStore basketStore, IDistributedCache cache,
-        MetricFactory metricFactory,
+    internal static async Task<IResult> AddBasketProduct([FromServices] IBasketStore basketStore, [FromServices] IDistributedCache cache,
+        [FromServices] MetricFactory metricFactory,
         string customerId, AddBasketProductRequest addProductRequest)
     {
         var customerBasket = await basketStore.GetBasketByCustomerId(customerId);
@@ -61,8 +62,8 @@ public static class BasketApiEndpoints
         return TypedResults.NoContent();
     }
 
-    internal static async Task<IResult> DeleteBasketProduct(IBasketStore basketStore,
-        MetricFactory metricFactory,
+    internal static async Task<IResult> DeleteBasketProduct([FromServices] IBasketStore basketStore,
+        [FromServices] MetricFactory metricFactory,
         string customerId, string productId)
     {
         var customerBasket = await basketStore.GetBasketByCustomerId(customerId);
@@ -76,7 +77,7 @@ public static class BasketApiEndpoints
         return TypedResults.NoContent();
     }
 
-    internal static async Task<IResult> DeleteBasket(IBasketStore basketStore, string customerId)
+    internal static async Task<IResult> DeleteBasket([FromServices] IBasketStore basketStore, string customerId)
     {
         await basketStore.DeleteCustomerBasket(customerId);
 

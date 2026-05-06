@@ -1,6 +1,7 @@
 using Basket.Service.Endpoints;
 using Basket.Service.Infrastructure.Data;
 using Basket.Service.Infrastructure.Data.Redis;
+using Basket.Service.Infrastructure.Seeding;
 using Basket.Service.IntegrationEvents;
 using Basket.Service.IntegrationEvents.EventHandlers;
 using ECommerce.Shared.HealthChecks;
@@ -8,6 +9,7 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
+using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +21,7 @@ builder.Services.AddRabbitMqEventBus(builder.Configuration)
     .AddEventHandler<ProductPriceUpdatedEvent, ProductPriceUpdatedEventHandler>();
 
 builder.Services.AddRedisCache(builder.Configuration);
+builder.Services.AddQaSeeding<RedisQaSeederHostedService>(builder.Configuration, builder.Environment);
 
 builder.AddPlatformObservability("Basket",
     customMetrics: m => m.AddView("basket-size",
@@ -35,8 +38,12 @@ app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
 app.UsePlatformOpenApi();
 
+app.SeedQaData();
+
 app.RegisterEndpoints();
 
 app.UseHttpsRedirection();
 
 app.Run();
+
+public partial class Program { }

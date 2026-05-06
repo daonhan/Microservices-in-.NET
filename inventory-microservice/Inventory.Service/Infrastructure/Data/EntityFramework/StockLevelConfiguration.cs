@@ -1,3 +1,4 @@
+using ECommerce.Shared.Qa;
 using Inventory.Service.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -18,5 +19,16 @@ internal class StockLevelConfiguration : IEntityTypeConfiguration<StockLevel>
         builder.HasOne(l => l.Warehouse)
             .WithMany()
             .HasForeignKey(l => l.WarehouseId);
+
+        builder.HasData(
+            new StockLevel
+            {
+                Id = QaPersonas.ProductHappyId,
+                ProductId = QaPersonas.ProductHappyId,
+                WarehouseId = QaPersonas.DefaultWarehouseId,
+                OnHand = QaPersonas.HappyPathStockOnHand,
+                Reserved = 0,
+                RowVersion = [1]
+            });
     }
 }

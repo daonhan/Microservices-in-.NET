@@ -1,0 +1,38 @@
+meta {
+  name: 06 Place happy order
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{orderBaseUrl}}/{{customerHappyId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "orderProducts": [
+      {
+        "productId": "{{productHappyId}}",
+        "quantity": 2
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const location = res.headers.location || res.headers.Location;
+  if (location) {
+    bru.setVar("orderLocation", location);
+    bru.setVar("orderId", location.split("/").pop());
+  }
+}

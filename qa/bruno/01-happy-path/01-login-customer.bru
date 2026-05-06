@@ -1,0 +1,26 @@
+meta {
+  name: 01 Login customer-happy
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{authBaseUrl}}/login
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "username": "{{customerHappyEmail}}",
+    "password": "{{customerPassword}}"
+  }
+}
+
+script:post-response {
+  bru.setVar("customerToken", res.body.token);
+}

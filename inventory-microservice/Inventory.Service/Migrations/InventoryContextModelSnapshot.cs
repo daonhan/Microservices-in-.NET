@@ -77,6 +77,16 @@ namespace Inventory.Service.Migrations
                     b.HasKey("ProductId");
 
                     b.ToTable("StockItems");
+
+                    b.HasData(
+                        new
+                        {
+                            ProductId = 9001,
+                            LowStockThreshold = 0,
+                            RowVersion = new byte[] { 1 },
+                            TotalOnHand = 25,
+                            TotalReserved = 0
+                        });
                 });
 
             modelBuilder.Entity("Inventory.Service.Models.StockLevel", b =>
@@ -113,6 +123,17 @@ namespace Inventory.Service.Migrations
                         .IsUnique();
 
                     b.ToTable("StockLevels");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 9001,
+                            OnHand = 25,
+                            ProductId = 9001,
+                            Reserved = 0,
+                            RowVersion = new byte[] { 1 },
+                            WarehouseId = 1
+                        });
                 });
 
             modelBuilder.Entity("Inventory.Service.Models.StockMovement", b =>

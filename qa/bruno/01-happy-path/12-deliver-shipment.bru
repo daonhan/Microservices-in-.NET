@@ -1,0 +1,15 @@
+meta {
+  name: 12 Deliver shipment
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{shippingBaseUrl}}/{{shipmentId}}/deliver
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

@@ -1,4 +1,5 @@
 using Auth.Service.Models;
+using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -26,6 +27,27 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
                 Username = "microservices@daonhan.com",
                 PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
                 Role = "Administrator"
+            },
+            new User
+            {
+                Id = QaPersonas.CustomerHappyId,
+                Username = QaPersonas.CustomerHappyEmail,
+                PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
+                Role = QaPersonas.CustomerRole
+            },
+            new User
+            {
+                Id = QaPersonas.CustomerDeclineId,
+                Username = QaPersonas.CustomerDeclineEmail,
+                PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
+                Role = QaPersonas.CustomerRole
+            },
+            new User
+            {
+                Id = QaPersonas.CustomerCancelId,
+                Username = QaPersonas.CustomerCancelEmail,
+                PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
+                Role = QaPersonas.CustomerRole
             });
     }
 }

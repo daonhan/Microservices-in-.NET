@@ -51,6 +51,27 @@ namespace Auth.Service.Migrations
                             PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
                             Role = "Administrator",
                             Username = "microservices@daonhan.com"
+                        },
+                        new
+                        {
+                            Id = new Guid("5ff2d67e-c6b5-4870-911f-79393ed416fd"),
+                            PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
+                            Role = "Customer",
+                            Username = "customer-happy@qa.test"
+                        },
+                        new
+                        {
+                            Id = new Guid("be0d0a1d-c8fe-4b17-bf6a-051e8c809aa6"),
+                            PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
+                            Role = "Customer",
+                            Username = "customer-decline@qa.test"
+                        },
+                        new
+                        {
+                            Id = new Guid("00faac97-9ae4-4b7f-b8aa-00e7c569dd66"),
+                            PasswordHash = "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==",
+                            Role = "Customer",
+                            Username = "customer-cancel@qa.test"
                         });
                 });
 #pragma warning restore 612, 618

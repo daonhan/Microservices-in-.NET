@@ -1,0 +1,15 @@
+meta {
+  name: 10 Pack shipment
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{shippingBaseUrl}}/{{shipmentId}}/pack
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}

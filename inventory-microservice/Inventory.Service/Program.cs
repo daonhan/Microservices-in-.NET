@@ -5,6 +5,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
+using ECommerce.Shared.Qa;
 using Inventory.Service.Endpoints;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
 using Inventory.Service.IntegrationEvents;
@@ -51,11 +52,13 @@ app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
 app.UsePlatformOpenApi();
 
-if (app.Environment.IsDevelopment())
+if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 {
     app.MigrateDatabase();
     app.ApplyOutboxMigrations();
 }
+
+app.SeedQaData();
 
 app.RegisterEndpoints();
 app.RegisterInternalOutboxEndpoints();
