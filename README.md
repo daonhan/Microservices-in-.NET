@@ -6,26 +6,35 @@ A production-ready e-commerce system built with **.NET 10**, **ASP.NET Core Mini
 
 ```mermaid
 graph TD
-    Client([Client]) --> GW["API Gateway<br/>YARP · :8004<br/>JWT auth + routing"]
+    Client([Client]) --> GW["API Gateway<br/>YARP · :8004<br/>JWT auth + routing<br/>+ DLQ operator API"]
 
     GW --> Basket["Basket<br/>:8000"]
     GW --> Order["Order<br/>:8001"]
     GW --> Product["Product<br/>:8002"]
     GW --> Auth["Auth<br/>:8003"]
     GW --> Inventory["Inventory<br/>:8005"]
+    GW --> Shipping["Shipping<br/>:8006"]
+    GW --> Payment["Payment<br/>:8007"]
 
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL Server)]
     Product --- SQLProduct[(SQL Server)]
     Auth --- SQLAuth[(SQL Server)]
     Inventory --- SQLInventory[(SQL Server)]
+    Shipping --- SQLShipping[(SQL Server)]
+    Payment --- SQLPayment[(SQL Server)]
+    GW --- SQLGateway[(SQL Server<br/>dead_letter_messages)]
 
-    Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>fanout exchange<br/>ecommerce-exchange"}}
+    Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>fanout exchange<br/>ecommerce-exchange<br/>+ ecommerce-dlq"}}
     Product -- publishes --> RabbitMQ
     Inventory -- publishes --> RabbitMQ
+    Payment -- publishes --> RabbitMQ
+    Shipping -- publishes --> RabbitMQ
     RabbitMQ -- subscribes --> Basket
     RabbitMQ -- subscribes --> Order
     RabbitMQ -- subscribes --> Inventory
+    RabbitMQ -- subscribes --> Payment
+    RabbitMQ -- subscribes --> Shipping
 
     subgraph Observability
         OTEL["OTEL Collector"]
@@ -41,6 +50,8 @@ graph TD
     Product -.-> OTEL
     Auth -.-> OTEL
     Inventory -.-> OTEL
+    Shipping -.-> OTEL
+    Payment -.-> OTEL
     OTEL -.-> Jaeger
     OTEL -.-> Loki
     Prometheus -.-> Alertmanager
@@ -49,7 +60,7 @@ graph TD
     Grafana --- Jaeger
 ```
 
-Order/Inventory coordinate via a saga-style flow: `OrderCreatedEvent` → Inventory reserves stock → `StockReservedEvent` / `StockReservationFailedEvent` → Order emits `OrderConfirmedEvent` / `OrderCancelledEvent` → Inventory commits or releases the reservation.
+Order, Inventory, Payment, and Shipping coordinate via a saga-style flow: `OrderCreatedEvent` → Inventory reserves stock → `StockReserved` / `StockReservationFailed` → Order emits `OrderConfirmedEvent` / `OrderCancelledEvent` → Inventory commits or releases the reservation, Payment authorizes/captures (publishing `PaymentAuthorized` / `PaymentCaptured` / `PaymentFailed` / `PaymentRefunded`), and Shipping creates a shipment on `StockCommitted` (publishing `ShipmentCreated` / `ShipmentDispatched` / `ShipmentDelivered` / `ShipmentCancelled` / `ShipmentReturned` / `ShipmentFailed`).
 
 ## Services
 
@@ -58,9 +69,11 @@ Order/Inventory coordinate via a saga-style flow: `OrderCreatedEvent` → Invent
 | **Basket** | 8000 | Redis | Shopping cart CRUD, product price caching |
 | **Order** | 8001 | SQL Server | Order creation, confirmation/cancellation, publishes `OrderCreatedEvent` / `OrderConfirmedEvent` / `OrderCancelledEvent` |
 | **Product** | 8002 | SQL Server | Product catalog, publishes `ProductCreatedEvent` / `ProductPriceUpdatedEvent` |
-| **Auth** | 8003 | SQL Server | User login, JWT token issuance (HMAC-SHA256) |
-| **API Gateway** | 8004 | — | YARP reverse proxy (Ocelot fallback available), centralized auth, role-based access |
+| **Auth** | 8003 | SQL Server | User login (`/login`), service-to-service tokens (`/token`, `client_credentials`), RS256 JWT signing with `/jwks` discovery |
+| **API Gateway** | 8004 | SQL Server | YARP reverse proxy (Ocelot fallback available), centralized auth, role-based access, combined Swagger UI, **DLQ operator API** (`/operator/api/failures*`) |
 | **Inventory** | 8005 | SQL Server | Stock levels, reservations, backorders, low-stock monitoring; publishes `StockReserved`/`StockCommitted`/`StockReleased`/`StockAdjusted`/`StockDepleted`/`LowStock` events |
+| **Shipping** | 8006 | SQL Server | Creates and tracks shipments on `StockCommitted`; publishes `ShipmentCreated`/`ShipmentDispatched`/`ShipmentDelivered`/`ShipmentCancelled`/`ShipmentReturned`/`ShipmentFailed`/`ShipmentStatusChanged` events |
+| **Payment** | 8007 | SQL Server | Authorizes, captures, and refunds payments driven by order/saga events; publishes `PaymentAuthorized`/`PaymentCaptured`/`PaymentFailed`/`PaymentRefunded` events |
 
 ## Project Structure
 
@@ -76,6 +89,10 @@ Order/Inventory coordinate via a saga-style flow: `OrderCreatedEvent` → Invent
 │   └── Product.Tests/        Unit & integration tests
 ├── inventory-microservice/   Stock, reservations, backorders
 │   └── Inventory.Tests/      Unit & integration tests
+├── shipping-microservice/    Shipment lifecycle, status tracking
+│   └── Shipping.Tests/       Unit & integration tests
+├── payment-microservice/     Payment authorization, capture, refunds
+│   └── Payment.Tests/        Unit & integration tests
 ├── shared-libs/              ECommerce.Shared NuGet library
 ├── local-nuget-packages/     Local NuGet feed for ECommerce.Shared
 ├── kubernetes/               K8s deployment manifests (services + observability)
@@ -115,7 +132,7 @@ Each microservice follows a consistent layout:
 docker compose up --build
 ```
 
-This starts the full stack: 6 microservices (Basket, Order, Product, Auth, Inventory, API Gateway) + infrastructure (SQL Server, RabbitMQ, Redis) + observability (OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki) + Prometheus exporters for RabbitMQ, Redis, and SQL Server.
+This starts the full stack: 8 microservices (Basket, Order, Product, Auth, Inventory, Shipping, Payment, API Gateway) + infrastructure (SQL Server, RabbitMQ, Redis) + observability (OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki) + Prometheus exporters for RabbitMQ, Redis, and SQL Server.
 
 ### Run Individual Services
 
@@ -143,7 +160,7 @@ dotnet run
 
 ### Try the API from Swagger UI
 
-The combined Swagger UI at `http://localhost:8004/swagger` aggregates every gateway-routed endpoint behind a service dropdown (Auth, Product, Basket, Order, Inventory, Shipping). All paths and security annotations match what the gateway actually exposes, so "Try it out" exercises real routing and auth.
+The combined Swagger UI at `http://localhost:8004/swagger` aggregates every gateway-routed endpoint behind a service dropdown (Auth, Product, Basket, Order, Inventory, Shipping, Payment). All paths and security annotations match what the gateway actually exposes, so "Try it out" exercises real routing and auth.
 
 To call authenticated endpoints:
 
@@ -157,11 +174,13 @@ The UI is gated to Development and Staging environments. Production gateway bina
 
 `shared-libs/ECommerce.Shared` is distributed as a local NuGet package and provides:
 
-- **RabbitMQ** — `IEventBus` publisher, `RabbitMqHostedService` subscriber, keyed DI event handler registration
-- **Transactional Outbox** — `OutboxBackgroundService` polls for unpublished events, preventing data/event inconsistency
-- **JWT Authentication** — `AddJwtAuthentication()` shared across all secured services
-- **Observability** — `AddPlatformObservability()` wires OpenTelemetry traces (OTLP → Jaeger), metrics (Prometheus scrape), and logs (OTLP → Loki), plus `MetricFactory` for custom counters/histograms and RabbitMQ span context propagation
+- **RabbitMQ** — `IEventBus` publisher, `RabbitMqHostedService` subscriber, keyed DI event handler registration; manual ack with retry + dead-letter on poison messages (DLX → `ecommerce-dlq`)
+- **Transactional Outbox** — `OutboxBackgroundService` polls for unpublished events, preventing data/event inconsistency; tracks publish failures and stops retrying after `MaxAttempts`, and exposes `/internal/outbox/failed` (gated by `RequireService`) for the gateway DLQ poller
+- **JWT Authentication** — `AddJwtAuthentication()` shared across all secured services; validates RS256 user tokens via Auth's `/jwks` and supports the `RequireService` policy for service-to-service calls
+- **Observability** — `AddPlatformObservability()` wires OpenTelemetry traces (OTLP → Jaeger), metrics (Prometheus scrape), and logs (OTLP → Loki), plus `MetricFactory` for custom counters/histograms, RabbitMQ span context propagation, and the DLQ `ActivitySource` / `Meter` (including `dlq_messages_total`, `dlq_replays_total`, `dlq_discards_total`)
 - **Health Checks** — `AddPlatformHealthChecks()` with SQL Server / RabbitMQ / Redis probes, exposed via `MapPlatformHealthChecks()`
+
+Current published version: **`ECommerce.Shared` 2.8.0** (see `shared-libs/ECommerce.Shared/ECommerce.Shared.csproj`).
 
 ### Build and Publish
 
@@ -178,10 +197,13 @@ dotnet nuget push bin/Release/*.nupkg -s ../local-nuget-packages
 | **Per-service datastore** | Each service owns its data — no shared databases |
 | **Event-driven communication** | RabbitMQ fanout exchange for async cross-service events |
 | **Transactional Outbox** | DB write + outbox record in single transaction; background service publishes |
+| **Saga coordination** | Order ↔ Inventory ↔ Payment ↔ Shipping coordinate via integration events; no orchestrator |
+| **Dead-Letter Queue + replay** | Failed messages flow to `ecommerce-dlq`; gateway poller persists them in `dead_letter_messages`; operator API allows replay/discard (single + batch) |
 | **API Gateway** | YARP reverse proxy centralizes routing, JWT validation, and role-based access (Ocelot implementation retained as runtime-switchable fallback) |
+| **Service auth** | Auth issues RS256 user tokens (`/login`) and service tokens (`/token`, `client_credentials`); consumers validate via `/jwks` and the shared `RequireService` policy |
 | **DTOs** | `ApiModels/` for API contracts, `Models/` for internal domain entities |
 | **Resilience** | Polly retry pipelines for RabbitMQ, EF Core `EnableRetryOnFailure` for SQL |
-| **Distributed tracing** | OpenTelemetry with context propagation across RabbitMQ messages |
+| **Distributed tracing** | OpenTelemetry with context propagation across RabbitMQ messages, including DLQ replay spans |
 
 ## API Gateway Provider (YARP / Ocelot)
 
@@ -219,20 +241,70 @@ If YARP misbehaves in production:
 
 Upstream routes, port (`8004`), auth rules, health checks, and Prometheus metrics are identical across both providers, so clients and ops tooling are unaffected by the switch.
 
+## Authentication
+
+The platform uses **RS256-signed JWTs** issued by the Auth service. Two grant flows are supported:
+
+| Flow | Endpoint | Use case |
+|---|---|---|
+| Password (user login) | `POST /login` | End-user authentication; returns a Bearer token consumed via the gateway |
+| Client credentials (service-to-service) | `POST /token` | Internal calls between services (e.g. gateway DLQ poller → per-service `/internal/outbox/failed`) |
+
+- **Key discovery** — Auth exposes the public signing key via `GET /jwks`. Resource services pull and cache JWKS through the shared `AddJwtAuthentication()` helper; no shared symmetric secret is distributed.
+- **Service authorization** — The shared `RequireService` policy gates internal endpoints to callers presenting a service token (`scope=service`). User tokens cannot reach `/internal/*` routes.
+- **Dev keys** — RSA dev keys ship under `auth-microservice/Auth.Service/dev-keys/` for local Docker Compose / `dotnet run`. Production deployments inject keys via secrets.
+
+See [docs/wiki/API-Reference.md](docs/wiki/API-Reference.md) for the complete endpoint contract.
+
+## Dead-Letter Queue (DLQ) and Operator API
+
+Messages that exhaust their retry budget on a consumer queue are dead-lettered to the platform-wide `ecommerce-dlq` exchange. A poller in the API Gateway persists them — plus failed outbox rows pulled from each service's `/internal/outbox/failed` endpoint — into a `dead_letter_messages` table. Operators interact with failures through gateway-hosted endpoints under `/operator/api/failures` (Bearer + `Operator` claim required):
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/operator/api/failures` | Paged list with filters: `service`, `eventType`, `status`, `from`, `to`, `origin` (`Consumer\|Outbox`) |
+| `GET` | `/operator/api/failures/{id}` | Failure detail (payload, stack trace, correlation id, optional Jaeger trace URL) |
+| `POST` | `/operator/api/failures/{id}/replay` | Re-publish a single `Pending` failure to its `OriginalQueue` |
+| `POST` | `/operator/api/failures/{id}/discard` | Mark a failure `Discarded` (body: `{ reason }`, required) |
+| `POST` | `/operator/api/failures/replay-batch` | Replay many failures in one call (body: `{ ids: [...] }`) |
+
+Observability: `dlq_messages_total`, `dlq_replays_total`, and `dlq_discards_total` Prometheus counters (tagged with `service`, `event_type`, and `outcome`); `dlq.replay` spans are emitted with the original event's `CorrelationId` for end-to-end trace linking.
+
+Details: [docs/plans/dlq-replay-ui.md](docs/plans/dlq-replay-ui.md), [docs/prd/PRD-DLQ-Replay-UI.md](docs/prd/PRD-DLQ-Replay-UI.md).
+
 ## Testing
 
 ```bash
 # Run all tests for a service
+cd api-gateway && dotnet test
 cd auth-microservice && dotnet test
 cd basket-microservice && dotnet test
 cd order-microservice && dotnet test
 cd product-microservice && dotnet test
 cd inventory-microservice && dotnet test
+cd shipping-microservice && dotnet test
+cd payment-microservice && dotnet test
 ```
 
 - **Unit tests** — xUnit + NSubstitute, `Given_When_Then` naming convention
 - **Integration tests** — `WebApplicationFactory<Program>`, real test databases with `IAsyncLifetime` cleanup
-- **Event tests** — End-to-end RabbitMQ publish/subscribe verification
+- **Event tests** — End-to-end RabbitMQ publish/subscribe verification, including Testcontainers-based ack/retry/DLQ behavior tests
+
+## Pre-commit hooks
+
+[Husky.Net](https://alirezanet.github.io/Husky.Net/) is configured under `.husky/`. Hooks are restored automatically by `dotnet tool restore` and then activated with:
+
+```bash
+dotnet tool restore
+dotnet husky install
+```
+
+On every commit the task runner enforces `dotnet format --verify-no-changes`, `dotnet build --no-restore`, and a fast Basket test slice. Run the equivalent checks locally before pushing:
+
+```bash
+dotnet format --verify-no-changes --verbosity minimal
+# then `dotnet test` per service that you touched
+```
 
 ## Deployment
 
@@ -274,6 +346,8 @@ kubectl apply -f kubernetes/order-microservice.yaml
 kubectl apply -f kubernetes/basket-microservice.yaml
 kubectl apply -f kubernetes/auth-microservice.yaml
 kubectl apply -f kubernetes/inventory-microservice.yaml
+kubectl apply -f kubernetes/shipping-microservice.yaml
+kubectl apply -f kubernetes/payment-microservice.yaml
 kubectl apply -f kubernetes/api-gateway.yaml
 
 # Verify
@@ -293,6 +367,7 @@ Services discover each other via Kubernetes DNS (e.g., `rabbitmq-clusterip-servi
 | Testing | xUnit, NSubstitute, WebApplicationFactory |
 | Observability | OpenTelemetry (traces + metrics + logs via OTLP), OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki |
 | Health | `Microsoft.Extensions.Diagnostics.HealthChecks` via shared `AddPlatformHealthChecks` |
-| Resilience | Polly, EF Core retries, Outbox pattern, saga-style order/inventory coordination |
-| Security | JWT (HMAC-SHA256), YARP API Gateway (Ocelot fallback), role-based auth |
+| Resilience | Polly, EF Core retries, Outbox pattern with failure tracking, RabbitMQ DLX/DLQ + replay, saga-style order/inventory/payment/shipping coordination |
+| Security | RS256 JWTs (`/jwks` discovery), `client_credentials` service tokens, `RequireService` policy, YARP API Gateway (Ocelot fallback), role-based auth |
+| Tooling | Husky.Net pre-commit hooks (`dotnet format` + build + Basket tests) |
 | Deployment | Docker, Docker Compose, Kubernetes |
