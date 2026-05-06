@@ -34,11 +34,85 @@ _Coming in phase 4._
 
 ## Domain glossary
 
-_Coming in phase 3._ Will define: Saga, Outbox, Dead-Letter Queue (DLQ), Integration Event, Reservation, Backorder, Authorize, Capture, Refund, JWKS, Fanout exchange, YARP, Ocelot, Choreography vs Orchestration, Minimal API, `.slnx`, OTEL Collector.
+Short definitions of the load-bearing terms used throughout this repo. Each entry is platform vocabulary, not implementation guidance — see the ADRs and wiki for how each term is realised in code.
+
+- **Saga.** A long-running business transaction that spans multiple services and reaches a consistent end state through a sequence of local steps and compensating actions. In this platform a saga walks Order → Inventory → Payment → Shipping and ends in either `OrderConfirmed` or `OrderCancelled`.
+- **Outbox.** A reliability pattern where a service writes the events it intends to publish into the same database transaction as the state change that produced them. A separate poller drains the outbox to the message broker, so a crash between "committed" and "published" cannot leave the system inconsistent.
+- **Dead-Letter Queue (DLQ).** A holding area for messages that could not be processed after the configured retries. Operators inspect, replay, or discard them through the gateway's operator API instead of losing the work or blocking the live queues.
+- **Integration Event.** A message a service publishes to announce that something has happened in its bounded context, intended for other services to react to. Integration events are the only sanctioned way for services in this repo to communicate state changes — there is no shared database and no cross-service synchronous call for write paths.
+- **Reservation.** A temporary hold the Inventory service places on stock when an order is created, so other concurrent orders cannot consume the same units. A reservation is later either committed (on `OrderConfirmed`) or released (on `OrderCancelled` or timeout).
+- **Backorder.** A demand recorded against an item when on-hand stock is insufficient to satisfy it. Backorders let the saga progress under low-stock conditions and are reconciled when stock is replenished.
+- **Authorize.** The first step of a payment, in which the issuer approves a hold against the customer's funds without yet moving money. The order can be confirmed once authorization succeeds, even though the merchant has not been paid.
+- **Capture.** The follow-up step that converts an authorization into an actual transfer of funds to the merchant. Capture typically happens at fulfilment time, after stock is committed and shipment is created.
+- **Refund.** The reversal of a previously captured payment, returning funds to the customer. Refunds may be full or partial and are surfaced as their own integration event so downstream services (orders, accounting, notifications) can react.
+- **JWKS.** The JSON Web Key Set published by the Auth service at a well-known discovery endpoint. Other services validate incoming JWTs by fetching JWKS and matching the token's signing key, so secrets never have to be copied between services.
+- **Fanout exchange.** A RabbitMQ exchange type that broadcasts every published message to every bound queue, with no routing-key filtering. The platform uses a single fanout exchange so adding a new subscriber is a configuration change, not a publisher change.
+- **YARP.** Yet Another Reverse Proxy, Microsoft's modern reverse-proxy library for .NET. It is the default provider behind the API Gateway and handles routing, JWT enforcement, and combined Swagger UI.
+- **Ocelot.** A long-standing .NET API gateway library. It compiles into the same gateway binary as YARP and can be selected at boot via the `Gateway:Provider` flag, giving a like-for-like fallback without a redeploy of the surrounding services.
+- **Choreography vs Orchestration.** Two styles of saga coordination. In _orchestration_ a central process tells each service what to do next; in _choreography_ each service reacts to events and decides its own next move. This platform uses choreography — there is no orchestrator service.
+- **Minimal API.** The ASP.NET Core programming model that defines HTTP endpoints as lambdas registered directly on the app, without MVC controllers. Every service in this repo exposes its HTTP surface this way, keeping endpoint files small and focused.
+- **`.slnx`.** The XML-based Visual Studio solution format that replaces the legacy `.sln` for this repo. Each service ships its own `.slnx`, so build and test boundaries match service boundaries and there is no monolithic root solution.
+- **OTEL Collector.** The OpenTelemetry Collector, a vendor-neutral agent that receives traces, metrics, and logs from the services and forwards them to Jaeger, Prometheus, and Loki. Services talk only to the Collector, which keeps the export pipeline swappable.
 
 ## Architecture at a glance
 
-_Coming in phase 3._ Will reuse the mermaid diagram from [README.md](README.md) with a short orienting paragraph.
+Seven business services sit behind a single API Gateway and coordinate asynchronously over RabbitMQ. The gateway terminates JWT auth (validated against the Auth service's JWKS), aggregates Swagger, and fronts the DLQ operator API. The four saga participants — **Order**, **Inventory**, **Payment**, **Shipping** — exchange integration events through a fanout exchange to walk the choreographed Order → Inventory → Payment → Shipping flow; **Basket**, **Product**, and **Auth** stay outside the saga but publish/consume their own events. Each service owns its datastore (SQL Server, with Redis for Basket) and emits OpenTelemetry traces, metrics, and logs through the OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top.
+
+```mermaid
+graph TD
+    Client([Client]) --> GW["API Gateway<br/>YARP · :8004<br/>JWT auth + routing<br/>+ DLQ operator API"]
+
+    GW --> Basket["Basket<br/>:8000"]
+    GW --> Order["Order<br/>:8001"]
+    GW --> Product["Product<br/>:8002"]
+    GW --> Auth["Auth<br/>:8003"]
+    GW --> Inventory["Inventory<br/>:8005"]
+    GW --> Shipping["Shipping<br/>:8006"]
+    GW --> Payment["Payment<br/>:8007"]
+
+    Basket --- Redis[(Redis)]
+    Order --- SQLOrder[(SQL Server)]
+    Product --- SQLProduct[(SQL Server)]
+    Auth --- SQLAuth[(SQL Server)]
+    Inventory --- SQLInventory[(SQL Server)]
+    Shipping --- SQLShipping[(SQL Server)]
+    Payment --- SQLPayment[(SQL Server)]
+    GW --- SQLGateway[(SQL Server<br/>dead_letter_messages)]
+
+    Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>fanout exchange<br/>ecommerce-exchange<br/>+ ecommerce-dlq"}}
+    Product -- publishes --> RabbitMQ
+    Inventory -- publishes --> RabbitMQ
+    Payment -- publishes --> RabbitMQ
+    Shipping -- publishes --> RabbitMQ
+    RabbitMQ -- subscribes --> Basket
+    RabbitMQ -- subscribes --> Order
+    RabbitMQ -- subscribes --> Inventory
+    RabbitMQ -- subscribes --> Payment
+    RabbitMQ -- subscribes --> Shipping
+
+    subgraph Observability
+        OTEL["OTEL Collector"]
+        Jaeger["Jaeger<br/>(traces)"]
+        Prometheus["Prometheus<br/>(metrics)"]
+        Loki["Loki<br/>(logs)"]
+        Grafana["Grafana<br/>(dashboards)"]
+        Alertmanager["Alertmanager"]
+    end
+
+    Basket -.-> OTEL
+    Order -.-> OTEL
+    Product -.-> OTEL
+    Auth -.-> OTEL
+    Inventory -.-> OTEL
+    Shipping -.-> OTEL
+    Payment -.-> OTEL
+    OTEL -.-> Jaeger
+    OTEL -.-> Loki
+    Prometheus -.-> Alertmanager
+    Grafana --- Prometheus
+    Grafana --- Loki
+    Grafana --- Jaeger
+```
 
 ## Architectural decisions
 
