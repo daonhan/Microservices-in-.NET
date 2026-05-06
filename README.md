@@ -1,5 +1,7 @@
 # E-Commerce Microservices Platform
 
+> New here? Read [CONTEXT.md](CONTEXT.md) first — it's the human-narrated entry point with the project pitch, decisions index, and links out.
+
 A production-ready e-commerce system built with **.NET 10**, **ASP.NET Core Minimal APIs**, and **C# 14** — demonstrating microservice architecture patterns from domain decomposition through Kubernetes deployment.
 
 ## Architecture
