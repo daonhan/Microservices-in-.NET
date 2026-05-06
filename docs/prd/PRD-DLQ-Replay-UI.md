@@ -208,7 +208,7 @@ hosted by the API Gateway:
 
 - Prometheus counters: `dlq_messages_total{service,event_type}`,
   `dlq_replays_total{service,event_type,outcome}`,
-  `dlq_discards_total{service,event_type}`.
+  `dlq_discards_total{service,event_type,outcome}`.
 - Tracing: replay re-uses `RabbitMqTelemetry` so the replay span links into
   the original trace via the propagated `CorrelationId`.
 

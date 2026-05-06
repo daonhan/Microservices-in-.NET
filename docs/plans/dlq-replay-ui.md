@@ -27,7 +27,7 @@ Durable decisions that apply across all phases:
   - `Event` base record gains optional `CorrelationId` (`Guid?`), backwards-compatible.
 - **Auth**: existing JWT (RS256/JWKS) is reused. New role claim `operator` issued by auth-microservice. New shared policy `RequireOperator`.
 - **Migrations**: EF Core, per-service `IDesignTimeDbContextFactory` pattern preserved. Gateway gets its own `DeadLetterDbContext` and design-time factory.
-- **Observability**: Prometheus counters `dlq_messages_total{service,event_type}`, `dlq_replays_total{service,event_type,outcome}`, `dlq_discards_total{service,event_type}`. OTEL spans for capture and replay reuse `RabbitMqTelemetry`.
+- **Observability**: Prometheus counters `dlq_messages_total{service,event_type}`, `dlq_replays_total{service,event_type,outcome}`, `dlq_discards_total{service,event_type,outcome}`. OTEL spans for capture and replay reuse `RabbitMqTelemetry`.
 - **Hosting**: Operator UI and admin API live in the existing `api-gateway/ApiGateway` process. Mapped before the YARP/Ocelot proxy so the `Gateway:Provider` switch is irrelevant to these routes.
 
 ---
