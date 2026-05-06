@@ -2,194 +2,149 @@
 - @azure Rule - Use Azure Best Practices - When handling requests related to Azure, always invoke your `azmcp_bestpractices_get` tool first.
 - @azure Rule - Enable Best Practices - If you do not have an `azmcp_bestpractices_get` tool ask the user to enable it.
 
-You are a senior software architect and .NET developer working on a new project. This project is a multi-tenant SaaS application with a **Domain-Driven Design (DDD)** architecture and a **clean architecture** separation of concerns. The project is built using **.NET 8+** with **ASP.NET Core** and follows **modern .NET development practices**.
+# Project context
 
-# **Project Overview**
-This project is a multi-tenant SaaS application that will serve multiple customers. Each customer (tenant) has their own isolated data and configurations. The application follows a Domain-Driven Design (DDD) architecture to ensure scalability, maintainability, and alignment with business requirements.
+This repository is a **.NET e-commerce microservices monorepo**. It is **not** a multi-tenant SaaS monolith and does **not** follow a single Clean Architecture / DDD layered solution. Treat each microservice as an independent, deployable unit that shares cross-cutting concerns through the `ECommerce.Shared` NuGet package.
 
-# **Tech Stack**
-## **Core Framework**
--   **Language**: C# 12
--   **Runtime**: .NET 8+
--   **Framework**: ASP.NET Core
--   **Architecture**: Clean Architecture with Domain-Driven Design (DDD) principles
--   **Development Methodology**: Test-Driven Development (TDD) with a strong emphasis on unit testing
+For the authoritative architectural overview, read [CLAUDE.md](../CLAUDE.md) and [CONTEXT.md](../CONTEXT.md). Behavioral coding guidelines live in [.claude/CLAUDE.md](../.claude/CLAUDE.md).
 
-## **Database & Persistence**
--   **ORM**: Entity Framework Core
--   **Database**: SQL Server/PostgreSQL
--   **Caching**: Redis
--   **Storage**: Azure Blob Storage
+## Repo shape
 
-## **Messaging & Integration**
--   **Message Broker**: RabbitMQ
--   **External API Integration**: Integration with Azure services (Azure AD, Azure Cosmos DB, Azure Blob Storage)
+- Top-level `*-microservice/` folders, plus `api-gateway/` and `shared-libs/`.
+- Each service is its own solution defined by a **`.slnx`** file. There is no root solution that builds everything.
+- All projects target **`net10.0`** (see [Directory.Build.props](../Directory.Build.props)).
+- `local-nuget-packages/` is a local NuGet feed used to consume `ECommerce.Shared`.
 
-## **Infrastructure & Deployment**
--   **Containerization**: Docker
--   **Container Orchestration**: Kubernetes (future)
--   **CI/CD**: GitHub Actions
--   **Cloud Platform**: Microsoft Azure
+Services and ports (from [docker-compose.yaml](../docker-compose.yaml)):
 
-# **Architecture Guidelines**
-## **Layered Architecture**
-The project follows a clean architecture pattern with four distinct layers:
+| Service       | Port | Datastore                  |
+|---------------|------|----------------------------|
+| basket        | 8000 | Redis                      |
+| order         | 8001 | SQL Server (+ Redis cache) |
+| product       | 8002 | SQL Server                 |
+| auth          | 8003 | SQL Server                 |
+| api-gateway   | 8004 | — (YARP, Ocelot fallback)  |
+| inventory     | 8005 | SQL Server                 |
+| shipping      | 8006 | SQL Server                 |
+| payment       | 8007 | SQL Server                 |
 
-1.  **Domain Layer**: Contains core business logic, entities, value objects, and domain events. This layer is independent of all other layers and has no dependencies.
-2.  **Application Layer**: Contains application-specific business logic, use cases, and orchestrates interactions between the domain layer and infrastructure. It includes:
-    -   `Application Services`: Use case implementations
-    -   `Command & Query Handlers`: CQRS pattern implementation
-    -   `Data Transfer Objects (DTOs)`: Data transfer between layers
-    -   `Validators`: FluentValidation for input validation
-3.  **Infrastructure Layer**: Contains cross-cutting concerns and external dependencies, including:
-    -   `Data Access`: EF Core repositories and DbContext implementations
-    -   `External Services`: Integration with Azure services
-    -   `Message Handlers`: RabbitMQ consumers and producers
-    -   `Event Processors`: Background services for event handling
-4.  **Presentation Layer**: Contains API endpoints, controllers, and HTTP-specific concerns. It should be thin and delegate business logic to the application layer.
+## Tech stack (actual)
 
-## **Domain-Driven Design (DDD)**
--   **Bounded Contexts**: The application is divided into distinct bounded contexts to manage complexity
--   **Aggregate Roots**: Entities are grouped into aggregates with clear boundaries
--   **Domain Events**: Business events are captured and published using domain events
--   **Value Objects**: Immutable objects representing domain concepts
--   **Repositories**: Interfaces defined in the domain layer, implemented in the infrastructure layer
+- **Language / runtime:** C# (latest), .NET 10
+- **Web:** ASP.NET Core **Minimal APIs** (no MVC controllers, no MediatR)
+- **Persistence:** EF Core with **SQL Server** (Redis only for basket and as order cache)
+- **Messaging:** RabbitMQ via fanout exchange `ecommerce-exchange`, wrapped by `IEventBus` in `ECommerce.Shared`
+- **Observability:** OpenTelemetry, Jaeger, Loki, Grafana, Prometheus (see `observability/` and `kubernetes/`)
+- **Containerization:** Docker / Docker Compose; Kubernetes manifests under `kubernetes/`
+- **CI/CD:** **Azure Pipelines** (`azure-pipelines.yml` per service). GitHub Actions is not used.
+- **Cloud target:** Azure (AKS manifests prefixed `aks-*` in `kubernetes/`)
 
-# **Coding Standards**
-## **Naming Conventions**
--   **PascalCase**: Classes, methods, properties, public APIs, folders
--   **camelCase**: Private fields, local variables, method parameters
--   **_camelCase**: Private fields (optional, but consistent)
--   **UPPER_SNAKE_CASE**: Constants and readonly static fields
--   **kebab-case**: Folder names, file names, configuration keys
--   **snake_case**: Database table and column names (PostgreSQL convention)
--   **kebab-case**: Package and component names
+## Build, test, run
 
-## **Design Patterns**
--   **Repository Pattern**: For data access abstraction
--   **CQRS (Command Query Responsibility Segregation)**: Separate command and query models
--   **Unit of Work**: Transaction management across multiple repositories
--   **Dependency Injection**: Built-in ASP.NET Core DI with Scrutor for automatic registration
--   **MediatR**: For CQRS implementation and cross-cutting concerns
--   **FluentValidation**: For input validation
--   **Serilog**: For logging
--   **AutoMapper**: For object mapping
--   **Polly**: For resilience and fault tolerance (retry policies, circuit breakers)
+Operate **per service**. There is no root build.
 
-# **Project Structure**
-## **Solution Structure**
-The solution is organized into multiple class libraries for separation of concerns:
+```bash
+# Build / test a service (run from its directory)
+cd order-microservice && dotnet build
+cd order-microservice && dotnet test
+cd order-microservice && dotnet test --filter "FullyQualifiedName~OrderEndpointTests"
+cd order-microservice && dotnet test --filter "DisplayName~Given_X_When_Y_Then_Z"
 
-```text
-src/
-├── Nhamnhi.Api/                    # Presentation layer (ASP.NET Core Web API)
-├── Nhamnhi.Application/             # Application layer (use cases and business logic)
-│   ├── Commands/
-│   ├── Queries/
-│   ├── Handlers/
-│   ├── Interfaces/
-│   ├── Mappers/
-│   ├── Validators/
-│   └── Services/
-├── Nhamnhi.Domain/                 # Domain layer (entities, aggregates, domain events)
-├── Nhamnhi.DomainEvents/           # Domain event handlers and subscribers
-│   ├── Handlers/
-│   └── Subscribers/
-├── Nhamnhi.Infrastructure/         # Infrastructure layer (EF Core, Redis, RabbitMQ)
-│   ├── Persistence/
-│   ├── Services/
-│   ├── Mappers/
-│   ├── Configuration/
-│   ├── IntegrationEvents/
-│   └── MessageHandlers/
-├── Nhamnhi.Integration/            # External API integrations
-│   ├── ClientFactories/
-│   └── Services/
-└── Nhamnhi.Webhooks/                 # Webhook integration layer (Stripe, GitHub, etc.)
+# Format (mirrors pre-commit)
+dotnet format --verify-no-changes --verbosity minimal
+dotnet format
+
+# Full stack
+docker compose up --build
+docker compose up sql rabbitmq redis -d   # infra only
 ```
 
-## **Repository Pattern Implementation**
-```text
-src/Nhamnhi.Domain/
-├── Interfaces/
-│   ├── Repositories/
-│   │   ├── IBaseRepository.cs
-│   │   ├── IUnitOfWork.cs
-│   │   ├── IProductRepository.cs
-│   │   └── ...
-│   └── Specifications/
-│       └── ISpecification.cs
+`Directory.Build.props` enables `TreatWarningsAsErrors` and `EnforceCodeStyleInBuild`. The documented `NoWarn` exemptions (`CA1707`, `CA1711`, `CA1716`, NuGet `NU*` warnings) are intentional — do not "fix" code to remove them.
 
-src/Nhamnhi.Infrastructure/
-├── Persistence/
-│   ├── Repositories/
-│   │   ├── BaseRepository.cs
-│   │   ├── UnitOfWork.cs
-│   │   ├── ProductRepository.cs
-│   │   └── ...
-│   └── SpecificationEvaluator.cs
+## Pre-commit (Husky.Net)
+
+`.husky/task-runner.json` runs on commit:
+
+1. `dotnet format --verify-no-changes`
+2. `dotnet build --no-restore`
+3. `dotnet test basket-microservice/Basket.Service.slnx --no-build --no-restore`
+
+Only Basket tests run pre-commit. Run other service test suites manually before pushing changes that cross service boundaries.
+
+## Shared library workflow (`ECommerce.Shared`)
+
+`shared-libs/ECommerce.Shared` is consumed as a **NuGet package** (e.g. `<PackageReference Include="ECommerce.Shared" Version="2.0.0" />`), **not** a `<ProjectReference>`. The package is published to `local-nuget-packages/` (gitignored).
+
+After editing the shared lib:
+
+```bash
+cd shared-libs/ECommerce.Shared
+dotnet pack -c Release
+dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
+# Bump <Version> in ECommerce.Shared.csproj if consumers should pick it up.
 ```
 
-# **Development Practices**
-## **Test-Driven Development (TDD)**
-All code should be developed using TDD principles:
-1.  Write a failing unit test
-2.  Make the test pass with minimal code
-3.  Refactor and improve the code
+Consumers won't see changes until the version is bumped and the new `.nupkg` lands in the local feed.
 
-## **Dependency Injection**
--   Use constructor injection for dependencies
--   Register services with appropriate lifetime:
-    -   `AddScoped`: Per request (database contexts, repositories)
-    -   `AddTransient`: Per use (services, mappers)
-    -   `AddSingleton`: Once per application (configuration, static clients)
+## Cross-service architecture
 
-## **MediatR Usage**
-Use MediatR for:
--   CQRS pattern implementation
--   Cross-cutting concerns (logging, caching, validation)
--   Pipeline behaviors for common operations
+The "big picture" lives in three places that have to be read together:
 
-## **Logging**
--   Use Serilog for logging throughout the application
--   Log at appropriate levels:
-    -   `Information`: General application flow
-    -   `Warning`: Potential issues
-    -   `Error`: Actual errors and exceptions
-    -   `Debug`: Detailed debugging information
+1. **Each service's `Program.cs`** — composition root. All wiring uses extension methods from `ECommerce.Shared`: `AddSqlServerDatastore`, `AddOutbox`, `AddRabbitMqEventBus`, `AddRabbitMqEventPublisher`, `AddRabbitMqSubscriberService`, `AddEventHandler<TEvent, THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`. New cross-cutting concerns belong in `shared-libs/ECommerce.Shared`, not duplicated per service.
 
-## **Configuration**
--   Use `appsettings.json` for configuration
--   Use `appsettings.{Environment}.json` for environment-specific settings
--   Use Azure Key Vault for secrets management
--   Use options pattern for strongly-typed configuration
+2. **`shared-libs/ECommerce.Shared/Infrastructure/`**
+   - `EventBus/` — `IEventBus`, `Event` base type, handler registration via keyed DI.
+   - `RabbitMq/` — fanout exchange `ecommerce-exchange`; `RabbitMqHostedService` subscribes, `RabbitMqEventBus` publishes; OTEL context propagates through message headers (`RabbitMqTelemetry`).
+   - `Outbox/` — transactional outbox. `OutboxBackgroundService` polls `OutboxContext` for unpublished events. Services that publish events must call `AddOutbox(...)` and (in Development) `app.ApplyOutboxMigrations()`.
 
-# **Domain Events Pattern**
-## **Implementation Structure**
-```text
-src/Nhamnhi.Domain/
-└── DomainEvents/
-    ├── DomainEventBase.cs           # Base class for all domain events
-    ├── ProductCreatedEvent.cs       # Example domain event
-    └── IProductCreatedEventHandler.cs # Domain event handler
+3. **Order ↔ Inventory saga** — `OrderCreatedEvent` → Inventory reserves stock → `StockReserved` / `StockReservationFailed` → Order emits `OrderConfirmed` / `OrderCancelled` → Inventory commits or releases. Touching either side without considering both will desynchronize the flow. Event types live in each service's `IntegrationEvents/Events/`; handlers in `IntegrationEvents/EventHandlers/`.
 
-src/Nhamnhi.Application/
-└── DomainEvents/
-    └── Handlers/
-        └── ProductCreatedEventHandler.cs  # Handler implementation
+## Service internal layout
 
-src/Nhamnhi.Infrastructure/
-└── DomainEvents/
-    └── Subscribers/
-        └── ProductCreatedEventConsumer.cs # RabbitMQ consumer
-```
+Each service follows the same structure — keep this split:
 
-## **Benefits**
--   Decouples business logic from event handling
--   Enables event-driven architecture
--   Supports cross-cutting concerns through pipeline behaviors
--   Allows for easy extension with new event handlers
+- `Endpoints/` — Minimal API handlers (the presentation layer)
+- `ApiModels/` — DTOs (request/response contracts)
+- `Models/` — domain types
+- `Infrastructure/Data/` — EF Core `DbContext` or Redis access
+- `IntegrationEvents/Events/` and `IntegrationEvents/EventHandlers/`
+- `Migrations/` — EF Core migrations (auto-generated, do not hand-edit style)
 
-# **Azure Integration Patterns**
-## **Azure AD Integration**
--   Use `Microsoft.
+DTOs go in `ApiModels`, domain types in `Models`. Do not introduce a `Domain` / `Application` / `Infrastructure` / `Api` layered project structure — that is not how this repo is organized.
+
+## API Gateway provider switch
+
+The gateway compiles **both** YARP and Ocelot. `Gateway:Provider` (env `Gateway__Provider`) selects at startup; values `Yarp` (default) or `Ocelot`. Unknown values fail fast. Logged at boot as `ApiGateway starting with provider=...`. Routes, port, auth, health checks, and metrics are identical across both — clients do not change when switching.
+
+## Conventions
+
+- File-scoped namespaces; `var` preferred; `using` directives outside the namespace (enforced by `.editorconfig`).
+- **Test names use `Given_When_Then` with underscores** (`CA1707` is suppressed).
+- Event-handler classes are named `*EventHandler` and implement `IEventHandler<T>` (`CA1711` is suppressed).
+- EF Core migrations under `**/Migrations/*.cs` are marked `generated_code = true` — do not hand-edit style.
+- Each service implements `IDesignTimeDbContextFactory<TContext>` so `dotnet ef migrations add ...` works without running `Program.cs`.
+- Integration tests use `WebApplicationFactory<Program>`; each service exposes `public partial class Program { }` at the bottom of `Program.cs` to enable this.
+- Logging: built-in `ILogger<T>` + OpenTelemetry → Loki. Serilog is **not** used.
+- Configuration via `appsettings.json` + `appsettings.{Environment}.json`; secrets via environment variables in compose / Kubernetes.
+
+## What this repo does **not** use
+
+To avoid suggesting plausible-but-wrong dependencies:
+
+- MediatR, AutoMapper, Scrutor, FluentValidation, Polly, Serilog
+- MVC controllers (use Minimal APIs)
+- A single Clean Architecture solution with `Domain` / `Application` / `Infrastructure` / `Api` projects
+- PostgreSQL, Cosmos DB, Azure Blob Storage, Azure AD / Entra ID
+- GitHub Actions
+- Stripe / GitHub webhooks layer
+
+If a task seems to require any of the above, surface that the repo does not currently use it and ask before adding it.
+
+## Behavioral guidelines
+
+[.claude/CLAUDE.md](../.claude/CLAUDE.md) defines general behavior (think before coding, simplicity first, surgical changes, goal-driven execution). Apply it to all work in this repo:
+
+- Make only the changes the user asked for; do not "improve" adjacent code.
+- Match existing style even if you'd write it differently.
+- Prefer the smallest correct change. Push back when something looks over-engineered.
+- For non-trivial work, state a brief plan with verifiable success criteria before implementing.
