@@ -176,7 +176,99 @@ In rough order of how surprising each one was:
 
 ## Link tree
 
-_Coming in phase 5._ Will index every wiki page, PRD, plan, runbook, and Kubernetes manifest folder.
+Every doc, plan, ADR, runbook, and deployment manifest folder in the repo, indexed once so this page can stand alone.
+
+### Repo entry points
+
+- [README.md](README.md) — runnable quickstart and per-service reference
+- [CLAUDE.md](CLAUDE.md) — repo conventions for AI agents
+- [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — Copilot-side conventions
+- [`docker-compose.yaml`](docker-compose.yaml) — local stack
+- [LICENSE](LICENSE) — MIT
+
+### Wiki ([`docs/wiki/`](docs/wiki/))
+
+- [Home](docs/wiki/Home.md)
+- [Architecture](docs/wiki/Architecture.md)
+- [Getting Started](docs/wiki/Getting-Started.md)
+- [API Reference](docs/wiki/API-Reference.md)
+- [Integration Events](docs/wiki/Integration-Events.md)
+- [Shared Library](docs/wiki/Shared-Library.md)
+- [Testing](docs/wiki/Testing.md)
+- [Observability](docs/wiki/Observability.md)
+- [Kubernetes Deployment](docs/wiki/Kubernetes-Deployment.md)
+- [Local Kubernetes Guide](docs/wiki/Local-Kubernetes-Guide.md)
+- [Azure Deployment](docs/wiki/Azure-Deployment.md)
+- [Contributing](docs/wiki/Contributing.md)
+- [Troubleshooting](docs/wiki/Troubleshooting.md)
+- [Roadmap](docs/wiki/Roadmap.md)
+- Service pages: [API Gateway](docs/wiki/Service-API-Gateway.md) · [Auth](docs/wiki/Service-Auth.md) · [Basket](docs/wiki/Service-Basket.md) · [Order](docs/wiki/Service-Order.md) · [Product](docs/wiki/Service-Product.md) · [Inventory](docs/wiki/Service-Inventory.md) · [Payment](docs/wiki/Service-Payment.md) · [Shipping](docs/wiki/Service-Shipping.md)
+- Wiki chrome: [_Sidebar](docs/wiki/_Sidebar.md) · [_Footer](docs/wiki/_Footer.md)
+
+### PRDs ([`docs/prd/`](docs/prd/))
+
+- [PRD index](docs/prd/PRD.md)
+- [Context (this file's PRD)](docs/prd/PRD-Context.md)
+- [Repository Wiki](docs/prd/PRD-Wiki.md)
+- [API Gateway — YARP](docs/prd/PRD-ApiGateway-Yarp.md)
+- [API Gateway — OpenAPI Aggregation](docs/prd/PRD-ApiGateway-OpenApi-Aggregation.md)
+- [Auth Critical Hardening](docs/prd/PRD-Auth-Critical-Hardening.md)
+- [DLQ Replay UI](docs/prd/PRD-DLQ-Replay-UI.md)
+- [Inventory](docs/prd/PRD-Inventory.md)
+- [Observability](docs/prd/PRD-Observability.md)
+- [Order Architecture Refactor](docs/prd/PRD-order-architecture-refactor.md)
+- [Payment](docs/prd/PRD-Payment.md)
+- [Shipping](docs/prd/PRD-Shipping.md)
+- [StockItem Aggregate](docs/prd/PRD-StockItem-Aggregate.md)
+- [Unified VS Solution](docs/prd/unified-vs-solution.md)
+- [Azure Infrastructure Deployment](docs/prd/azure-infrastructure-deployment.md)
+
+### Plans ([`docs/plans/`](docs/plans/))
+
+- [Context](docs/plans/context.md)
+- [E-Commerce Microservices](docs/plans/e-commerce-microservices.md)
+- [API Gateway — YARP](docs/plans/api-gateway-yarp.md)
+- [OpenAPI Gateway Swagger Aggregation](docs/plans/openapi-gateway-swagger-aggregation.md)
+- [Auth Critical Hardening](docs/plans/auth-critical-hardening.md) · [Phase 1 summary](docs/plans/auth-critical-hardening-phase1-summary.md)
+- [DLQ Replay UI](docs/plans/dlq-replay-ui.md)
+- [Inventory](docs/plans/inventory.md)
+- [Observability Polish](docs/plans/observability-polish.md)
+- [Order Architecture Refactor](docs/plans/order-architecture-refactor-plan.md)
+- [Payment Service](docs/plans/payment-service.md) · [Phase 3](docs/plans/payment-phase3.md) · [Phase 4 summary](docs/plans/payment-phase4-summary.md)
+- [Shipping Service](docs/plans/shipping-service.md)
+- [StockItem Aggregate](docs/plans/stockitem-aggregate.md)
+- [Unified VS Solution](docs/plans/unified-vs-solution.md)
+- [Azure Infrastructure Deployment](docs/plans/azure-infrastructure-deployment-plan.md)
+
+### ADRs ([`docs/adr/`](docs/adr/README.md))
+
+- [Index](docs/adr/README.md) · [Template](docs/adr/0000-template.md)
+- [ADR-0001 — API Gateway YARP default with Ocelot fallback](docs/adr/0001-api-gateway-yarp-default-ocelot-fallback.md)
+- [ADR-0002 — Transactional Outbox per publishing service](docs/adr/0002-transactional-outbox-per-publishing-service.md)
+- [ADR-0003 — RS256 JWT with `/jwks` discovery](docs/adr/0003-rs256-jwt-with-jwks-discovery.md)
+- [ADR-0004 — RabbitMQ fanout with DLQ and operator API](docs/adr/0004-rabbitmq-fanout-with-dlq-and-operator-api.md)
+- [ADR-0005 — `ECommerce.Shared` as NuGet via local feed](docs/adr/0005-ecommerce-shared-as-nuget-via-local-feed.md)
+- [ADR-0006 — One `.slnx` solution per service](docs/adr/0006-one-slnx-solution-per-service.md)
+- [ADR-0007 — EF Core database per service](docs/adr/0007-ef-core-database-per-service.md)
+- [ADR-0008 — Saga choreography (no central orchestrator)](docs/adr/0008-saga-choreography-no-central-orchestrator.md)
+- [ADR-0009 — OTEL + Jaeger + Prometheus + Loki + Grafana](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md)
+
+### Runbooks ([`docs/runbooks/`](docs/runbooks/))
+
+- [Payment smoke test](docs/runbooks/payment-smoke.md)
+
+### Deployment manifests
+
+- [Kubernetes manifests](kubernetes/) — `aks-{dev,staging,prod}-*` per-service manifests plus shared `rabbitmq.yaml`, `redis.yaml`, `sql.yaml`, `otel-collector.yaml`, `prometheus.yaml`, `grafana.yaml`, `loki.yaml`, `jaeger.yaml`, `alertmanager.yaml`, `exporters.yaml`
+- [Infrastructure & pipelines](Infrastructure%20-%20Deployment/) — Bicep, Azure DevOps pipelines, Dockerfiles
+- [Observability stack](observability/) — local OTEL collector + Grafana provisioning
+
+### Other docs
+
+- [`docs/auth-security-guide.md`](docs/auth-security-guide.md)
+- [`docs/essential-ai-coding-feedback-loops.md`](docs/essential-ai-coding-feedback-loops.md)
+- [`docs/instructions.md`](docs/instructions.md)
+- [`docs/LOCAL_K8S_GUIDE.md`](docs/LOCAL_K8S_GUIDE.md)
 
 ---
 
