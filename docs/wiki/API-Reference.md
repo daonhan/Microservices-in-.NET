@@ -74,6 +74,30 @@ Consolidated listing of every public HTTP endpoint exposed through the Gateway. 
 | `POST` | `/payment/{paymentId}/capture` | Payment `/{paymentId}/capture` | Bearer + `Administrator` |
 | `POST` | `/payment/{paymentId}/refund` | Payment `/{paymentId}/refund` | Bearer + `Administrator` |
 
+## Operator — DLQ admin API (Gateway-hosted)
+
+Served directly by the Gateway process — not proxied. Gated by the `RequireOperator` policy ([Service-API-Gateway](Service-API-Gateway), [Shared-Library](Shared-Library#authorization-policies)). Origin filter values: `Consumer` | `Outbox`.
+
+| Method | Gateway route | Purpose | Auth |
+|---|---|---|---|
+| `GET` | `/operator/api/failures` | Paged list with filters `service`, `eventType`, `status`, `from`, `to`, `origin`, `page`, `pageSize` | Bearer + `Operator` |
+| `GET` | `/operator/api/failures/{id}` | Failure detail (payload, stack trace, correlation id, optional trace URL) | Bearer + `Operator` |
+| `POST` | `/operator/api/failures/{id}/replay` | Re-publish a single `Pending` failure to its `OriginalQueue` | Bearer + `Operator` |
+| `POST` | `/operator/api/failures/{id}/discard` | Mark a `Pending` failure `Discarded` (body: `{ reason }`, required) | Bearer + `Operator` |
+| `POST` | `/operator/api/failures/replay-batch` | Replay many failures in one call (body: `{ ids: [...] }`) | Bearer + `Operator` |
+
+## Internal — per-service outbox failure feed
+
+Each service exposes a read-only failed-outbox feed for the gateway's DLQ aggregator. Not proxied through public routes; gated by the `RequireService` policy (service-to-service JWT, see [Service-Auth](Service-Auth)).
+
+| Method | Service route | Service | Purpose |
+|---|---|---|---|
+| `GET` | `/internal/outbox/failed` | Order | Failed `outbox_events` rows |
+| `GET` | `/internal/outbox/failed` | Payment | Failed `outbox_events` rows |
+| `GET` | `/internal/outbox/failed` | Inventory | Failed `outbox_events` rows |
+| `GET` | `/internal/outbox/failed` | Shipping | Failed `outbox_events` rows |
+| `GET` | `/internal/outbox/failed` | Product | Failed `outbox_events` rows |
+
 ## Cross-cutting endpoints (every service)
 
 | Route | Purpose |
