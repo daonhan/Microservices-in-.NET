@@ -130,6 +130,10 @@ graph TD
     Grafana --- Jaeger
 ```
 
+The live stack view below is the Grafana side of that observability pipeline once Docker Compose is up and the dashboards have loaded.
+
+![Grafana dashboard showing platform observability](docs/assets/grafana.png)
+
 ## Architectural decisions
 
 The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/README.md). Each is `Accepted` and links to the source folder(s) that implement it.
@@ -173,6 +177,10 @@ In rough order of how surprising each one was:
 5. **A dual-gateway switch is a cheap insurance policy.** Compiling both YARP and Ocelot behind a `Gateway:Provider` flag (ADR-0001) cost a single afternoon and gave me a non-trivial migration story, an A/B comparison surface, and a rollback plan for free. The lesson generalises: when two stacks both look like "the right answer," make the choice runtime-switchable until production tells you which one wins.
 6. **Distributing a shared library as NuGet — even against a local feed — is qualitatively different from a project reference.** ADR-0005 forced me to think in versions: a breaking change in `ECommerce.Shared` requires a `<Version>` bump, a `dotnet pack`, a push to the local feed, and an explicit consumer upgrade. That ceremony is annoying for a hobby repo and exactly right for a real platform — it surfaces coupling that project references hide.
 7. **AI pair-programming earns its keep when the contract is written down.** The same agent on the same task produces wildly different output depending on whether it has a PRD, a plan, an ADR, and a `CLAUDE.md` to ground it. The quality of the docs is the ceiling of the agent's output. That insight reshaped how I write down anything I expect to revisit.
+
+The gateway's combined Swagger UI is the fastest way to show the "single front door, many services" shape of the platform without explaining the route table first.
+
+![API Gateway combined Swagger UI](docs/assets/swagger.png)
 
 ## Link tree
 
