@@ -92,6 +92,17 @@ dotnet husky run --group pre-commit
 If this fails in `dotnet format --verify-no-changes`, run `dotnet format` and review
 the diff before committing. Existing line-ending problems appear as `ENDOFLINE` errors.
 
+If Husky fails in the `dotnet build --no-restore` step with `MSB3248` (`No such device`)
+on a virtiofs sandbox, treat it as an environment issue (commonly root-owned `bin/obj`
+artifacts), not a reason to bypass hooks. Run the commit from a host where hooks pass,
+or clean build outputs in a writable shell and retry:
+
+```bash
+find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+dotnet restore
+dotnet husky run --group pre-commit
+```
+
 ## PRD / Plan workflow
 
 Substantial changes start as a PRD under [`docs/prd/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/docs/prd) and a phased plan under [`docs/plans/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/docs/plans). Prior art:

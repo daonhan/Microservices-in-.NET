@@ -192,6 +192,32 @@ dotnet test api-gateway/ApiGateway.Tests/ApiGateway.Tests.csproj
 If WSL reports `NETSDK1045`, install a .NET SDK that supports `net10.0` inside WSL
 before retesting. Windows having .NET 10 installed does not make it available to WSL.
 
+## Husky pre-commit fails with `MSB3248` on virtiofs sandbox
+
+**Symptom**: `dotnet husky run --group pre-commit` fails in the `dotnet build --no-restore`
+step with `MSB3248` (`No such device`) while resolving test-project assembly references,
+often from `bin/obj` artifacts created as `root` inside a virtiofs-backed sandbox.
+
+**Likely cause**: pre-existing filesystem ownership/visibility issues in the sandbox,
+not a code regression in the current branch.
+
+**Policy**: do not bypass Husky (`--no-verify`) for this repo.
+
+**Fix options**:
+
+1. Run the commit on a host where hooks pass (recommended): Windows PowerShell from the
+  repo checkout, or WSL native filesystem (`~/src/...`) instead of a mounted virtiofs path.
+2. In a writable host shell, remove stale build outputs and rerun the hook:
+
+```bash
+find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+dotnet restore
+dotnet husky run --group pre-commit
+```
+
+If cleanup cannot run in the current sandbox due to ownership restrictions, finish the
+commit from a host environment with proper filesystem permissions.
+
 ## Kubernetes pods `CrashLoopBackOff`
 
 **Fix sequence**:
