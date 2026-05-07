@@ -47,6 +47,8 @@ See [Architecture](Architecture) for the full story.
 | Try the API in a browser | Combined Swagger UI at `http://localhost:8004/swagger` (dev/staging only) |
 | See all HTTP endpoints | [API-Reference](API-Reference) |
 | Trace cross-service events | [Integration-Events](Integration-Events) |
+| See the saga at a glance | [Diagram-Saga](Diagram-Saga) |
+| See the outbox flow | [Diagram-Outbox](Diagram-Outbox) |
 | Learn the shared building blocks | [Shared-Library](Shared-Library) |
 | Write tests the house way | [Testing](Testing) |
 | Watch it in production | [Observability](Observability) |

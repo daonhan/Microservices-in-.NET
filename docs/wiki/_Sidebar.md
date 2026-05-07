@@ -8,6 +8,10 @@
 - [Integration-Events](Integration-Events)
 - [Shared-Library](Shared-Library)
 
+**Diagrams**
+- [Diagram-Saga](Diagram-Saga)
+- [Diagram-Outbox](Diagram-Outbox)
+
 **Services**
 - [API Gateway](Service-API-Gateway)
 - [Auth](Service-Auth)
