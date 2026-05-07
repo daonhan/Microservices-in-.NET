@@ -1,0 +1,11 @@
+meta {
+  name: 03 Get zero-stock inventory
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{inventoryBaseUrl}}/{{productZeroStockId}}
+  body: none
+  auth: none
+}

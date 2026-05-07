@@ -1,0 +1,15 @@
+meta {
+  name: 05 Poll order until cancelled
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{orderBaseUrl}}/{{customerCancelId}}/{{orderId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}

@@ -17,7 +17,19 @@ public static class QaPersonas
     public const decimal ProductHappyPrice = 10.00m;
     public const int ProductHappyQuantity = 2;
 
+    public const int ProductDeclineId = 9002;
+    public const string ProductDeclineName = "product-decline";
+    public const decimal ProductDeclinePrice = 9.99m;
+    public const int ProductDeclineQuantity = 1;
+
+    public const int ProductZeroStockId = 9003;
+    public const string ProductZeroStockName = "product-zero-stock";
+    public const decimal ProductZeroStockPrice = 10.00m;
+    public const int ProductZeroStockQuantity = 1;
+
     public const int DefaultWarehouseId = 1;
     public const int HappyPathStockOnHand = 25;
     public const int LowStockThreshold = 0;
+    public const int DeclinePathStockOnHand = 25;
+    public const int ZeroStockOnHand = 0;
 }

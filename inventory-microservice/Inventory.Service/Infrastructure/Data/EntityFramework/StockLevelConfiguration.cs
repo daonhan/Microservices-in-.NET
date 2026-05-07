@@ -29,6 +29,24 @@ internal class StockLevelConfiguration : IEntityTypeConfiguration<StockLevel>
                 OnHand = QaPersonas.HappyPathStockOnHand,
                 Reserved = 0,
                 RowVersion = [1]
+            },
+            new StockLevel
+            {
+                Id = QaPersonas.ProductDeclineId,
+                ProductId = QaPersonas.ProductDeclineId,
+                WarehouseId = QaPersonas.DefaultWarehouseId,
+                OnHand = QaPersonas.DeclinePathStockOnHand,
+                Reserved = 0,
+                RowVersion = [1]
+            },
+            new StockLevel
+            {
+                Id = QaPersonas.ProductZeroStockId,
+                ProductId = QaPersonas.ProductZeroStockId,
+                WarehouseId = QaPersonas.DefaultWarehouseId,
+                OnHand = QaPersonas.ZeroStockOnHand,
+                Reserved = 0,
+                RowVersion = [1]
             });
     }
 }

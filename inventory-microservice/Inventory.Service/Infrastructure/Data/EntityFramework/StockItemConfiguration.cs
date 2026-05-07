@@ -27,6 +27,22 @@ internal class StockItemConfiguration : IEntityTypeConfiguration<StockItem>
                 TotalReserved = 0,
                 LowStockThreshold = QaPersonas.LowStockThreshold,
                 RowVersion = [1]
+            },
+            new StockItem
+            {
+                ProductId = QaPersonas.ProductDeclineId,
+                TotalOnHand = QaPersonas.DeclinePathStockOnHand,
+                TotalReserved = 0,
+                LowStockThreshold = QaPersonas.LowStockThreshold,
+                RowVersion = [1]
+            },
+            new StockItem
+            {
+                ProductId = QaPersonas.ProductZeroStockId,
+                TotalOnHand = QaPersonas.ZeroStockOnHand,
+                TotalReserved = 0,
+                LowStockThreshold = QaPersonas.LowStockThreshold,
+                RowVersion = [1]
             });
     }
 }

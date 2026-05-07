@@ -29,6 +29,22 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Models.Product>
                 Description = "QA happy-path product",
                 Price = QaPersonas.ProductHappyPrice,
                 ProductTypeId = 1
+            },
+            new Models.Product
+            {
+                Id = QaPersonas.ProductDeclineId,
+                Name = QaPersonas.ProductDeclineName,
+                Description = "QA payment-decline product (cents == 99)",
+                Price = QaPersonas.ProductDeclinePrice,
+                ProductTypeId = 1
+            },
+            new Models.Product
+            {
+                Id = QaPersonas.ProductZeroStockId,
+                Name = QaPersonas.ProductZeroStockName,
+                Description = "QA stock-shortage product (zero on hand)",
+                Price = QaPersonas.ProductZeroStockPrice,
+                ProductTypeId = 1
             });
     }
 }

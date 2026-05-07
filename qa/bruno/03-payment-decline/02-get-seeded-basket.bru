@@ -1,0 +1,15 @@
+meta {
+  name: 02 Get seeded basket
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{basketBaseUrl}}/{{customerDeclineId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}

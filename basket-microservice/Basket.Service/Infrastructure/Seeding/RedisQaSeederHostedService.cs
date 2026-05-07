@@ -1,3 +1,4 @@
+using System.Globalization;
 using Basket.Service.Infrastructure.Data;
 using Basket.Service.Models;
 using ECommerce.Shared.Qa;
@@ -13,7 +14,50 @@ internal sealed class RedisQaSeederHostedService(IServiceScopeFactory scopeFacto
         var cache = scope.ServiceProvider.GetRequiredService<IDistributedCache>();
         var basketStore = scope.ServiceProvider.GetRequiredService<IBasketStore>();
 
-        var customerId = QaPersonas.CustomerHappyId.ToString();
+        await SeedBasketAsync(
+            cache,
+            basketStore,
+            QaPersonas.CustomerHappyId,
+            QaPersonas.ProductHappyId,
+            QaPersonas.ProductHappyName,
+            QaPersonas.ProductHappyPrice,
+            QaPersonas.ProductHappyQuantity,
+            cancellationToken);
+
+        await SeedBasketAsync(
+            cache,
+            basketStore,
+            QaPersonas.CustomerDeclineId,
+            QaPersonas.ProductDeclineId,
+            QaPersonas.ProductDeclineName,
+            QaPersonas.ProductDeclinePrice,
+            QaPersonas.ProductDeclineQuantity,
+            cancellationToken);
+
+        await SeedBasketAsync(
+            cache,
+            basketStore,
+            QaPersonas.CustomerCancelId,
+            QaPersonas.ProductZeroStockId,
+            QaPersonas.ProductZeroStockName,
+            QaPersonas.ProductZeroStockPrice,
+            QaPersonas.ProductZeroStockQuantity,
+            cancellationToken);
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    private static async Task SeedBasketAsync(
+        IDistributedCache cache,
+        IBasketStore basketStore,
+        Guid customerGuid,
+        int productId,
+        string productName,
+        decimal productPrice,
+        int quantity,
+        CancellationToken cancellationToken)
+    {
+        var customerId = customerGuid.ToString();
         var existingBasket = await cache.GetStringAsync(customerId, cancellationToken);
 
         if (existingBasket is not null)
@@ -23,13 +67,11 @@ internal sealed class RedisQaSeederHostedService(IServiceScopeFactory scopeFacto
 
         var basket = new CustomerBasket { CustomerId = customerId };
         basket.AddBasketProduct(new BasketProduct(
-            QaPersonas.ProductHappyId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            QaPersonas.ProductHappyName,
-            QaPersonas.ProductHappyPrice,
-            QaPersonas.ProductHappyQuantity));
+            productId.ToString(CultureInfo.InvariantCulture),
+            productName,
+            productPrice,
+            quantity));
 
         await basketStore.CreateCustomerBasket(basket);
     }
-
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

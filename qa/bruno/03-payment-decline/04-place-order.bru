@@ -1,0 +1,38 @@
+meta {
+  name: 04 Place payment-decline order
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{orderBaseUrl}}/{{customerDeclineId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "orderProducts": [
+      {
+        "productId": "{{productDeclineId}}",
+        "quantity": 1
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const location = res.headers.location || res.headers.Location;
+  if (location) {
+    bru.setVar("orderLocation", location);
+    bru.setVar("orderId", location.split("/").pop());
+  }
+}

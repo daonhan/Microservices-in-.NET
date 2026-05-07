@@ -18,9 +18,35 @@ public class BasketQaSeederTests : IAsyncLifetime
 {
     private readonly RedisContainer _redis = new RedisBuilder("redis:7-alpine").Build();
 
-    [Fact]
-    public async Task GivenQaSeedingEnabled_WhenRequestingCustomerHappyBasket_ThenSeededBasketIsReturned()
+    [Theory]
+    [InlineData(nameof(QaPersonas.CustomerHappyId))]
+    [InlineData(nameof(QaPersonas.CustomerDeclineId))]
+    [InlineData(nameof(QaPersonas.CustomerCancelId))]
+    public async Task GivenQaSeedingEnabled_WhenRequestingSeededBasket_ThenExpectedProductIsReturned(string personaKey)
     {
+        var (customerId, productId, productName, productPrice, quantity) = personaKey switch
+        {
+            nameof(QaPersonas.CustomerHappyId) => (
+                QaPersonas.CustomerHappyId,
+                QaPersonas.ProductHappyId,
+                QaPersonas.ProductHappyName,
+                QaPersonas.ProductHappyPrice,
+                QaPersonas.ProductHappyQuantity),
+            nameof(QaPersonas.CustomerDeclineId) => (
+                QaPersonas.CustomerDeclineId,
+                QaPersonas.ProductDeclineId,
+                QaPersonas.ProductDeclineName,
+                QaPersonas.ProductDeclinePrice,
+                QaPersonas.ProductDeclineQuantity),
+            nameof(QaPersonas.CustomerCancelId) => (
+                QaPersonas.CustomerCancelId,
+                QaPersonas.ProductZeroStockId,
+                QaPersonas.ProductZeroStockName,
+                QaPersonas.ProductZeroStockPrice,
+                QaPersonas.ProductZeroStockQuantity),
+            _ => throw new ArgumentOutOfRangeException(nameof(personaKey))
+        };
+
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Configuration["Qa:Seed"] = "true";
@@ -36,16 +62,16 @@ public class BasketQaSeederTests : IAsyncLifetime
         await app.StartAsync();
 
         var client = app.GetTestClient();
-        using var basket = await client.GetFromJsonAsync<JsonDocument>(QaPersonas.CustomerHappyId.ToString());
+        using var basket = await client.GetFromJsonAsync<JsonDocument>(customerId.ToString());
 
         Assert.NotNull(basket);
         var root = basket!.RootElement;
-        Assert.Equal(QaPersonas.CustomerHappyId.ToString(), root.GetProperty("customerId").GetString());
+        Assert.Equal(customerId.ToString(), root.GetProperty("customerId").GetString());
         var product = Assert.Single(root.GetProperty("products").EnumerateArray());
-        Assert.Equal(QaPersonas.ProductHappyId.ToString(System.Globalization.CultureInfo.InvariantCulture), product.GetProperty("productId").GetString());
-        Assert.Equal(QaPersonas.ProductHappyName, product.GetProperty("productName").GetString());
-        Assert.Equal(QaPersonas.ProductHappyPrice, product.GetProperty("productPrice").GetDecimal());
-        Assert.Equal(QaPersonas.ProductHappyQuantity, product.GetProperty("quantity").GetInt32());
+        Assert.Equal(productId.ToString(System.Globalization.CultureInfo.InvariantCulture), product.GetProperty("productId").GetString());
+        Assert.Equal(productName, product.GetProperty("productName").GetString());
+        Assert.Equal(productPrice, product.GetProperty("productPrice").GetDecimal());
+        Assert.Equal(quantity, product.GetProperty("quantity").GetInt32());
     }
 
     public async Task InitializeAsync() => await _redis.StartAsync();
