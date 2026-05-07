@@ -52,6 +52,19 @@ docker compose up sql rabbitmq redis -d                       # infra only, then
 
 Only Basket tests run pre-commit. Run other service test suites manually before pushing changes that cross service boundaries.
 
+Known environment issue (do not bypass hooks): in some WSL/virtiofs sandboxes, pre-commit can fail at `dotnet build --no-restore` with `MSB3248` (`No such device`) when test-project references are read from root-owned `bin/obj` artifacts. Treat this as filesystem ownership/mount behavior, not a branch regression.
+
+Workaround path:
+
+```bash
+# run from a writable host shell
+find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+dotnet restore
+dotnet husky run --group pre-commit
+```
+
+If ownership restrictions prevent cleanup in the current sandbox, finish the commit on a host where hooks pass (Windows PowerShell from the checkout path, or a WSL-native checkout under `~/src`).
+
 ## Shared library workflow (`ECommerce.Shared`)
 
 `shared-libs/ECommerce.Shared` is consumed as a **NuGet package** (e.g. `<PackageReference Include="ECommerce.Shared" Version="2.0.0" />`), not a project reference. The package is published to `local-nuget-packages/` (gitignored). After editing the shared lib:
