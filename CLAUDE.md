@@ -132,20 +132,11 @@ RS256 user JWTs from Auth (`POST /login`) and `client_credentials` service token
 - `IDesignTimeDbContextFactory` is implemented per service so `dotnet ef migrations add ...` works without running `Program.cs`.
 - Integration tests use `WebApplicationFactory<Program>`; each service exposes `public partial class Program { }` at the bottom of `Program.cs` to make this work.
 
-## What this repo does **not** use
-
-To prevent plausible-but-wrong suggestions:
-
-- **Libraries:** MediatR, AutoMapper, FluentValidation, Scrutor, Serilog. (Polly **is** used — RabbitMQ retry pipelines + EF Core retries.)
-- **Web style:** MVC controllers (Minimal APIs only).
-- **Project layout:** single Clean Architecture solution with `Domain`/`Application`/`Infrastructure`/`Api` projects. DTOs go in `ApiModels/`, domain in `Models/` per service.
-- **Data:** PostgreSQL, Cosmos DB, Azure Blob Storage. SQL Server + Redis only.
-- **Identity:** Azure AD / Entra ID. RS256 JWTs from in-repo Auth service.
-- **CI:** GitHub Actions. Azure Pipelines only.
-- **Payments:** Stripe / external webhook layer. Payment service is in-repo.
-
-If a task seems to require any of the above, surface it before adding.
-
 ## Behavioral guidelines
 
-`.claude/CLAUDE.md` contains general LLM coding guidelines (think before coding, simplicity, surgical changes, goal-driven execution). Read once; they apply to all work in this repo.
+`.claude/CLAUDE.md` contains general LLM coding guidelines (think before coding, simplicity, surgical changes, goal-driven execution). Read once. Apply it to all work in this repo:
+
+- Make only the changes the user asked for; do not "improve" adjacent code.
+- Match existing style even if you'd write it differently.
+- Prefer the smallest correct change. Push back when something looks over-engineered.
+- For non-trivial work, state a brief plan with verifiable success criteria before implementing.

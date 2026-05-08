@@ -127,19 +127,6 @@ The gateway compiles **both** YARP and Ocelot. `Gateway:Provider` (env `Gateway_
 - Logging: built-in `ILogger<T>` + OpenTelemetry → Loki. Serilog is **not** used.
 - Configuration via `appsettings.json` + `appsettings.{Environment}.json`; secrets via environment variables in compose / Kubernetes.
 
-## What this repo does **not** use
-
-To avoid suggesting plausible-but-wrong dependencies:
-
-- MediatR, AutoMapper, Scrutor, FluentValidation, Polly, Serilog
-- MVC controllers (use Minimal APIs)
-- A single Clean Architecture solution with `Domain` / `Application` / `Infrastructure` / `Api` projects
-- PostgreSQL, Cosmos DB, Azure Blob Storage, Azure AD / Entra ID
-- GitHub Actions
-- Stripe / GitHub webhooks layer
-
-If a task seems to require any of the above, surface that the repo does not currently use it and ask before adding it.
-
 ## Behavioral guidelines
 
 [.claude/CLAUDE.md](../.claude/CLAUDE.md) defines general behavior (think before coding, simplicity first, surgical changes, goal-driven execution). Apply it to all work in this repo:
