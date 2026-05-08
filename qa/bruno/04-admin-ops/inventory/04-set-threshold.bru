@@ -1,0 +1,25 @@
+meta {
+  name: 04 Set threshold on product-low-stock
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{inventoryBaseUrl}}/{{productLowStockId}}/threshold
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "threshold": 5
+  }
+}

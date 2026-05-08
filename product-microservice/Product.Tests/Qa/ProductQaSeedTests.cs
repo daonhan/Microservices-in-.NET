@@ -56,4 +56,23 @@ public class ProductQaSeedTests
         Assert.Equal(QaPersonas.ProductZeroStockName, product.Name);
         Assert.Equal(QaPersonas.ProductZeroStockPrice, product.Price);
     }
+
+    [Fact]
+    public async Task GivenProductModelCreated_WhenReadingSeededProducts_ThenLowStockAndRestockTargetExist()
+    {
+        var options = new DbContextOptionsBuilder<ProductContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var context = new ProductContext(options);
+        await context.Database.EnsureCreatedAsync();
+
+        var lowStock = await context.Products.SingleAsync(p => p.Id == QaPersonas.ProductLowStockId);
+        var restockTarget = await context.Products.SingleAsync(p => p.Id == QaPersonas.ProductRestockTargetId);
+
+        Assert.Equal(QaPersonas.ProductLowStockName, lowStock.Name);
+        Assert.Equal(QaPersonas.ProductLowStockPrice, lowStock.Price);
+        Assert.Equal(QaPersonas.ProductRestockTargetName, restockTarget.Name);
+        Assert.Equal(QaPersonas.ProductRestockTargetPrice, restockTarget.Price);
+    }
 }

@@ -23,6 +23,8 @@ Seeded catalog data:
 | Happy customer | `product-happy` | `9001` | `10.00` | `2` | `25` |
 | Decline customer | `product-decline` | `9002` | `9.99` | `1` | `25` |
 | Cancel customer | `product-zero-stock` | `9003` | `10.00` | `1` | `0` |
+| Admin (low-stock) | `product-low-stock` | `9004` | `10.00` | — | `1` (threshold `2`) |
+| Admin (restock) | `product-restock-target` | `9005` | `10.00` | — | `0` |
 
 Default warehouse: `DEFAULT` (`1`).
 
@@ -35,3 +37,4 @@ Scenario pages:
 - [01 Happy Path](scenarios/01-happy-path.md)
 - [02 Stock Shortage](scenarios/02-stock-shortage.md)
 - [03 Payment Decline](scenarios/03-payment-decline.md)
+- [04 Admin Ops](scenarios/04-admin-ops.md)

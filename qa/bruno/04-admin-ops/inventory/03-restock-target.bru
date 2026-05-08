@@ -1,0 +1,25 @@
+meta {
+  name: 03 Restock product-restock-target
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{inventoryBaseUrl}}/{{productRestockTargetId}}/restock
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "quantity": 10
+  }
+}

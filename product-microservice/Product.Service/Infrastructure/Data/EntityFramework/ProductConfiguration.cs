@@ -45,6 +45,22 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Models.Product>
                 Description = "QA stock-shortage product (zero on hand)",
                 Price = QaPersonas.ProductZeroStockPrice,
                 ProductTypeId = 1
+            },
+            new Models.Product
+            {
+                Id = QaPersonas.ProductLowStockId,
+                Name = QaPersonas.ProductLowStockName,
+                Description = "QA inventory admin-ops product (threshold tripped)",
+                Price = QaPersonas.ProductLowStockPrice,
+                ProductTypeId = 1
+            },
+            new Models.Product
+            {
+                Id = QaPersonas.ProductRestockTargetId,
+                Name = QaPersonas.ProductRestockTargetName,
+                Description = "QA inventory admin-ops product (restock target)",
+                Price = QaPersonas.ProductRestockTargetPrice,
+                ProductTypeId = 1
             });
     }
 }
