@@ -1,0 +1,26 @@
+meta {
+  name: 06 Back-order product-restock-target
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{inventoryBaseUrl}}/{{productRestockTargetId}}/backorder
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "customerId": "{{customerHappyId}}",
+    "quantity": 3
+  }
+}

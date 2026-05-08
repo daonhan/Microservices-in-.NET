@@ -1,0 +1,26 @@
+meta {
+  name: 05 Manual reserve product-low-stock
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{inventoryBaseUrl}}/{{productLowStockId}}/reserve
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "orderId": "00000000-0000-0000-0000-000090040001",
+    "quantity": 1
+  }
+}

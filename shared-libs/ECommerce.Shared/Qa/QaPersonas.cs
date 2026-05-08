@@ -27,9 +27,20 @@ public static class QaPersonas
     public const decimal ProductZeroStockPrice = 10.00m;
     public const int ProductZeroStockQuantity = 1;
 
+    public const int ProductLowStockId = 9004;
+    public const string ProductLowStockName = "product-low-stock";
+    public const decimal ProductLowStockPrice = 10.00m;
+
+    public const int ProductRestockTargetId = 9005;
+    public const string ProductRestockTargetName = "product-restock-target";
+    public const decimal ProductRestockTargetPrice = 10.00m;
+
     public const int DefaultWarehouseId = 1;
     public const int HappyPathStockOnHand = 25;
     public const int LowStockThreshold = 0;
     public const int DeclinePathStockOnHand = 25;
     public const int ZeroStockOnHand = 0;
+    public const int LowStockOnHand = 1;
+    public const int LowStockTrippedThreshold = 2;
+    public const int RestockTargetOnHand = 0;
 }
