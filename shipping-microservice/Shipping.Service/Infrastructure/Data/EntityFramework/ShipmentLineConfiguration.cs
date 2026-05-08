@@ -1,3 +1,4 @@
+using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Shipping.Service.Models;
@@ -11,5 +12,42 @@ internal class ShipmentLineConfiguration : IEntityTypeConfiguration<ShipmentLine
         builder.HasKey(l => l.Id);
 
         builder.HasIndex(l => l.ShipmentId);
+
+        builder.HasData(
+            new ShipmentLine
+            {
+                Id = ShippingQaFixtures.LineSeedIdStart,
+                ShipmentId = ShippingQaFixtures.ShipmentPickPendingId,
+                ProductId = QaPersonas.ProductHappyId,
+                Quantity = QaPersonas.ProductHappyQuantity,
+            },
+            new ShipmentLine
+            {
+                Id = ShippingQaFixtures.LineSeedIdStart + 1,
+                ShipmentId = ShippingQaFixtures.ShipmentPickedId,
+                ProductId = QaPersonas.ProductHappyId,
+                Quantity = QaPersonas.ProductHappyQuantity,
+            },
+            new ShipmentLine
+            {
+                Id = ShippingQaFixtures.LineSeedIdStart + 2,
+                ShipmentId = ShippingQaFixtures.ShipmentPackedId,
+                ProductId = QaPersonas.ProductHappyId,
+                Quantity = QaPersonas.ProductHappyQuantity,
+            },
+            new ShipmentLine
+            {
+                Id = ShippingQaFixtures.LineSeedIdStart + 3,
+                ShipmentId = ShippingQaFixtures.ShipmentDispatchedId,
+                ProductId = QaPersonas.ProductHappyId,
+                Quantity = QaPersonas.ProductHappyQuantity,
+            },
+            new ShipmentLine
+            {
+                Id = ShippingQaFixtures.LineSeedIdStart + 4,
+                ShipmentId = ShippingQaFixtures.ShipmentCancelPendingId,
+                ProductId = QaPersonas.ProductHappyId,
+                Quantity = QaPersonas.ProductHappyQuantity,
+            });
     }
 }

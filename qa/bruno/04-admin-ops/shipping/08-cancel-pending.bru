@@ -1,0 +1,30 @@
+meta {
+  name: 08-cancel-pending
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{shippingBaseUrl}}/{{shipmentCancelPendingId}}/cancel
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "reason": "QA admin-ops cancel path"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq Cancelled
+}

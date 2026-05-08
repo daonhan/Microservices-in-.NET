@@ -22,5 +22,47 @@ internal class ShipmentStatusHistoryEntryConfiguration : IEntityTypeConfiguratio
             .HasMaxLength(500);
 
         builder.HasIndex(h => h.ShipmentId);
+
+        builder.HasData(
+            new ShipmentStatusHistoryEntry
+            {
+                Id = ShippingQaFixtures.HistorySeedIdStart,
+                ShipmentId = ShippingQaFixtures.ShipmentPickPendingId,
+                Status = ShipmentStatus.Pending,
+                OccurredAt = ShippingQaFixtures.SeedEpoch,
+                Source = ShipmentStatusSource.System,
+            },
+            new ShipmentStatusHistoryEntry
+            {
+                Id = ShippingQaFixtures.HistorySeedIdStart + 1,
+                ShipmentId = ShippingQaFixtures.ShipmentPickedId,
+                Status = ShipmentStatus.Picked,
+                OccurredAt = ShippingQaFixtures.SeedEpoch,
+                Source = ShipmentStatusSource.System,
+            },
+            new ShipmentStatusHistoryEntry
+            {
+                Id = ShippingQaFixtures.HistorySeedIdStart + 2,
+                ShipmentId = ShippingQaFixtures.ShipmentPackedId,
+                Status = ShipmentStatus.Packed,
+                OccurredAt = ShippingQaFixtures.SeedEpoch,
+                Source = ShipmentStatusSource.System,
+            },
+            new ShipmentStatusHistoryEntry
+            {
+                Id = ShippingQaFixtures.HistorySeedIdStart + 3,
+                ShipmentId = ShippingQaFixtures.ShipmentDispatchedId,
+                Status = ShipmentStatus.Shipped,
+                OccurredAt = ShippingQaFixtures.SeedEpoch,
+                Source = ShipmentStatusSource.System,
+            },
+            new ShipmentStatusHistoryEntry
+            {
+                Id = ShippingQaFixtures.HistorySeedIdStart + 4,
+                ShipmentId = ShippingQaFixtures.ShipmentCancelPendingId,
+                Status = ShipmentStatus.Pending,
+                OccurredAt = ShippingQaFixtures.SeedEpoch,
+                Source = ShipmentStatusSource.System,
+            });
     }
 }

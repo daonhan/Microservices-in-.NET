@@ -1,0 +1,32 @@
+meta {
+  name: 06-fail-dispatched
+  type: http
+  seq: 6
+}
+
+# Mutually exclusive with 05-deliver and 07-return — pick one terminal transition per fixture run.
+
+post {
+  url: {{shippingBaseUrl}}/{{shipmentDispatchedId}}/fail
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "reason": "QA admin-ops fail path"
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq Failed
+}

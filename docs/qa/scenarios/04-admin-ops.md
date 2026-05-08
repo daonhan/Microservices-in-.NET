@@ -153,6 +153,108 @@ Event/log: no integration event is published — the back-order endpoint persist
 
 Jaeger: trace shows the Inventory back-order span.
 
+## Shipping ops
+
+These steps exercise `shipping-microservice` admin endpoints against the seeded shipments owned by `customer-happy`. Five fixtures, one per non-trivial status, sit in the database after a fresh `docker compose up`. Run the requests in `qa/bruno/04-admin-ops/shipping/`. **Every transition below is admin-only** — the customer JWT receives `403`.
+
+| Shipment Id | Initial status | Order Id | Tests this transition |
+|---|---|---|---|
+| `c0000000-...01` | `Pending` | `d0000000-...01` | `pick` |
+| `c0000000-...02` | `Picked` | `d0000000-...02` | `pack` |
+| `c0000000-...03` | `Packed` | `d0000000-...03` | `dispatch` |
+| `c0000000-...04` | `Shipped` | `d0000000-...04` | `deliver`, `fail`, `return`, carrier webhook |
+| `c0000000-...05` | `Pending` | `d0000000-...05` | `cancel` |
+
+Shipment `c0000000-...04` is pre-stamped with `CarrierKey=fake-ground`, `TrackingNumber=QA-TRACK-DISPATCHED-001`, `LabelRef=label://qa/...`, `QuotedPriceAmount=5.00 USD` so the carrier-webhook lookup resolves without first running `dispatch`.
+
+### 1. Pick the pending shipment
+
+HTTP: `POST http://localhost:8006/c0000000-0000-0000-0000-000000000001/pick` with the admin bearer returns `200` and `Status=Picked`.
+
+SQL:
+
+```sql
+SELECT Id, Status, OrderId, CustomerId FROM Shipping.dbo.Shipments WHERE Id = 'c0000000-0000-0000-0000-000000000001';
+SELECT TOP 5 ShipmentId, Status, Source, OccurredAt FROM Shipping.dbo.ShipmentStatusHistory WHERE ShipmentId = 'c0000000-0000-0000-0000-000000000001' ORDER BY Id DESC;
+```
+
+Event/log: RabbitMQ observes a `ShipmentStatusChangedEvent` with `FromStatus=Pending`, `ToStatus=Picked`. No milestone event for `pick`.
+
+Jaeger: trace from Shipping's `/pick` endpoint into the Outbox publish.
+
+### 2. Pack the picked shipment
+
+HTTP: `POST http://localhost:8006/c0000000-0000-0000-0000-000000000002/pack` with the admin bearer returns `200` and `Status=Packed`.
+
+SQL: same `Shipments` and `ShipmentStatusHistory` queries scoped to `c0000000-...02`.
+
+Event/log: RabbitMQ observes a `ShipmentStatusChangedEvent` with `FromStatus=Picked`, `ToStatus=Packed`.
+
+### 3. Dispatch the packed shipment
+
+HTTP: `POST http://localhost:8006/c0000000-0000-0000-0000-000000000003/dispatch` with the body in `04-dispatch-packed.bru` (carrier `fake-ground`, sample shipping address) returns `200`, `Status=Shipped`, plus generated `carrierKey`, `trackingNumber`, `labelRef`, and `quotedPriceAmount`.
+
+SQL:
+
+```sql
+SELECT Id, Status, CarrierKey, TrackingNumber, LabelRef, QuotedPriceAmount, QuotedPriceCurrency
+FROM Shipping.dbo.Shipments WHERE Id = 'c0000000-0000-0000-0000-000000000003';
+```
+
+Event/log: RabbitMQ observes a `ShipmentDispatchedEvent` (with the populated tracking number and quoted price) and a `ShipmentStatusChangedEvent` with `FromStatus=Packed`, `ToStatus=Shipped`. The order's tracking fields update via the existing saga subscriber.
+
+Jaeger: trace shows the `/dispatch` request, the carrier `DispatchAsync` span, and the Outbox publish.
+
+### 4. Deliver, fail, or return the dispatched shipment
+
+These three transitions all act on `c0000000-...04` and are mutually exclusive — pick one per fixture run.
+
+- `POST http://localhost:8006/c0000000-...04/deliver` → `200`, `Status=Delivered`, emits `ShipmentDeliveredEvent`.
+- `POST http://localhost:8006/c0000000-...04/fail` with `{ "reason": "..." }` → `200`, `Status=Failed`, emits `ShipmentFailedEvent`.
+- `POST http://localhost:8006/c0000000-...04/return` with `{ "reason": "..." }` → `200`, `Status=Returned`, emits `ShipmentReturnedEvent`.
+
+SQL: same `Shipments` query scoped to `c0000000-...04`. The status history row records the transition source as `Admin (1)`.
+
+Event/log: each transition emits its named milestone event plus a `ShipmentStatusChangedEvent` carrying the from/to pair. To re-test another transition, run `docker compose down -v && up` to reset.
+
+### 5. Cancel the cancellable pending shipment
+
+HTTP: `POST http://localhost:8006/c0000000-0000-0000-0000-000000000005/cancel` with body `{ "reason": "QA admin-ops cancel path" }` returns `200` and `Status=Cancelled`.
+
+SQL: same `Shipments` and `ShipmentStatusHistory` queries scoped to `c0000000-...05`.
+
+Event/log: RabbitMQ observes a `ShipmentCancelledEvent` and a `ShipmentStatusChangedEvent`.
+
+### 6. Carrier webhook ingestion
+
+HTTP: `POST http://localhost:8006/webhooks/carrier/fake-ground` with header `X-Carrier-Secret: change-me-ground` and body:
+
+```json
+{
+  "trackingNumber": "QA-TRACK-DISPATCHED-001",
+  "statusCode": 2,
+  "detail": "QA admin-ops webhook smoke"
+}
+```
+
+returns `200` and `{ "shipmentId": "c0000000-...04", "status": "InTransit" }`. `statusCode=3` flips the shipment to `Delivered` (and emits `ShipmentDeliveredEvent`); `statusCode=4` flips it to `Failed` (and emits `ShipmentFailedEvent` using the request `detail` as the reason).
+
+The shared secret comes from `CarrierWebhooks:SharedSecrets` in `shipping-microservice/Shipping.Service/appsettings.json` (default `change-me-ground`). Override `carrierGroundSecret` in `qa-local.bru` if your environment changes it.
+
+SQL:
+
+```sql
+SELECT Id, Status FROM Shipping.dbo.Shipments WHERE Id = 'c0000000-0000-0000-0000-000000000004';
+SELECT TOP 5 ShipmentId, Status, Source, OccurredAt
+FROM Shipping.dbo.ShipmentStatusHistory WHERE ShipmentId = 'c0000000-0000-0000-0000-000000000004' ORDER BY Id DESC;
+```
+
+The history row has `Source=3` (`CarrierWebhook`).
+
+Event/log: RabbitMQ observes a `ShipmentStatusChangedEvent` with the new from/to pair, plus a `ShipmentDeliveredEvent` or `ShipmentFailedEvent` when applicable.
+
+Jaeger: trace begins at `/webhooks/carrier/fake-ground`, runs through `CarrierStatusApplier`, and ends at the Outbox publish.
+
 ## Acceptance check
 
 - `GET /by-order/{authorizedOrderId}` returns `Authorized`; `POST /{id}/capture` flips it to `Captured` and emits `PaymentCapturedEvent`.
@@ -163,3 +265,7 @@ Jaeger: trace shows the Inventory back-order span.
 - `POST /9005/restock` raises stock from `0` to `10` and writes a `StockMovements` row.
 - `POST /9004/reserve` succeeds against the seeded threshold-tripped product and is idempotent on the same `orderId`.
 - `POST /9005/backorder` writes a `BackorderRequests` row and returns the generated id.
+- Each shipping transition (`pick`, `pack`, `dispatch`, `deliver`, `fail`, `return`, `cancel`) succeeds against its corresponding pre-seeded shipment without any prior walk-through.
+- `POST /shipping/{packedId}/dispatch` emits `ShipmentDispatchedEvent` with the generated tracking number and quoted price.
+- Carrier webhook (`POST /shipping/webhooks/carrier/fake-ground`) ingests the sample payload, returns `200`, and updates `c0000000-...04` to the requested non-terminal status.
+- All shipping transitions return `403` for the customer JWT.

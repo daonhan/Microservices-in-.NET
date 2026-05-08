@@ -1,0 +1,41 @@
+meta {
+  name: 04-dispatch-packed
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{shippingBaseUrl}}/{{shipmentPackedId}}/dispatch
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "carrierKey": "fake-ground",
+    "shippingAddress": {
+      "recipient": "QA Happy Customer",
+      "line1": "1 QA Way",
+      "line2": null,
+      "city": "Testville",
+      "state": "WA",
+      "postalCode": "98052",
+      "country": "US"
+    },
+    "overrideQuote": null
+  }
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq Shipped
+  res.body.carrierKey: eq fake-ground
+}

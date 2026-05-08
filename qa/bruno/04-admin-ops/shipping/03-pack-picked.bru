@@ -1,0 +1,20 @@
+meta {
+  name: 03-pack-picked
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{shippingBaseUrl}}/{{shipmentPickedId}}/pack
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq Packed
+}

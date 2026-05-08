@@ -1,0 +1,20 @@
+meta {
+  name: 02-pick-pending
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{shippingBaseUrl}}/{{shipmentPickPendingId}}/pick
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq Picked
+}

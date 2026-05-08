@@ -1,0 +1,20 @@
+meta {
+  name: 05-deliver-dispatched
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{shippingBaseUrl}}/{{shipmentDispatchedId}}/deliver
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq Delivered
+}
