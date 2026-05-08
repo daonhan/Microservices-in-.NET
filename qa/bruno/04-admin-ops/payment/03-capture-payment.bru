@@ -1,0 +1,20 @@
+meta {
+  name: 03-capture-payment
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{paymentBaseUrl}}/b0000000-0000-0000-0000-000000000001/capture
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq Captured
+}

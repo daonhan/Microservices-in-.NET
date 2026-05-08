@@ -1,0 +1,21 @@
+meta {
+  name: 02-get-authorized-payment
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{paymentBaseUrl}}/by-order/a0000000-0000-0000-0000-000000000001
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.paymentId: eq b0000000-0000-0000-0000-000000000001
+  res.body.status: eq Authorized
+}

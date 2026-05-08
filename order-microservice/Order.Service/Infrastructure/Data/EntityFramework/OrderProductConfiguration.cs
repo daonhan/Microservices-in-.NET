@@ -1,3 +1,5 @@
+using System.Globalization;
+using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -12,5 +14,21 @@ internal class OrderProductConfiguration : IEntityTypeConfiguration<Models.Order
         builder.Property(op => op.ProductId)
             .IsRequired()
             .HasMaxLength(100);
+
+        builder.HasData(
+            new
+            {
+                Id = QaPersonas.OrderProductAuthorizedId,
+                OrderId = QaPersonas.OrderAuthorizedId,
+                ProductId = QaPersonas.ProductHappyId.ToString(CultureInfo.InvariantCulture),
+                Quantity = QaPersonas.ProductHappyQuantity,
+            },
+            new
+            {
+                Id = QaPersonas.OrderProductCapturedId,
+                OrderId = QaPersonas.OrderCapturedId,
+                ProductId = QaPersonas.ProductHappyId.ToString(CultureInfo.InvariantCulture),
+                Quantity = QaPersonas.ProductHappyQuantity,
+            });
     }
 }

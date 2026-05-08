@@ -13,6 +13,49 @@ Use the Bruno collections in `qa/bruno/04-admin-ops/<area>` with the `qa-local` 
 
 The admin-ops scenarios require the `Administrator` role. Use the `microservices@daonhan.com` login (Bruno step `01 Login admin`) to obtain `adminToken`. The customer JWT will receive a `403` from any of the endpoints below.
 
+## Payment ops
+
+These steps exercise `payment-microservice` and `order-microservice` admin endpoints against the seeded `OrderAuthorizedId` (`a0000...01`) and `OrderCapturedId` (`a0000...02`) fixtures. Run the requests in `qa/bruno/04-admin-ops/payment/`.
+
+### 1. Capture authorized payment
+
+HTTP: `POST http://localhost:8007/b0000000-0000-0000-0000-000000000001/capture` with the admin bearer returns `200` and flips status to `Captured`. The customer token returns `403`. A prior `GET` on `http://localhost:8007/by-order/a0000...01` would show the seeded `Authorized` state.
+
+SQL:
+
+```sql
+SELECT PaymentId, OrderId, Status, ProviderReference FROM Payment.dbo.Payments WHERE OrderId = 'a0000000-0000-0000-0000-000000000001';
+SELECT OrderId, CustomerId FROM Payment.dbo.OrderCustomers WHERE OrderId = 'a0000000-0000-0000-0000-000000000001';
+```
+
+Event/log: RabbitMQ observes a `PaymentCapturedEvent` for `OrderId=a...01`.
+
+Jaeger: trace from Payment's `/capture` endpoint into the Outbox publish.
+
+### 2. Refund captured payment
+
+HTTP: `POST http://localhost:8007/b0000000-0000-0000-0000-000000000002/refund` with the admin bearer returns `200` and flips status to `Refunded`. The customer token returns `403`. A prior `GET` on `http://localhost:8007/by-order/a0000...02` would show the seeded `Captured` state.
+
+SQL:
+
+```sql
+SELECT PaymentId, OrderId, Status, ProviderReference FROM Payment.dbo.Payments WHERE OrderId = 'a0000000-0000-0000-0000-000000000002';
+```
+
+Event/log: RabbitMQ observes a `PaymentRefundedEvent` for `OrderId=a...02`.
+
+### 3. Cancel post-confirm order cascade
+
+HTTP: `POST http://localhost:8001/5ff2d67e-c6b5-4870-911f-79393ed416fd/a0000000-0000-0000-0000-000000000002/cancel` with the admin bearer returns `200` and `Status=Cancelled`.
+
+SQL:
+
+```sql
+SELECT OrderId, Status FROM Order.dbo.Orders WHERE OrderId = 'a0000000-0000-0000-0000-000000000002';
+```
+
+Event/log: RabbitMQ observes an `OrderCancelledEvent` cascade. This triggers the Payment service to consume it and emit a `PaymentRefundedEvent`, the Inventory service to release stock, and the Shipping service to cancel shipment (if present). All four events observable in RabbitMQ.
+
 ## Inventory ops
 
 These steps exercise `inventory-microservice` admin endpoints against the seeded `product-low-stock` (`9004`, on-hand `1`, threshold `2`) and `product-restock-target` (`9005`, on-hand `0`) products. Run the requests in `qa/bruno/04-admin-ops/inventory/`.
@@ -112,6 +155,10 @@ Jaeger: trace shows the Inventory back-order span.
 
 ## Acceptance check
 
+- `GET /by-order/{authorizedOrderId}` returns `Authorized`; `POST /{id}/capture` flips it to `Captured` and emits `PaymentCapturedEvent`.
+- `POST /{capturedPaymentId}/refund` flips to `Refunded` and emits `PaymentRefundedEvent`.
+- Cancelling a confirmed order cascades `OrderCancelledEvent` → `PaymentRefundedEvent` + inventory release + shipment cancel.
+- Runbook clearly outlines admin vs customer JWT requirements with 403 expectations.
 - `GET /9004` shows `TotalOnHand = 1`, `LowStockThreshold = 2` on a fresh boot, then `LowStockThreshold = 5` after step 4.
 - `POST /9005/restock` raises stock from `0` to `10` and writes a `StockMovements` row.
 - `POST /9004/reserve` succeeds against the seeded threshold-tripped product and is idempotent on the same `orderId`.

@@ -1,3 +1,4 @@
+using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -5,6 +6,8 @@ namespace Payment.Service.Infrastructure.Data.EntityFramework;
 
 internal class PaymentConfiguration : IEntityTypeConfiguration<Models.Payment>
 {
+    private static readonly DateTime SeedEpoch = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
     public void Configure(EntityTypeBuilder<Models.Payment> builder)
     {
         builder.HasKey(p => p.PaymentId);
@@ -28,5 +31,31 @@ internal class PaymentConfiguration : IEntityTypeConfiguration<Models.Payment>
 
         builder.HasIndex(p => p.OrderId)
             .IsUnique();
+
+        builder.HasData(
+            new
+            {
+                PaymentId = QaPersonas.PaymentAuthorizedId,
+                OrderId = QaPersonas.OrderAuthorizedId,
+                CustomerId = QaPersonas.CustomerHappyId.ToString(),
+                Amount = QaPersonas.PaymentHappyAmount,
+                Currency = "USD",
+                Status = Models.PaymentStatus.Authorized,
+                ProviderReference = QaPersonas.PaymentAuthorizedProviderRef,
+                CreatedAt = SeedEpoch,
+                UpdatedAt = SeedEpoch,
+            },
+            new
+            {
+                PaymentId = QaPersonas.PaymentCapturedId,
+                OrderId = QaPersonas.OrderCapturedId,
+                CustomerId = QaPersonas.CustomerHappyId.ToString(),
+                Amount = QaPersonas.PaymentHappyAmount,
+                Currency = "USD",
+                Status = Models.PaymentStatus.Captured,
+                ProviderReference = QaPersonas.PaymentCapturedProviderRef,
+                CreatedAt = SeedEpoch,
+                UpdatedAt = SeedEpoch,
+            });
     }
 }

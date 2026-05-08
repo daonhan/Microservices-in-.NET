@@ -1,0 +1,21 @@
+meta {
+  name: 04-get-captured-payment
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{paymentBaseUrl}}/by-order/a0000000-0000-0000-0000-000000000002
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+assert {
+  res.status: eq 200
+  res.body.paymentId: eq b0000000-0000-0000-0000-000000000002
+  res.body.status: eq Captured
+}

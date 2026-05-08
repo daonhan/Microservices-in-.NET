@@ -35,6 +35,18 @@ public static class QaPersonas
     public const string ProductRestockTargetName = "product-restock-target";
     public const decimal ProductRestockTargetPrice = 10.00m;
 
+    // ── Phase 3a: payment admin-ops fixtures ──────────────────────────
+    public static readonly Guid OrderAuthorizedId = new("a0000000-0000-0000-0000-000000000001");
+    public static readonly Guid OrderCapturedId = new("a0000000-0000-0000-0000-000000000002");
+    public static readonly Guid PaymentAuthorizedId = new("b0000000-0000-0000-0000-000000000001");
+    public static readonly Guid PaymentCapturedId = new("b0000000-0000-0000-0000-000000000002");
+    public const string PaymentAuthorizedProviderRef = "INMEM-qa-happy-authorized";
+    public const string PaymentCapturedProviderRef = "INMEM-qa-happy-captured";
+    public const decimal PaymentHappyAmount = 20.00m; // ProductHappyPrice * ProductHappyQuantity
+
+    public const int OrderProductAuthorizedId = 90001;
+    public const int OrderProductCapturedId = 90002;
+
     public const int DefaultWarehouseId = 1;
     public const int HappyPathStockOnHand = 25;
     public const int LowStockThreshold = 0;
