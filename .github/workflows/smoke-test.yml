@@ -35,24 +35,27 @@ jobs:
         run: |
           set -euo pipefail
           # service:port pairs that expose /health/ready behind their published port.
-          declare -A services=(
-            [basket]=8000
-            [order]=8001
-            [product]=8002
-            [auth]=8003
-            [api-gateway]=8004
-            [inventory]=8005
-            [shipping]=8006
-            [payment]=8007
+          # Wait order: auth first (issues JWKS), then dependents, gateway last.
+          services=(
+            "auth:8003"
+            "product:8002"
+            "basket:8000"
+            "order:8001"
+            "inventory:8005"
+            "shipping:8006"
+            "payment:8007"
+            "gateway:8004"
           )
-          deadline=$(( $(date +%s) + 600 ))
-          for svc in "${!services[@]}"; do
-            port="${services[$svc]}"
+          per_service_budget=600
+          for entry in "${services[@]}"; do
+            svc="${entry%%:*}"
+            port="${entry##*:}"
             url="http://localhost:${port}/health/ready"
-            echo "waiting for ${svc} at ${url}"
+            deadline=$(( $(date +%s) + per_service_budget ))
+            echo "waiting for ${svc} at ${url} (budget ${per_service_budget}s)"
             until curl -fsS --max-time 3 "${url}" >/dev/null 2>&1; do
               if (( $(date +%s) > deadline )); then
-                echo "::error::${svc} (${url}) did not become ready within 10 minutes"
+                echo "::error::${svc} (${url}) did not become ready within ${per_service_budget}s"
                 docker compose ps
                 docker compose logs --tail=200 "${svc}" || true
                 exit 1
