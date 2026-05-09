@@ -51,6 +51,12 @@ public class PaymentStateMachineTests
 
         Assert.Equal(PaymentStatus.Captured, payment.Status);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var domainEvent = Assert.Single(payment.DomainEvents);
+        var captured = Assert.IsType<PaymentCapturedDomainEvent>(domainEvent);
+        Assert.Equal(payment.PaymentId, captured.PaymentId);
+        Assert.Equal(payment.OrderId, captured.OrderId);
+        Assert.Equal(payment.Amount, captured.Amount);
     }
 
     [Fact]

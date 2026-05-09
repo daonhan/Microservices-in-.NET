@@ -1,6 +1,6 @@
 namespace Payment.Service.Models;
 
-public class Payment
+public class Payment : Entity
 {
     public Guid PaymentId { get; private set; }
     public Guid OrderId { get; private set; }
@@ -70,6 +70,7 @@ public class Payment
 
         Status = PaymentStatus.Captured;
         UpdatedAt = occurredAt;
+        Raise(new PaymentCapturedDomainEvent(PaymentId, OrderId, Amount));
     }
 
     public void Refund(DateTime occurredAt)

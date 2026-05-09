@@ -1,3 +1,4 @@
+using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -32,9 +33,24 @@ public class PaymentWebApplicationFactory : WebApplicationFactory<Program>, IAsy
     {
         builder.ConfigureTestServices(services =>
         {
+            DisableOutboxBackgroundService(services);
             ApplyMigrations(services);
             ConfigureTestAuthentication(services);
         });
+    }
+
+    private static void DisableOutboxBackgroundService(IServiceCollection services)
+    {
+        // Tests assert against the Outbox state directly. The poller racing
+        // with the assertion would mark events Sent and exclude them from
+        // GetUnpublishedOutboxEvents, masking real failures.
+        var hosted = services
+            .Where(d => d.ImplementationType == typeof(OutboxBackgroundService))
+            .ToList();
+        foreach (var descriptor in hosted)
+        {
+            services.Remove(descriptor);
+        }
     }
 
     private void ApplyMigrations(IServiceCollection services)
