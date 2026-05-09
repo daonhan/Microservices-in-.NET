@@ -1,0 +1,81 @@
+name: QA Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pack shared library
+        run: |
+          mkdir -p local-nuget-packages
+          dotnet pack shared-libs/ECommerce.Shared/ECommerce.Shared.csproj \
+            --configuration Release --output local-nuget-packages
+
+      - name: Boot stack
+        run: docker compose up -d --build
+
+      - name: Wait for /health/ready on every service
+        shell: bash
+        run: |
+          set -euo pipefail
+          # service:port pairs that expose /health/ready behind their published port.
+          declare -A services=(
+            [basket]=8000
+            [order]=8001
+            [product]=8002
+            [auth]=8003
+            [api-gateway]=8004
+            [inventory]=8005
+            [shipping]=8006
+            [payment]=8007
+          )
+          deadline=$(( $(date +%s) + 600 ))
+          for svc in "${!services[@]}"; do
+            port="${services[$svc]}"
+            url="http://localhost:${port}/health/ready"
+            echo "waiting for ${svc} at ${url}"
+            until curl -fsS --max-time 3 "${url}" >/dev/null 2>&1; do
+              if (( $(date +%s) > deadline )); then
+                echo "::error::${svc} (${url}) did not become ready within 10 minutes"
+                docker compose ps
+                docker compose logs --tail=200 "${svc}" || true
+                exit 1
+              fi
+              sleep 3
+            done
+            echo "${svc} ready"
+          done
+
+      - name: Run smoke scenarios
+        shell: pwsh
+        run: |
+          foreach ($scenario in @('happy', 'stock-out', 'decline', 'admin')) {
+            Write-Host "=== running scenario: $scenario ==="
+            ./scripts/local-smoke-test.ps1 -Scenario $scenario
+          }
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --tail=500
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
