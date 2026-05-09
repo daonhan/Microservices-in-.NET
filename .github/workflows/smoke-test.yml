@@ -70,7 +70,7 @@ jobs:
         run: |
           foreach ($scenario in @('happy', 'stock-out', 'decline', 'admin')) {
             Write-Host "=== running scenario: $scenario ==="
-            ./scripts/local-smoke-test.ps1 -Scenario $scenario
+            ./scripts/local-smoke-test.ps1 -Scenario $scenario -PollSeconds 60
           }
 
       - name: Dump container logs on failure

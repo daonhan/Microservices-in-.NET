@@ -33,7 +33,7 @@ internal sealed class OutboxContext : DbContext, IOutboxStore
         {
             Id = @event.Id,
             EventType = @event.GetType().AssemblyQualifiedName!,
-            Data = JsonSerializer.Serialize(@event),
+            Data = JsonSerializer.Serialize(@event, @event.GetType()),
             Status = OutboxEventStatus.Pending,
             CorrelationId = TryParseTraceIdAsGuid(System.Diagnostics.Activity.Current?.TraceId.ToString())
         });

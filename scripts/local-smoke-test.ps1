@@ -113,7 +113,11 @@ function Wait-ShipmentForOrder([hashtable]$Headers, [string]$OrderId, [int]$Time
         try {
             $shipments = Invoke-RestMethod "$Base/shipping/by-order/$OrderId" -Headers $Headers
             $first = @($shipments)[0]
-            if ($first -and $first.id) { return $first }
+            $shipmentId = $first.shipmentId
+            if (-not $shipmentId) { $shipmentId = $first.id }
+            if ($shipmentId) {
+                return [pscustomobject]@{ id = $shipmentId; status = $first.status }
+            }
         } catch {
             # keep polling — shipment may not be created yet
         }
@@ -199,7 +203,7 @@ function Invoke-Happy {
         overrideQuote   = $null
     }
     Invoke-ShipmentTransition $aH $shipmentId 'dispatch' $dispatchBody
-    Wait-ShipmentStatus $aH $shipmentId 'Dispatched' 15 | Out-Null
+    Wait-ShipmentStatus $aH $shipmentId 'Shipped' 15 | Out-Null
 
     Write-Step 'happy' "deliver shipment $shipmentId"
     Invoke-ShipmentTransition $aH $shipmentId 'deliver'

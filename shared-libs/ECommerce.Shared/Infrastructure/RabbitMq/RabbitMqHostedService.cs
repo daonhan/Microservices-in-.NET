@@ -182,7 +182,7 @@ public partial class RabbitMqHostedService : IHostedService
 
                 foreach (var handler in scope.ServiceProvider.GetKeyedServices<IEventHandler>(eventType))
                 {
-                    handler.Handle(@event!);
+                    handler.Handle(@event!).GetAwaiter().GetResult();
                 }
             }, CancellationToken.None);
 
