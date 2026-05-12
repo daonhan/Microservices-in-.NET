@@ -82,3 +82,237 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
+  bruno-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pack shared library
+        run: |
+          mkdir -p local-nuget-packages
+          dotnet pack shared-libs/ECommerce.Shared/ECommerce.Shared.csproj \
+            --configuration Release --output local-nuget-packages
+
+      - name: Boot stack
+        run: docker compose up -d --build
+
+      - name: Wait for /health/ready on every service
+        shell: bash
+        run: |
+          set -euo pipefail
+          # service:port pairs that expose /health/ready behind their published port.
+          # Wait order: auth first (issues JWKS), then dependents, gateway last.
+          services=(
+            "auth:8003"
+            "product:8002"
+            "basket:8000"
+            "order:8001"
+            "inventory:8005"
+            "shipping:8006"
+            "payment:8007"
+            "gateway:8004"
+          )
+          per_service_budget=600
+          for entry in "${services[@]}"; do
+            svc="${entry%%:*}"
+            port="${entry##*:}"
+            url="http://localhost:${port}/health/ready"
+            deadline=$(( $(date +%s) + per_service_budget ))
+            echo "waiting for ${svc} at ${url} (budget ${per_service_budget}s)"
+            until curl -fsS --max-time 3 "${url}" >/dev/null 2>&1; do
+              if (( $(date +%s) > deadline )); then
+                echo "::error::${svc} (${url}) did not become ready within ${per_service_budget}s"
+                docker compose ps
+                docker compose logs --tail=200 "${svc}" || true
+                exit 1
+              fi
+              sleep 3
+            done
+            echo "${svc} ready"
+          done
+
+      - name: Run Bruno happy-path smoke
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $brunoVersion = '3.3.0'
+          $collectionRoot = Join-Path $env:RUNNER_TEMP 'bruno-happy-path'
+          $reportRoot = Join-Path $env:RUNNER_TEMP 'bruno-reports'
+          $envFile = Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/qa-local.bru'
+
+          New-Item -ItemType Directory -Force $collectionRoot, $reportRoot | Out-Null
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/bruno.json') $collectionRoot
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/01-happy-path') $collectionRoot -Recurse
+
+          function Write-Summary([string]$Line) {
+            Write-Host $Line
+            if ($env:GITHUB_STEP_SUMMARY) {
+              $Line | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            }
+          }
+
+          function Invoke-Bruno([string]$Name, [string[]]$Paths, [hashtable]$Vars = @{}, [switch]$AllowFailure) {
+            $report = Join-Path $reportRoot "$Name.json"
+            if (Test-Path $report) {
+              Remove-Item $report
+            }
+
+            $args = @(
+              '--yes',
+              "@usebruno/cli@$brunoVersion",
+              'run'
+            ) + $Paths + @(
+              '--env-file',
+              $envFile,
+              '--reporter-json',
+              $report,
+              '--bail'
+            )
+
+            foreach ($entry in $Vars.GetEnumerator()) {
+              $args += @('--env-var', "$($entry.Key)=$($entry.Value)")
+            }
+
+            Push-Location $collectionRoot
+            try {
+              & npx @args
+              $exitCode = $LASTEXITCODE
+            }
+            finally {
+              Pop-Location
+            }
+
+            if (-not (Test-Path $report)) {
+              throw "Bruno did not write report for $Name"
+            }
+
+            $run = Get-Content $report -Raw | ConvertFrom-Json
+            $summary = $run[0].summary
+            $failed = $summary.failedRequests + $summary.errorRequests + $summary.failedTests + $summary.failedAssertions
+            $line = "bruno ${Name}: requests $($summary.passedRequests)/$($summary.totalRequests), tests $($summary.passedTests)/$($summary.totalTests), assertions $($summary.passedAssertions)/$($summary.totalAssertions)"
+
+            if ($exitCode -eq 0 -and $failed -eq 0) {
+              Write-Summary "- PASS $line"
+            }
+            else {
+              Write-Summary "- FAIL $line"
+              $firstFailure = @($run[0].results | Where-Object { $_.status -ne 'passed' -or $_.error } | Select-Object -First 1)[0]
+              if ($firstFailure) {
+                Write-Summary "  - $($firstFailure.name): status=$($firstFailure.response.status) error=$($firstFailure.error)"
+              }
+
+              if (-not $AllowFailure) {
+                throw "Bruno run '$Name' failed. See $report"
+              }
+            }
+
+            return $run
+          }
+
+          function Get-Result([object]$Run, [string]$PathFragment) {
+            return @($Run[0].results | Where-Object { $_.path -like "*$PathFragment*" } | Select-Object -First 1)[0]
+          }
+
+          function Wait-BrunoBody([string]$Name, [string]$Path, [hashtable]$Vars, [scriptblock]$Match, [string]$TimeoutMessage) {
+            $deadline = (Get-Date).AddSeconds(60)
+            $last = $null
+
+            do {
+              try {
+                $run = Invoke-Bruno $Name @($Path) $Vars -AllowFailure
+                $result = @($run[0].results | Select-Object -First 1)[0]
+                $last = $result.response.data
+                if (& $Match $last) {
+                  return $last
+                }
+              }
+              catch {
+                $last = $_.Exception.Message
+              }
+
+              Start-Sleep -Milliseconds 750
+            } while ((Get-Date) -lt $deadline)
+
+            Write-Summary "- FAIL $TimeoutMessage last=$($last | ConvertTo-Json -Compress -Depth 8)"
+            throw $TimeoutMessage
+          }
+
+          Write-Summary "## Bruno smoke"
+          Write-Summary "Pinned CLI: ``@usebruno/cli@$brunoVersion``"
+
+          $setup = Invoke-Bruno 'happy-setup' @(
+            '01-happy-path/01-login-customer.bru',
+            '01-happy-path/02-login-admin.bru',
+            '01-happy-path/03-get-seeded-basket.bru',
+            '01-happy-path/04-get-product-happy.bru',
+            '01-happy-path/05-get-inventory-happy.bru',
+            '01-happy-path/06-place-order.bru'
+          )
+
+          $customerToken = (Get-Result $setup '01-login-customer').response.data.token
+          $adminToken = (Get-Result $setup '02-login-admin').response.data.token
+          $orderLocation = (Get-Result $setup '06-place-order').response.headers.location
+          $orderId = ([string]$orderLocation).Trim('/').Split('/')[-1]
+
+          if ([string]::IsNullOrWhiteSpace($customerToken) -or [string]::IsNullOrWhiteSpace($adminToken) -or [string]::IsNullOrWhiteSpace($orderId)) {
+            throw "Bruno setup did not produce required customerToken/adminToken/orderId"
+          }
+
+          $baseVars = @{
+            customerToken = $customerToken
+            adminToken = $adminToken
+            orderId = $orderId
+          }
+
+          Wait-BrunoBody `
+            'poll-order-confirmed' `
+            '01-happy-path/07-poll-order.bru' `
+            $baseVars `
+            { param($body) $body.status -eq 'Confirmed' } `
+            "order $orderId did not reach Confirmed within 60s" | Out-Null
+
+          $shipmentBody = Wait-BrunoBody `
+            'poll-shipment-created' `
+            '01-happy-path/08-list-shipping-by-order.bru' `
+            $baseVars `
+            { param($body) @($body).Count -gt 0 -and (@($body)[0].shipmentId -or @($body)[0].id) } `
+            "shipment for order $orderId was not created within 60s"
+
+          $shipment = @($shipmentBody)[0]
+          $shipmentId = $shipment.shipmentId
+          if (-not $shipmentId) {
+            $shipmentId = $shipment.id
+          }
+
+          if ([string]::IsNullOrWhiteSpace($shipmentId)) {
+            throw "Bruno shipment poll did not produce shipmentId"
+          }
+
+          $transitionVars = $baseVars.Clone()
+          $transitionVars.shipmentId = $shipmentId
+
+          Invoke-Bruno 'pick-shipment' @('01-happy-path/09-pick-shipment.bru') $transitionVars | Out-Null
+          Invoke-Bruno 'pack-shipment' @('01-happy-path/10-pack-shipment.bru') $transitionVars | Out-Null
+          Invoke-Bruno 'dispatch-shipment' @('01-happy-path/11-dispatch-shipment.bru') $transitionVars | Out-Null
+          Invoke-Bruno 'deliver-shipment' @('01-happy-path/12-deliver-shipment.bru') $transitionVars | Out-Null
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --tail=500
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

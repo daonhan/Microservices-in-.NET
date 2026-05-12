@@ -31,6 +31,20 @@ Default warehouse: `DEFAULT` (`1`).
 Pricing convention: scenarios that should succeed use `*.00` prices. Payment-decline scenarios use `*.99`, matching the `InMemoryPaymentGateway` decline rule (cents == 99).
 
 Run the Bruno collection from `qa/bruno` with the `qa-local` environment after the stack is healthy.
+For Bruno CLI, run from a collection copy/root and pass `--env-file qa-local.bru`;
+the desktop app can use the `qa-local` environment directly.
+
+During the Bruno smoke soak, keep `qa/bruno/qa-local.bru` and the `$Qa` hash in
+`scripts/local-smoke-test.ps1` in lockstep. Any PR that changes persona emails,
+passwords, product IDs, customer IDs, or seeded shipment IDs must update both
+surfaces so the legacy PowerShell smoke gate and the non-blocking `bruno-smoke`
+job exercise the same dataset.
+
+Bruno request files that run in CI should include a `tests` block with three
+layers: expected HTTP status, fields consumed by downstream requests, and a
+lightweight response-shape check using Chai assertions. Keep request-level
+assertions close to the `.bru` file so a contract drift fails at the request
+that observes it.
 
 Scenario pages:
 

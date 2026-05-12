@@ -13,3 +13,19 @@ get {
 auth:bearer {
   token: {{customerToken}}
 }
+
+tests {
+  test("returns the happy customer's seeded basket", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.customerId).to.equal(bru.getVar("customerHappyId"));
+    expect(res.body.products).to.be.an("array").and.have.lengthOf.at.least(1);
+
+    const product = res.body.products.find(p => p.productId === bru.getVar("productHappyId"));
+    expect(product).to.exist;
+    expect(product.productName).to.be.a("string").and.not.be.empty;
+    expect(product.productPrice).to.be.a("number");
+    expect(product.quantity).to.equal(2);
+    expect(res.body.basketTotal).to.be.a("number").and.be.greaterThan(0);
+  });
+}

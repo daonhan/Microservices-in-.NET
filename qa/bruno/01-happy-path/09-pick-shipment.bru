@@ -13,3 +13,15 @@ post {
 auth:bearer {
   token: {{adminToken}}
 }
+
+tests {
+  test("moves the shipment to Picked", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.shipmentId).to.equal(bru.getVar("shipmentId"));
+    expect(res.body.orderId).to.equal(bru.getVar("orderId"));
+    expect(res.body.customerId).to.equal(bru.getVar("customerHappyId"));
+    expect(res.body.status).to.equal("Picked");
+    expect(res.body.lines).to.be.an("array").and.have.lengthOf.at.least(1);
+  });
+}
