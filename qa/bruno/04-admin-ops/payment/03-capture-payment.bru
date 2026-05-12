@@ -20,7 +20,7 @@ tests {
     expect(res.body).to.be.an("object");
     expect(res.body.paymentId).to.equal("b0000000-0000-0000-0000-000000000001");
     expect(res.body.orderId).to.equal("a0000000-0000-0000-0000-000000000001");
-    expect(res.body.customerId).to.equal(bru.getVar("customerHappyId"));
+    expect(res.body.customerId).to.equal(bru.getEnvVar("customerHappyId"));
     expect(res.body.amount).to.be.a("number");
     expect(res.body.currency).to.be.a("string").and.not.be.empty;
     expect(res.body.status).to.equal("Captured");

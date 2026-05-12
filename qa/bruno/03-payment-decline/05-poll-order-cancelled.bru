@@ -18,8 +18,8 @@ tests {
   test("returns the payment-decline order shape", function () {
     expect(res.status).to.equal(200);
     expect(res.body).to.be.an("object");
-    expect(res.body.orderId).to.equal(bru.getVar("orderId"));
-    expect(res.body.customerId).to.equal(bru.getVar("customerDeclineId"));
+    expect(res.body.orderId).to.equal((bru.getVar("orderId") || bru.getEnvVar("orderId")));
+    expect(res.body.customerId).to.equal(bru.getEnvVar("customerDeclineId"));
     expect(res.body.orderDate).to.be.a("string").and.not.be.empty;
     expect(res.body.status).to.be.a("string").and.not.be.empty;
   });

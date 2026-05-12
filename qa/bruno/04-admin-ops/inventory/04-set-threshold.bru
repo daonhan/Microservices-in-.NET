@@ -28,7 +28,7 @@ tests {
   test("updates the low-stock threshold", function () {
     expect(res.status).to.equal(200);
     expect(res.body).to.be.an("object");
-    expect(res.body.productId).to.equal(Number(bru.getVar("productLowStockId")));
+    expect(res.body.productId).to.equal(Number(bru.getEnvVar("productLowStockId")));
     expect(res.body.threshold).to.equal(5);
   });
 }

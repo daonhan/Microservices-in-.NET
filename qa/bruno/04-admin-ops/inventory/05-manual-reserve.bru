@@ -33,7 +33,7 @@ tests {
     expect(res.body.lines).to.be.an("array").and.have.lengthOf(1);
 
     const line = res.body.lines[0];
-    expect(line.productId).to.equal(Number(bru.getVar("productLowStockId")));
+    expect(line.productId).to.equal(Number(bru.getEnvVar("productLowStockId")));
     expect(line.warehouseId).to.be.a("number");
     expect(line.quantity).to.equal(1);
   });

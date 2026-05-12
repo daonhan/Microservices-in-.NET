@@ -21,8 +21,8 @@ tests {
 
     const shipment = res.body[0];
     expect(shipment.shipmentId || shipment.id).to.match(/^[0-9a-fA-F-]{36}$/);
-    expect(shipment.orderId).to.equal(bru.getVar("orderId"));
-    expect(shipment.customerId).to.equal(bru.getVar("customerHappyId"));
+    expect(shipment.orderId).to.equal((bru.getVar("orderId") || bru.getEnvVar("orderId")));
+    expect(shipment.customerId).to.equal(bru.getEnvVar("customerHappyId"));
     expect(shipment.status).to.be.a("string").and.not.be.empty;
     expect(shipment.lines).to.be.an("array").and.have.lengthOf.at.least(1);
   });

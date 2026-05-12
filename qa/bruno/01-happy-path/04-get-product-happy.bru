@@ -14,7 +14,7 @@ tests {
   test("returns product-happy catalog data", function () {
     expect(res.status).to.equal(200);
     expect(res.body).to.be.an("object");
-    expect(res.body.id).to.equal(Number(bru.getVar("productHappyId")));
+    expect(res.body.id).to.equal(Number(bru.getEnvVar("productHappyId")));
     expect(res.body.name).to.equal("product-happy");
     expect(res.body.price).to.equal(10);
     expect(res.body.productType).to.be.a("string").and.not.be.empty;

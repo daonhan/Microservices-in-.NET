@@ -18,10 +18,10 @@ tests {
   test("returns the cancel customer's zero-stock basket", function () {
     expect(res.status).to.equal(200);
     expect(res.body).to.be.an("object");
-    expect(res.body.customerId).to.equal(bru.getVar("customerCancelId"));
+    expect(res.body.customerId).to.equal(bru.getEnvVar("customerCancelId"));
     expect(res.body.products).to.be.an("array").and.have.lengthOf.at.least(1);
 
-    const product = res.body.products.find(p => p.productId === bru.getVar("productZeroStockId"));
+    const product = res.body.products.find(p => p.productId === bru.getEnvVar("productZeroStockId"));
     expect(product).to.exist;
     expect(product.productName).to.equal("product-zero-stock");
     expect(product.productPrice).to.equal(10);

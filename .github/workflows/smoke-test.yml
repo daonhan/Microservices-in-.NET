@@ -242,7 +242,7 @@ jobs:
               Remove-Item $report
             }
 
-            $args = @(
+            $brunoArgs = @(
               '--yes',
               "@usebruno/cli@$brunoVersion",
               'run'
@@ -255,13 +255,14 @@ jobs:
             )
 
             foreach ($entry in $Vars.GetEnumerator()) {
-              $args += @('--env-var', "$($entry.Key)=$($entry.Value)")
+              $brunoArgs += @('--env-var', "$($entry.Key)=$($entry.Value)")
             }
 
             Push-Location $collectionRoot
             try {
-              & npx @args
+              $brunoOutput = & npx @brunoArgs 2>&1
               $exitCode = $LASTEXITCODE
+              $brunoOutput | ForEach-Object { Write-Host $_ }
             }
             finally {
               Pop-Location

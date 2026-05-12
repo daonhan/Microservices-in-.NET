@@ -35,7 +35,7 @@ tests {
 
     const location = res.getHeader("location") || res.headers.location || res.headers.Location;
     expect(location).to.be.a("string").and.not.be.empty;
-    expect(location).to.contain(bru.getVar("customerDeclineId"));
+    expect(location).to.contain(bru.getEnvVar("customerDeclineId"));
 
     const orderId = location.split("/").pop();
     expect(orderId).to.match(/^[0-9a-fA-F-]{36}$/);
