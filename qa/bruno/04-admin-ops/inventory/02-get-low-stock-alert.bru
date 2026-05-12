@@ -13,3 +13,22 @@ get {
 auth:bearer {
   token: {{adminToken}}
 }
+
+tests {
+  test("returns the seeded low-stock inventory shape", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.productId).to.equal(Number(bru.getVar("productLowStockId")));
+    expect(res.body.totalOnHand).to.equal(1);
+    expect(res.body.totalReserved).to.equal(0);
+    expect(res.body.available).to.equal(1);
+    expect(res.body.threshold).to.equal(2);
+    expect(res.body.perWarehouse).to.be.an("array").and.have.lengthOf.at.least(1);
+
+    const warehouse = res.body.perWarehouse[0];
+    expect(warehouse.warehouseId).to.be.a("number");
+    expect(warehouse.warehouseCode).to.be.a("string").and.not.be.empty;
+    expect(warehouse.onHand).to.be.a("number");
+    expect(warehouse.reserved).to.be.a("number");
+  });
+}

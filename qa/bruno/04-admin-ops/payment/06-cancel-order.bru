@@ -14,7 +14,13 @@ auth:bearer {
   token: {{adminToken}}
 }
 
-assert {
-  res.status: eq 200
-  res.body.status: eq Cancelled
+tests {
+  test("cancels the confirmed order fixture", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.orderId).to.equal("a0000000-0000-0000-0000-000000000002");
+    expect(res.body.customerId).to.equal(bru.getVar("customerHappyId"));
+    expect(res.body.orderDate).to.be.a("string").and.not.be.empty;
+    expect(res.body.status).to.equal("Cancelled");
+  });
 }
