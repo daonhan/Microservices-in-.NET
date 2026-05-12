@@ -52,7 +52,7 @@ State the chosen issue number, title, and *why* you picked it before writing any
 
 ## 3. Exploration
 
-Repo conventions live in [CLAUDE.md](../../.claude/CLAUDE.md) — read it before touching unfamiliar areas. Key facts to respect without re-deriving:
+Repo conventions live in [CLAUDE.md](../../CLAUDE.md) — read it before touching unfamiliar areas. Key facts to respect without re-deriving:
 
 - Per-service `.slnx` solutions; no root `.sln`. Operate from the service directory.
 - All projects target `net10.0`. `TreatWarningsAsErrors` is on — analyzer warnings break the build.
