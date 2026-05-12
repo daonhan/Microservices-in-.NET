@@ -21,7 +21,7 @@ tests {
     expect(res.body.customerId).to.equal(bru.getEnvVar("customerHappyId"));
     expect(res.body.products).to.be.an("array").and.have.lengthOf.at.least(1);
 
-    const product = res.body.products.find(p => p.productId === bru.getEnvVar("productHappyId"));
+    const product = res.body.products.find(p => String(p.productId) === String(bru.getEnvVar("productHappyId")));
     expect(product).to.exist;
     expect(product.productName).to.be.a("string").and.not.be.empty;
     expect(product.productPrice).to.be.a("number");

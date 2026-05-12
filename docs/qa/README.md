@@ -47,7 +47,7 @@ the seeded happy customer basket; rerunning without `down -v` can make
 `03-get-seeded-basket` fail because the basket is already empty.
 
 ```powershell
-cd "D:\Preparing\Microservices in .NET\Nhamnhi"
+cd <repo-root>
 docker compose down -v --remove-orphans
 docker compose up -d --build
 ```
@@ -82,7 +82,7 @@ directly from `qa/bruno` with `qa-local.bru` in the same folder; Bruno CLI may
 try to parse `qa-local.bru` as a request and print `parseBruRequest error`.
 
 ```powershell
-$repo = "D:\Preparing\Microservices in .NET\Nhamnhi"
+$repo = Resolve-Path .
 $collectionRoot = Join-Path $env:TEMP "bruno-smoke-local"
 $envFile = Join-Path $repo "qa\bruno\qa-local.bru"
 

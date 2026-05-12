@@ -122,16 +122,18 @@ jobs:
             "payment:8007"
             "gateway:8004"
           )
-          per_service_budget=600
+          # Use a single global deadline (20 min) to stay well within
+          # the job's timeout-minutes: 45, rather than a per-service budget
+          # that could sum to 80+ minutes across all 8 services.
+          global_deadline=$(( $(date +%s) + 1200 ))
           for entry in "${services[@]}"; do
             svc="${entry%%:*}"
             port="${entry##*:}"
             url="http://localhost:${port}/health/ready"
-            deadline=$(( $(date +%s) + per_service_budget ))
-            echo "waiting for ${svc} at ${url} (budget ${per_service_budget}s)"
+            echo "waiting for ${svc} at ${url}"
             until curl -fsS --max-time 3 "${url}" >/dev/null 2>&1; do
-              if (( $(date +%s) > deadline )); then
-                echo "::error::${svc} (${url}) did not become ready within ${per_service_budget}s"
+              if (( $(date +%s) > global_deadline )); then
+                echo "::error::readiness deadline exceeded waiting for ${svc} (${url})"
                 docker compose ps
                 docker compose logs --tail=200 "${svc}" || true
                 exit 1
