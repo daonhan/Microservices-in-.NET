@@ -34,6 +34,138 @@ Run the Bruno collection from `qa/bruno` with the `qa-local` environment after t
 For Bruno CLI, run from a collection copy/root and pass `--env-file qa-local.bru`;
 the desktop app can use the `qa-local` environment directly.
 
+## Local Bruno CLI smoke run
+
+Use the pinned CLI version that CI uses:
+
+```powershell
+npx --yes @usebruno/cli@3.3.0 --version
+```
+
+Start from a clean stack before each full smoke run. The happy-path order consumes
+the seeded happy customer basket; rerunning without `down -v` can make
+`03-get-seeded-basket` fail because the basket is already empty.
+
+```powershell
+cd "D:\Preparing\Microservices in .NET\Nhamnhi"
+docker compose down -v --remove-orphans
+docker compose up -d --build
+```
+
+Wait for readiness in the same order as CI: Auth first, resource services next,
+gateway last.
+
+```powershell
+$ports = 8003,8002,8000,8001,8005,8006,8007,8004
+
+foreach ($port in $ports) {
+  $url = "http://localhost:$port/health/ready"
+  Write-Host "Waiting for $url"
+
+  do {
+    try {
+      $res = Invoke-WebRequest $url -UseBasicParsing -TimeoutSec 3
+      if ($res.StatusCode -eq 200) {
+        Write-Host "Ready: $url"
+        break
+      }
+    }
+    catch {
+      Start-Sleep -Seconds 3
+    }
+  } while ($true)
+}
+```
+
+For CLI runs, copy the collection to a temporary root like CI does. Do not run
+directly from `qa/bruno` with `qa-local.bru` in the same folder; Bruno CLI may
+try to parse `qa-local.bru` as a request and print `parseBruRequest error`.
+
+```powershell
+$repo = "D:\Preparing\Microservices in .NET\Nhamnhi"
+$collectionRoot = Join-Path $env:TEMP "bruno-smoke-local"
+$envFile = Join-Path $repo "qa\bruno\qa-local.bru"
+
+Remove-Item $collectionRoot -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $collectionRoot | Out-Null
+
+Copy-Item "$repo\qa\bruno\bruno.json" $collectionRoot
+Copy-Item "$repo\qa\bruno\01-happy-path" $collectionRoot -Recurse
+Copy-Item "$repo\qa\bruno\02-stock-shortage" $collectionRoot -Recurse
+Copy-Item "$repo\qa\bruno\03-payment-decline" $collectionRoot -Recurse
+Copy-Item "$repo\qa\bruno\04-admin-ops" $collectionRoot -Recurse
+
+cd $collectionRoot
+```
+
+Do not run the full `01-happy-path` folder straight through for local smoke
+validation. Requests after order placement depend on async saga work, so use the
+same setup-then-poll shape as CI:
+
+```powershell
+npx --yes @usebruno/cli@3.3.0 run `
+  01-happy-path/01-login-customer.bru `
+  01-happy-path/02-login-admin.bru `
+  01-happy-path/03-get-seeded-basket.bru `
+  01-happy-path/04-get-product-happy.bru `
+  01-happy-path/05-get-inventory-happy.bru `
+  01-happy-path/06-place-order.bru `
+  --env-file $envFile `
+  --reporter-json happy-setup.json `
+  --bail
+```
+
+Extract the values needed by the poll requests:
+
+```powershell
+$run = Get-Content .\happy-setup.json -Raw | ConvertFrom-Json
+
+$customerToken = ($run[0].results | Where-Object path -like "*01-login-customer*").response.data.token
+$adminToken = ($run[0].results | Where-Object path -like "*02-login-admin*").response.data.token
+$orderLocation = ($run[0].results | Where-Object path -like "*06-place-order*").response.headers.location
+$orderId = ([string]$orderLocation).Trim('/').Split('/')[-1]
+```
+
+Then poll the order and shipment requests with `--env-var` values, matching the
+workflow's behavior:
+
+```powershell
+do {
+  npx --yes @usebruno/cli@3.3.0 run 01-happy-path/07-poll-order.bru `
+    --env-file $envFile `
+    --env-var customerToken=$customerToken `
+    --env-var adminToken=$adminToken `
+    --env-var orderId=$orderId `
+    --reporter-json poll-order.json
+
+  $poll = Get-Content .\poll-order.json -Raw | ConvertFrom-Json
+  $status = $poll[0].results[0].response.data.status
+  Write-Host "Order status: $status"
+
+  if ($status -eq "Confirmed") { break }
+  Start-Sleep -Milliseconds 750
+} while ($true)
+
+do {
+  npx --yes @usebruno/cli@3.3.0 run 01-happy-path/08-list-shipping-by-order.bru `
+    --env-file $envFile `
+    --env-var customerToken=$customerToken `
+    --env-var adminToken=$adminToken `
+    --env-var orderId=$orderId `
+    --reporter-json poll-shipment.json
+
+  $poll = Get-Content .\poll-shipment.json -Raw | ConvertFrom-Json
+  $body = $poll[0].results[0].response.data
+  $shipment = @($body)[0]
+
+  if ($shipment.shipmentId) { break }
+  Write-Host "Shipment not ready yet"
+  Start-Sleep -Milliseconds 750
+} while ($true)
+
+$shipmentId = $shipment.shipmentId
+```
+
 During the Bruno smoke soak, keep `qa/bruno/qa-local.bru` and the `$Qa` hash in
 `scripts/local-smoke-test.ps1` in lockstep. Any PR that changes persona emails,
 passwords, product IDs, customer IDs, or seeded shipment IDs must update both
