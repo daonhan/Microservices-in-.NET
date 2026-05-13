@@ -61,6 +61,24 @@ public sealed class AsbEmulatorComposeProfileTests
         Assert.Contains("ASB_EMULATOR_HTTP_PORT", docs, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Given_Readme_And_Qa_Docs_When_Read_Then_Local_Asb_Workflow_Is_Discoverable()
+    {
+        var readme = File.ReadAllText(FindRepoFile("README.md"));
+        var docs = File.ReadAllText(FindRepoFile("docs/qa/asb-emulator-local.md"));
+
+        Assert.Contains("docs/qa/asb-emulator-local.md", readme, StringComparison.Ordinal);
+        Assert.Contains("RabbitMQ remains the default", readme, StringComparison.Ordinal);
+        Assert.Contains("docker compose --profile asb up", readme, StringComparison.Ordinal);
+
+        Assert.Contains("Messaging__Provider=AzureServiceBus", docs, StringComparison.Ordinal);
+        Assert.Contains("AzureServiceBus__ConnectionString", docs, StringComparison.Ordinal);
+        Assert.Contains("AzureServiceBus__AdministrationConnectionString", docs, StringComparison.Ordinal);
+        Assert.Contains("ASB_EMULATOR_TESTS=true", docs, StringComparison.Ordinal);
+        Assert.Contains("Phase-4 smoke", docs, StringComparison.Ordinal);
+        Assert.Contains("Real Azure topology remains Bicep-owned", docs, StringComparison.Ordinal);
+    }
+
     private static YamlMappingNode LoadComposeServices()
     {
         var stream = new YamlStream();

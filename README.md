@@ -136,6 +136,14 @@ docker compose up --build
 
 This starts the full stack: 8 microservices (Basket, Order, Product, Auth, Inventory, Shipping, Payment, API Gateway) + infrastructure (SQL Server, RabbitMQ, Redis) + observability (OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki) + Prometheus exporters for RabbitMQ, Redis, and SQL Server.
 
+RabbitMQ remains the default local broker for `docker compose up`, local smoke runs, and the Phase-4 saga regression path. To exercise the Azure Service Bus adapter locally, start the opt-in emulator profile:
+
+```bash
+docker compose --profile asb up -d servicebus-emulator servicebus-sql
+```
+
+See [docs/qa/asb-emulator-local.md](docs/qa/asb-emulator-local.md) for F5 connection strings, Compose-container settings, topology auto-provisioning behavior, opt-in emulator verification, and teardown.
+
 ### Run Individual Services
 
 ```bash

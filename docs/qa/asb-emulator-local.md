@@ -1,8 +1,10 @@
 # ASB Emulator Local Profile
 
-Use this only when you want to exercise the Azure Service Bus provider locally. The default stack remains RabbitMQ-first.
+Use this only when you want to exercise the Azure Service Bus provider locally. RabbitMQ remains the default for `docker compose up`, local Bruno smoke runs, and the Phase-4 smoke regression path.
 
 ## Start
+
+Start only the emulator infrastructure:
 
 ```powershell
 docker compose --profile asb up -d servicebus-emulator servicebus-sql
@@ -22,31 +24,70 @@ $env:ASB_EMULATOR_HTTP_PORT = "5300"
 docker compose --profile asb up -d servicebus-emulator servicebus-sql
 ```
 
-## Verify
+## Verify Health
 
 ```powershell
 Invoke-WebRequest http://localhost:5300/health -UseBasicParsing
 ```
 
-Host-run connection string:
+## Configure Host F5 Runs
 
-```text
-Endpoint=sb://localhost:5673;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+Use these values when running a service from the host with `dotnet run` or F5:
+
+```powershell
+$env:Messaging__Provider = "AzureServiceBus"
+$env:AzureServiceBus__ConnectionString = "Endpoint=sb://localhost:5673;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:AzureServiceBus__AdministrationConnectionString = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:AzureServiceBus__TopicName = "ecommerce-topic"
+$env:AzureServiceBus__AutoProvisionTopology = "Auto"
+$env:EventBus__QueueName = "order-microservice"
 ```
 
-Administration operations use the emulator HTTP port:
+`AzureServiceBus__ConnectionString` is the data-plane AMQP endpoint. `AzureServiceBus__AdministrationConnectionString` is used only by topology provisioning and should point at the emulator HTTP/management port. Keep both values separate so publishing still uses the broker port while topic and subscription checks use the administration port.
 
-```text
-Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+`Auto` provisions only when the connection string contains `UseDevelopmentEmulator=true`. Set `Always` only for a deliberate manual check against a namespace you are allowed to mutate. Set `Never` to verify startup without topology creation.
+
+## Configure Compose Service Containers
+
+The default `docker-compose.yaml` does not set `Messaging__Provider`, so services stay on RabbitMQ unless you explicitly override them. For a temporary Compose-based ASB run, add these environment values only to the service containers you are testing:
+
+```yaml
+environment:
+  - "Messaging__Provider=AzureServiceBus"
+  - "AzureServiceBus__ConnectionString=Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+  - "AzureServiceBus__AdministrationConnectionString=Endpoint=sb://servicebus-emulator:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+  - "AzureServiceBus__TopicName=ecommerce-topic"
+  - "AzureServiceBus__AutoProvisionTopology=Auto"
 ```
 
-Use that value as `AzureServiceBus:AdministrationConnectionString` when topology provisioning is enabled. Keep `AzureServiceBus:ConnectionString` pointed at the AMQP endpoint above so the data plane still publishes through the emulator broker.
+The container data-plane connection uses `servicebus-emulator` without a port because the emulator listens on AMQP `5672` inside the Compose network. The administration connection includes `:5300` because topology provisioning talks to the emulator management endpoint.
 
-Containers on the Compose network can use the service name:
+## Run Opt-In Emulator Tests
 
-```text
-Endpoint=sb://servicebus-emulator;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
+Normal `dotnet test` skips emulator-backed tests. To run the publish/subscribe check against a running emulator:
+
+```powershell
+cd shared-libs
+$env:ASB_EMULATOR_TESTS = "true"
+$env:ASB_EMULATOR_CONNECTION_STRING = "Endpoint=sb://localhost:5673;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+$env:ASB_EMULATOR_ADMINISTRATION_CONNECTION_STRING = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;"
+
+dotnet test --filter "FullyQualifiedName~Given_ASB_emulator"
 ```
+
+The opt-in gate is `ASB_EMULATOR_TESTS=true`. This path proves the shared ASB adapter can ensure `ecommerce-topic`, create a fresh subscription, publish an integration event, and receive it from that subscription. It is intentionally opt-in so CI and the Phase-4 smoke path remain RabbitMQ-only.
+
+Clear the test variables when finished:
+
+```powershell
+Remove-Item Env:ASB_EMULATOR_TESTS -ErrorAction SilentlyContinue
+Remove-Item Env:ASB_EMULATOR_CONNECTION_STRING -ErrorAction SilentlyContinue
+Remove-Item Env:ASB_EMULATOR_ADMINISTRATION_CONNECTION_STRING -ErrorAction SilentlyContinue
+```
+
+## Real Azure Namespaces
+
+Real Azure topology remains Bicep-owned. With `AzureServiceBus__AutoProvisionTopology=Auto`, non-emulator connection strings are detected as cloud namespaces and topology provisioning is skipped. Production, staging, and shared dev namespaces should get topics and subscriptions from the infrastructure deployment rather than application startup.
 
 ## Teardown
 
