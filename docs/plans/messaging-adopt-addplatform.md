@@ -104,6 +104,8 @@ Apply the same platform messaging pattern to the saga services that both publish
 
 Move the gateway's event bus registration to the provider-aware platform path without expanding the DLQ implementation. The operator API and RabbitMQ DLQ capture/replay behavior stay intact. Any ASB limitation in the gateway operator path is documented as deferred to PRD C rather than hidden behind partial behavior.
 
+Implementation note: this phase only moves `OperatorModule.AddServices` onto `AddPlatformEventBus`. Gateway DLQ capture/replay still uses the RabbitMQ-specific `DeadLetterHostedService` and `RabbitMqDeadLetterPublisher`; provider-agnostic DLQ capture/replay remains deferred to PRD C.
+
 ### Acceptance criteria
 
 - [ ] Gateway event bus registration uses the platform provider switch.
