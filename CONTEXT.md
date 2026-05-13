@@ -1,6 +1,7 @@
 # E-Commerce Microservices Platform — Project Context
 
 [![Docker Build](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/docker-build.yml/badge.svg)](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/docker-build.yml)
+[![Docker Build](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/smoke-test.yml/badge.svg)](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/smoke-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 
