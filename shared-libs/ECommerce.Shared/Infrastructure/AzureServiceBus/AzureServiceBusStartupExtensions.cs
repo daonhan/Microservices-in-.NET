@@ -44,6 +44,8 @@ public static class AzureServiceBusStartupExtensions
         services.Configure<EventBusOptions>(configuration.GetSection(EventBusOptions.EventBusSectionName));
 
         services.AddSingleton<AzureServiceBusTelemetry>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, AzureServiceBusSubscriptionProvisioningHostedService>());
         services.AddHostedService<AzureServiceBusHostedService>();
 
         return services;

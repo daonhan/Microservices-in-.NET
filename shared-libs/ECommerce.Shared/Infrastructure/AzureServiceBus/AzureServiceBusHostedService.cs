@@ -49,6 +49,10 @@ public class AzureServiceBusHostedService : IHostedService, IAsyncDisposable
         // Subscription name is derived from the EventBus QueueName so the same config knob
         // selects the per-service subscription when running on Azure Service Bus.
         var subscriptionName = _eventBusOptions.QueueName;
+        if (string.IsNullOrWhiteSpace(subscriptionName))
+        {
+            throw new InvalidOperationException("EventBus:QueueName is required for Azure Service Bus subscriber startup.");
+        }
 
         _processor = _client.CreateProcessor(_serviceBusOptions.TopicName, subscriptionName, new ServiceBusProcessorOptions
         {

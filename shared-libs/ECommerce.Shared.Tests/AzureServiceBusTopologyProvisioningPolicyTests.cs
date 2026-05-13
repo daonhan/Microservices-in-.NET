@@ -1,3 +1,4 @@
+using Azure.Messaging.ServiceBus;
 using Azure.Messaging.ServiceBus.Administration;
 using ECommerce.Shared.Infrastructure.AzureServiceBus;
 using ECommerce.Shared.Infrastructure.EventBus;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using NSubstitute;
 
 namespace ECommerce.Shared.Tests;
 
@@ -225,6 +227,171 @@ public sealed class AzureServiceBusTopologyProvisioningPolicyTests
     }
 
     [Fact]
+    public async Task Given_Auto_policy_and_emulator_connection_When_subscriber_host_starts_Then_subscription_is_ensured_before_processing()
+    {
+        var calls = new List<string>();
+        var provisioner = new RecordingTopologyProvisioner(AzureServiceBusTopologyProvisioningResult.Created, calls);
+        var processor = Substitute.For<ServiceBusProcessor>();
+        processor.StartProcessingAsync(Arg.Any<CancellationToken>()).Returns(_ =>
+        {
+            calls.Add("processor-started");
+            return Task.CompletedTask;
+        });
+        processor.StopProcessingAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        var client = Substitute.For<ServiceBusClient>();
+        client.CreateProcessor(
+                "ecommerce-topic",
+                "test-subscription",
+                Arg.Any<ServiceBusProcessorOptions>())
+            .Returns(processor);
+
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
+            ["AzureServiceBus:ConnectionString"] = EmulatorConnectionString,
+            ["AzureServiceBus:TopicName"] = "ecommerce-topic",
+            ["EventBus:QueueName"] = "test-subscription",
+        });
+        builder.Services.AddSingleton(client);
+        builder.Services.AddSingleton<IAzureServiceBusTopologyProvisioner>(provisioner);
+        builder.Services.AddPlatformEventBus(builder.Configuration);
+        builder.Services.AddPlatformSubscriberService(builder.Configuration);
+
+        using var host = builder.Build();
+
+        await host.StartAsync();
+        await host.StopAsync();
+
+        Assert.Equal(["ecommerce-topic"], provisioner.EnsuredTopics);
+        Assert.Equal(["ecommerce-topic/test-subscription"], provisioner.EnsuredSubscriptions);
+        Assert.True(
+            calls.IndexOf("subscription:ecommerce-topic/test-subscription") < calls.IndexOf("processor-started"),
+            "The subscription must be provisioned before the Azure Service Bus processor starts.");
+    }
+
+    [Fact]
+    public async Task Given_Auto_policy_and_cloud_connection_When_subscriber_host_starts_Then_subscription_is_not_ensured()
+    {
+        var provisioner = new RecordingTopologyProvisioner(AzureServiceBusTopologyProvisioningResult.Created);
+        var processor = Substitute.For<ServiceBusProcessor>();
+        processor.StartProcessingAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        processor.StopProcessingAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        var client = Substitute.For<ServiceBusClient>();
+        client.CreateProcessor(
+                "ecommerce-topic",
+                "test-subscription",
+                Arg.Any<ServiceBusProcessorOptions>())
+            .Returns(processor);
+
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
+            ["AzureServiceBus:ConnectionString"] = CloudConnectionString,
+            ["AzureServiceBus:TopicName"] = "ecommerce-topic",
+            ["AzureServiceBus:AutoProvisionTopology"] = "Auto",
+            ["EventBus:QueueName"] = "test-subscription",
+        });
+        builder.Services.AddSingleton(client);
+        builder.Services.AddSingleton<IAzureServiceBusTopologyProvisioner>(provisioner);
+        builder.Services.AddPlatformEventBus(builder.Configuration);
+        builder.Services.AddPlatformSubscriberService(builder.Configuration);
+
+        using var host = builder.Build();
+
+        await host.StartAsync();
+        await host.StopAsync();
+
+        Assert.Empty(provisioner.EnsuredTopics);
+        Assert.Empty(provisioner.EnsuredSubscriptions);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Given_missing_or_blank_queue_name_When_subscriber_host_starts_Then_startup_fails_clearly(
+        string? queueName)
+    {
+        var builder = Host.CreateApplicationBuilder();
+        var settings = new Dictionary<string, string?>
+        {
+            ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
+            ["AzureServiceBus:ConnectionString"] = EmulatorConnectionString,
+            ["AzureServiceBus:TopicName"] = "ecommerce-topic",
+        };
+        if (queueName is not null)
+        {
+            settings["EventBus:QueueName"] = queueName;
+        }
+
+        builder.Configuration.AddInMemoryCollection(settings);
+        builder.Services.AddSingleton<IAzureServiceBusTopologyProvisioner>(
+            new RecordingTopologyProvisioner(AzureServiceBusTopologyProvisioningResult.Created));
+        builder.Services.AddPlatformEventBus(builder.Configuration);
+        builder.Services.AddPlatformSubscriberService(builder.Configuration);
+
+        using var host = builder.Build();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => host.StartAsync());
+        Assert.Contains("EventBus:QueueName", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("Azure Service Bus", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, "created")]
+    [InlineData(false, "already exists")]
+    public async Task Given_subscription_provisioning_result_When_subscriber_host_starts_Then_result_log_is_written(
+        bool created,
+        string expectedLogFragment)
+    {
+        var result = created
+            ? AzureServiceBusTopologyProvisioningResult.Created
+            : AzureServiceBusTopologyProvisioningResult.AlreadyExists;
+        using var loggerProvider = new RecordingLoggerProvider();
+        var processor = Substitute.For<ServiceBusProcessor>();
+        processor.StartProcessingAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+        processor.StopProcessingAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
+
+        var client = Substitute.For<ServiceBusClient>();
+        client.CreateProcessor(
+                "ecommerce-topic",
+                "test-subscription",
+                Arg.Any<ServiceBusProcessorOptions>())
+            .Returns(processor);
+
+        var builder = Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
+            ["AzureServiceBus:ConnectionString"] = EmulatorConnectionString,
+            ["AzureServiceBus:TopicName"] = "ecommerce-topic",
+            ["EventBus:QueueName"] = "test-subscription",
+        });
+        builder.Logging.ClearProviders();
+        builder.Logging.AddProvider(loggerProvider);
+        builder.Services.AddSingleton(client);
+        builder.Services.AddSingleton<IAzureServiceBusTopologyProvisioner>(
+            new RecordingTopologyProvisioner(result));
+        builder.Services.AddPlatformEventBus(builder.Configuration);
+        builder.Services.AddPlatformSubscriberService(builder.Configuration);
+
+        using var host = builder.Build();
+
+        await host.StartAsync();
+        await host.StopAsync();
+
+        Assert.Contains(
+            loggerProvider.Messages,
+            message => message.Contains(
+                $"Azure Service Bus subscription 'ecommerce-topic/test-subscription' {expectedLogFragment}",
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Given_administration_connection_string_When_resolving_admin_connection_Then_data_plane_connection_is_unchanged()
     {
         var options = new AzureServiceBusOptions
@@ -271,6 +438,81 @@ public sealed class AzureServiceBusTopologyProvisioningPolicyTests
         Assert.True(topicExists.Value);
     }
 
+    [AsbEmulatorFact]
+    public async Task Given_ASB_emulator_When_subscription_is_provisioned_Then_published_event_reaches_subscription()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("ASB_EMULATOR_CONNECTION_STRING")
+            ?? "Endpoint=sb://localhost:5673;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;";
+        var administrationConnectionString = Environment.GetEnvironmentVariable("ASB_EMULATOR_ADMINISTRATION_CONNECTION_STRING")
+            ?? "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;";
+        var subscriptionName = $"test-subscription-{Guid.NewGuid():N}";
+        var administrationClient = new ServiceBusAdministrationClient(administrationConnectionString);
+
+        try
+        {
+            var subscriberBuilder = Host.CreateApplicationBuilder();
+            subscriberBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
+                ["AzureServiceBus:ConnectionString"] = connectionString,
+                ["AzureServiceBus:AdministrationConnectionString"] = administrationConnectionString,
+                ["AzureServiceBus:TopicName"] = "ecommerce-topic",
+                ["EventBus:QueueName"] = subscriptionName,
+            });
+            subscriberBuilder.Services.AddPlatformEventBus(subscriberBuilder.Configuration);
+            subscriberBuilder.Services.AddPlatformSubscriberService(subscriberBuilder.Configuration);
+
+            using (var subscriberHost = subscriberBuilder.Build())
+            {
+                await subscriberHost.StartAsync();
+                await subscriberHost.StopAsync();
+            }
+
+            var publisherBuilder = Host.CreateApplicationBuilder();
+            publisherBuilder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
+                ["AzureServiceBus:ConnectionString"] = connectionString,
+                ["AzureServiceBus:AdministrationConnectionString"] = administrationConnectionString,
+                ["AzureServiceBus:TopicName"] = "ecommerce-topic",
+                ["EventBus:QueueName"] = "publisher",
+            });
+            publisherBuilder.Services.AddPlatformEventBus(publisherBuilder.Configuration);
+            publisherBuilder.Services.AddPlatformEventPublisher(publisherBuilder.Configuration);
+
+            using (var publisherHost = publisherBuilder.Build())
+            {
+                await publisherHost.StartAsync();
+                var eventBus = publisherHost.Services.GetRequiredService<IEventBus>();
+                await eventBus.PublishAsync(new AsbEmulatorSmokeEvent("subscription-routing"));
+                await publisherHost.StopAsync();
+            }
+
+            await using var client = new ServiceBusClient(connectionString);
+            await using var receiver = client.CreateReceiver("ecommerce-topic", subscriptionName);
+            var received = await receiver.ReceiveMessageAsync(TimeSpan.FromSeconds(10));
+
+            Assert.NotNull(received);
+            Assert.Equal(nameof(AsbEmulatorSmokeEvent), received!.Subject);
+
+            await receiver.CompleteMessageAsync(received);
+        }
+        finally
+        {
+            try
+            {
+                var exists = await administrationClient.SubscriptionExistsAsync("ecommerce-topic", subscriptionName);
+                if (exists.Value)
+                {
+                    await administrationClient.DeleteSubscriptionAsync("ecommerce-topic", subscriptionName);
+                }
+            }
+            catch (ServiceBusException ex) when (ex.Reason == ServiceBusFailureReason.MessagingEntityNotFound)
+            {
+            }
+        }
+    }
+
     private sealed record AsbEmulatorSmokeEvent(string Payload) : Event;
 
     private const string EmulatorConnectionString =
@@ -280,15 +522,29 @@ public sealed class AzureServiceBusTopologyProvisioningPolicyTests
         "Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=k;SharedAccessKey=ZmFrZWtleQ==";
 
     private sealed class RecordingTopologyProvisioner(
-        AzureServiceBusTopologyProvisioningResult result) : IAzureServiceBusTopologyProvisioner
+        AzureServiceBusTopologyProvisioningResult result,
+        List<string>? calls = null) : IAzureServiceBusTopologyProvisioner
     {
         public List<string> EnsuredTopics { get; } = [];
+
+        public List<string> EnsuredSubscriptions { get; } = [];
 
         public Task<AzureServiceBusTopologyProvisioningResult> EnsureTopicAsync(
             string topicName,
             CancellationToken cancellationToken)
         {
             EnsuredTopics.Add(topicName);
+            calls?.Add($"topic:{topicName}");
+            return Task.FromResult(result);
+        }
+
+        public Task<AzureServiceBusTopologyProvisioningResult> EnsureSubscriptionAsync(
+            string topicName,
+            string subscriptionName,
+            CancellationToken cancellationToken)
+        {
+            EnsuredSubscriptions.Add($"{topicName}/{subscriptionName}");
+            calls?.Add($"subscription:{topicName}/{subscriptionName}");
             return Task.FromResult(result);
         }
     }
