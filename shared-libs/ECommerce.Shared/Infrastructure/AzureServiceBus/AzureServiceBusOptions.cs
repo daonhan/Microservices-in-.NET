@@ -13,6 +13,11 @@ public class AzureServiceBusOptions
     public string ConnectionString { get; set; } = string.Empty;
 
     /// <summary>
+    /// Optional connection string used only for topology administration.
+    /// </summary>
+    public string AdministrationConnectionString { get; set; } = string.Empty;
+
+    /// <summary>
     /// Topic name used as the fanout exchange equivalent. All events are published here.
     /// </summary>
     public string TopicName { get; set; } = "ecommerce-topic";

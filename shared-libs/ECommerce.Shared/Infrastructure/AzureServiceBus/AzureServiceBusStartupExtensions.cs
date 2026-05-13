@@ -28,8 +28,11 @@ public static class AzureServiceBusStartupExtensions
     public static IServiceCollection AddAzureServiceBusEventPublisher(this IServiceCollection services, IConfigurationManager configuration)
     {
         services.AddAzureServiceBusTopologyDecision(configuration);
+        services.AddAzureServiceBusTopologyProvisioner();
         services.Configure<EventBusOptions>(configuration.GetSection(EventBusOptions.EventBusSectionName));
         services.AddSingleton<IEventBus, AzureServiceBusEventBus>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, AzureServiceBusTopicProvisioningHostedService>());
 
         return services;
     }
@@ -37,11 +40,18 @@ public static class AzureServiceBusStartupExtensions
     public static IServiceCollection AddAzureServiceBusSubscriberService(this IServiceCollection services, IConfigurationManager configuration)
     {
         services.AddAzureServiceBusTopologyDecision(configuration);
+        services.AddAzureServiceBusTopologyProvisioner();
         services.Configure<EventBusOptions>(configuration.GetSection(EventBusOptions.EventBusSectionName));
 
         services.AddSingleton<AzureServiceBusTelemetry>();
         services.AddHostedService<AzureServiceBusHostedService>();
 
+        return services;
+    }
+
+    private static IServiceCollection AddAzureServiceBusTopologyProvisioner(this IServiceCollection services)
+    {
+        services.TryAddSingleton<IAzureServiceBusTopologyProvisioner, AzureServiceBusTopologyProvisioner>();
         return services;
     }
 

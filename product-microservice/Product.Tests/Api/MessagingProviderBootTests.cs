@@ -40,6 +40,25 @@ public sealed class MessagingProviderBootTests
         Assert.IsType<AzureServiceBusEventBus>(bus);
     }
 
+    [Fact]
+    public void Given_AzureServiceBus_emulator_provider_When_Product_host_boots_Then_Azure_event_bus_resolves()
+    {
+        using var factory = new ProductMessagingProviderFactory(new Dictionary<string, string?>
+        {
+            ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
+            ["AzureServiceBus:ConnectionString"] = "Endpoint=sb://localhost:5673;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;",
+            ["AzureServiceBus:AdministrationConnectionString"] = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;",
+            ["AzureServiceBus:AutoProvisionTopology"] = AzureServiceBusOptions.AutoProvisionTopologyNever,
+            ["AzureServiceBus:TopicName"] = "ecommerce-topic",
+            ["EventBus:QueueName"] = "product"
+        });
+
+        using var scope = factory.Services.CreateScope();
+        var bus = scope.ServiceProvider.GetRequiredService<IEventBus>();
+
+        Assert.IsType<AzureServiceBusEventBus>(bus);
+    }
+
     private sealed class ProductMessagingProviderFactory(Dictionary<string, string?> settings)
         : WebApplicationFactory<Program>
     {

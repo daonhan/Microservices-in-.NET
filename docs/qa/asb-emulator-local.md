@@ -40,6 +40,8 @@ Administration operations use the emulator HTTP port:
 Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;
 ```
 
+Use that value as `AzureServiceBus:AdministrationConnectionString` when topology provisioning is enabled. Keep `AzureServiceBus:ConnectionString` pointed at the AMQP endpoint above so the data plane still publishes through the emulator broker.
+
 Containers on the Compose network can use the service name:
 
 ```text
