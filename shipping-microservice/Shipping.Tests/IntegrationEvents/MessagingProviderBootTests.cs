@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace Shipping.Tests.IntegrationEvents;
 
@@ -33,14 +34,15 @@ public sealed class MessagingProviderBootTests
         {
             ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
             ["AzureServiceBus:ConnectionString"] = "Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=k;SharedAccessKey=ZmFrZWtleQ==",
-            ["AzureServiceBus:TopicName"] = "ecommerce-topic",
-            ["EventBus:QueueName"] = "shipping-microservice"
+            ["AzureServiceBus:TopicName"] = "ecommerce-topic"
         });
 
         using var scope = factory.Services.CreateScope();
         var bus = scope.ServiceProvider.GetRequiredService<IEventBus>();
+        var eventBusOptions = scope.ServiceProvider.GetRequiredService<IOptions<EventBusOptions>>().Value;
 
         Assert.IsType<AzureServiceBusEventBus>(bus);
+        Assert.Equal("shipping-microservice", eventBusOptions.QueueName);
         Assert.Contains(typeof(AzureServiceBusHostedService), factory.HostedServiceTypes);
         Assert.DoesNotContain(typeof(RabbitMqHostedService), factory.HostedServiceTypes);
     }
