@@ -9,3 +9,16 @@ get {
   body: none
   auth: none
 }
+
+tests {
+  test("returns the decline-path inventory shape", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.productId).to.equal(Number(bru.getEnvVar("productDeclineId")));
+    expect(res.body.totalOnHand).to.be.a("number").and.be.at.least(1);
+    expect(res.body.totalReserved).to.be.a("number");
+    expect(res.body.available).to.be.a("number");
+    expect(res.body.threshold).to.be.a("number");
+    expect(res.body.perWarehouse).to.be.an("array").and.have.lengthOf.at.least(1);
+  });
+}

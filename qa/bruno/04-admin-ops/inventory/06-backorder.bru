@@ -24,3 +24,15 @@ body:json {
     "quantity": 3
   }
 }
+
+tests {
+  test("creates a backorder request", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.id).to.be.a("number").and.be.greaterThan(0);
+    expect(res.body.customerId).to.equal(bru.getEnvVar("customerHappyId"));
+    expect(res.body.productId).to.equal(Number(bru.getEnvVar("productRestockTargetId")));
+    expect(res.body.quantity).to.equal(3);
+    expect(res.body.createdAt).to.be.a("string").and.not.be.empty;
+  });
+}

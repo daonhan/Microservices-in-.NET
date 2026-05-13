@@ -34,8 +34,16 @@ body:json {
   }
 }
 
-assert {
-  res.status: eq 200
-  res.body.status: eq Shipped
-  res.body.carrierKey: eq fake-ground
+tests {
+  test("dispatches the packed shipment", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.shipmentId).to.equal(bru.getEnvVar("shipmentPackedId"));
+    expect(res.body.status).to.equal("Shipped");
+    expect(res.body.carrierKey).to.equal("fake-ground");
+    expect(res.body.trackingNumber).to.be.a("string").and.not.be.empty;
+    expect(res.body.labelRef).to.be.a("string").and.not.be.empty;
+    expect(res.body.quotedPriceAmount).to.be.a("number");
+    expect(res.body.quotedPriceCurrency).to.equal("USD");
+  });
 }

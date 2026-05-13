@@ -29,6 +29,19 @@ body:json {
   }
 }
 
+tests {
+  test("creates a stock-shortage order and returns a location", function () {
+    expect(res.status).to.equal(201);
+
+    const location = res.getHeader("location") || res.headers.location || res.headers.Location;
+    expect(location).to.be.a("string").and.not.be.empty;
+    expect(location).to.contain(bru.getEnvVar("customerCancelId"));
+
+    const orderId = location.split("/").pop();
+    expect(orderId).to.match(/^[0-9a-fA-F-]{36}$/);
+  });
+}
+
 script:post-response {
   const location = res.headers.location || res.headers.Location;
   if (location) {

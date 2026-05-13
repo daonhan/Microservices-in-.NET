@@ -14,7 +14,16 @@ auth:bearer {
   token: {{adminToken}}
 }
 
-assert {
-  res.status: eq 200
-  res.body.status: eq Packed
+tests {
+  test("packs the picked shipment", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.shipmentId).to.equal(bru.getEnvVar("shipmentPickedId"));
+    expect(res.body.orderId).to.match(/^[0-9a-fA-F-]{36}$/);
+    expect(res.body.customerId).to.equal(bru.getEnvVar("customerHappyId"));
+    expect(res.body.warehouseId).to.be.a("number");
+    expect(res.body.status).to.equal("Packed");
+    expect(res.body.createdAt).to.be.a("string").and.not.be.empty;
+    expect(res.body.lines).to.be.an("array").and.have.lengthOf.at.least(1);
+  });
 }

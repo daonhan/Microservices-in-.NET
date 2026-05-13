@@ -4,11 +4,6 @@ meta {
   seq: 9
 }
 
-# Carrier webhook ingestion. Drives shipmentDispatchedId from Shipped to InTransit
-# (statusCode=2). Re-run with statusCode=3 to mark Delivered, or statusCode=4 to
-# mark Failed. The shared secret comes from CarrierWebhooks:SharedSecrets in
-# shipping appsettings.json — change Bruno var carrierGroundSecret to override.
-
 post {
   url: {{shippingBaseUrl}}/webhooks/carrier/fake-ground
   body: json
@@ -28,7 +23,11 @@ body:json {
   }
 }
 
-assert {
-  res.status: eq 200
-  res.body.shipmentId: eq {{shipmentDispatchedId}}
+tests {
+  test("ingests the carrier webhook", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.shipmentId).to.equal(bru.getEnvVar("shipmentDispatchedId"));
+    expect(res.body.status).to.equal("InTransit");
+  });
 }
