@@ -198,6 +198,27 @@ jobs:
             return $summary.failedRequests + $summary.errorRequests + $summary.failedTests + $summary.failedAssertions
           }
 
+          function Get-BrunoFirstFailure([object]$Run) {
+            return @($Run[0].results | Where-Object {
+              $_.status -in @('fail', 'error') -or $_.error
+            } | Select-Object -First 1)[0]
+          }
+
+          function Test-BrunoTransportFailure([object]$Run) {
+            $summary = $Run[0].summary
+            if (($summary.failedTests + $summary.failedAssertions) -gt 0) {
+              return $false
+            }
+
+            $failure = Get-BrunoFirstFailure $Run
+            if ($null -eq $failure) {
+              return $false
+            }
+
+            $error = Get-PropertyValue $failure 'error'
+            return $error -match '(?i)(ECONNRESET|ECONNABORTED|ETIMEDOUT|socket hang up|network timeout)'
+          }
+
           function Write-BrunoFailureDetail([object]$Failure) {
             if ($null -eq $Failure) {
               return
@@ -220,7 +241,7 @@ jobs:
                 $itemError = Get-PropertyValue $_ 'error'
                 $failure = Get-PropertyValue $_ 'failure'
 
-                ($itemStatus -and $itemStatus -ne 'passed') -or
+                ($itemStatus -and $itemStatus -notin @('pass', 'passed')) -or
                   ($passed -eq $false) -or
                   $itemError -or
                   $failure
@@ -240,56 +261,72 @@ jobs:
 
           function Invoke-Bruno([string]$Name, [string[]]$Paths, [hashtable]$Vars = @{}, [switch]$AllowFailure, [switch]$Quiet) {
             $report = Join-Path $reportRoot "$Name.json"
-            if (Test-Path $report) {
-              Remove-Item $report
-            }
 
-            $brunoArgs = @(
-              '--yes',
-              "@usebruno/cli@$brunoVersion",
-              'run'
-            ) + $Paths + @(
-              '--env-file',
-              $envFile,
-              '--reporter-json',
-              $report,
-              '--bail'
-            )
+            $maxAttempts = 3
+            $retryDelays = @(2, 5)
 
-            foreach ($entry in $Vars.GetEnumerator()) {
-              $brunoArgs += @('--env-var', "$($entry.Key)=$($entry.Value)")
-            }
-
-            Push-Location $collectionRoot
-            try {
-              $brunoOutput = & npx @brunoArgs 2>&1
-              $exitCode = $LASTEXITCODE
-              $brunoOutput | ForEach-Object { Write-Host $_ }
-            }
-            finally {
-              Pop-Location
-            }
-
-            if (-not (Test-Path $report)) {
-              throw "Bruno did not write report for $Name"
-            }
-
-            $run = Get-Content $report -Raw | ConvertFrom-Json
-            $summary = $run[0].summary
-            $failed = Get-BrunoFailureCount $run
-            $line = "bruno ${Name}: requests $($summary.passedRequests)/$($summary.totalRequests), tests $($summary.passedTests)/$($summary.totalTests), assertions $($summary.passedAssertions)/$($summary.totalAssertions)"
-
-            if ($exitCode -eq 0 -and $failed -eq 0) {
-              if (-not $Quiet) {
-                Write-Summary "- PASS $line"
+            for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+              if (Test-Path $report) {
+                Remove-Item $report
               }
-            }
-            else {
+
+              $brunoArgs = @(
+                '--yes',
+                "@usebruno/cli@$brunoVersion",
+                'run'
+              ) + $Paths + @(
+                '--env-file',
+                $envFile,
+                '--reporter-json',
+                $report,
+                '--bail'
+              )
+
+              foreach ($entry in $Vars.GetEnumerator()) {
+                $brunoArgs += @('--env-var', "$($entry.Key)=$($entry.Value)")
+              }
+
+              Push-Location $collectionRoot
+              try {
+                $brunoOutput = & npx @brunoArgs 2>&1
+                $exitCode = $LASTEXITCODE
+                $brunoOutput | ForEach-Object { Write-Host $_ }
+              }
+              finally {
+                Pop-Location
+              }
+
+              if (-not (Test-Path $report)) {
+                throw "Bruno did not write report for $Name"
+              }
+
+              $run = Get-Content $report -Raw | ConvertFrom-Json
+              $summary = $run[0].summary
+              $failed = Get-BrunoFailureCount $run
+              $line = "bruno ${Name}: requests $($summary.passedRequests)/$($summary.totalRequests), tests $($summary.passedTests)/$($summary.totalTests), assertions $($summary.passedAssertions)/$($summary.totalAssertions)"
+
+              if ($exitCode -eq 0 -and $failed -eq 0) {
+                if (-not $Quiet) {
+                  Write-Summary "- PASS $line"
+                }
+
+                return $run
+              }
+
+              $firstFailure = Get-BrunoFirstFailure $run
+              $isTransportFailure = Test-BrunoTransportFailure $run
+              if ($isTransportFailure -and $attempt -lt $maxAttempts) {
+                $delaySeconds = $retryDelays[$attempt - 1]
+                $error = Get-PropertyValue $firstFailure 'error'
+                Write-Summary "- RETRY bruno ${Name}: transport error '$error' on attempt $attempt/$maxAttempts; retrying in ${delaySeconds}s"
+                Start-Sleep -Seconds $delaySeconds
+                continue
+              }
+
               if (-not $Quiet) {
                 Write-Summary "- FAIL $line"
               }
 
-              $firstFailure = @($run[0].results | Where-Object { $_.status -ne 'passed' -or $_.error } | Select-Object -First 1)[0]
               if ($firstFailure -and -not $Quiet) {
                 Write-BrunoFailureDetail $firstFailure
               }
@@ -297,9 +334,11 @@ jobs:
               if (-not $AllowFailure) {
                 throw "Bruno run '$Name' failed. See $report"
               }
+
+              return $run
             }
 
-            return $run
+            throw "Bruno run '$Name' failed after $maxAttempts attempts. See $report"
           }
 
           function Get-Result([object]$Run, [string]$PathFragment) {
@@ -323,7 +362,7 @@ jobs:
                 if ($failureCount -gt 0 -and -not $AllowFailedAssertionsWhileWaiting) {
                   $stopPollingMessage = "Bruno run '$Name' failed while polling. See latest JSON report in $reportRoot"
                   Write-Summary "- FAIL bruno ${Name}: request assertion failed while polling"
-                  $firstFailure = @($run[0].results | Where-Object { $_.status -ne 'passed' -or $_.error } | Select-Object -First 1)[0]
+                  $firstFailure = Get-BrunoFirstFailure $run
                   Write-BrunoFailureDetail $firstFailure
                   break
                 }
@@ -346,7 +385,7 @@ jobs:
 
             Write-Summary "- FAIL $TimeoutMessage last=$($last | ConvertTo-Json -Compress -Depth 8)"
             if ($lastRun) {
-              $firstFailure = @($lastRun[0].results | Where-Object { $_.status -ne 'passed' -or $_.error } | Select-Object -First 1)[0]
+              $firstFailure = Get-BrunoFirstFailure $lastRun
               Write-BrunoFailureDetail $firstFailure
             }
 
