@@ -115,6 +115,15 @@ public sealed class OutboxFailureTrackingTests : IDisposable
         await store.DidNotReceive().MarkOutboxEventAsPublished(Arg.Any<Guid>());
     }
 
+    [Fact]
+    public void Given_outbox_background_service_When_constructor_dependencies_are_inspected_Then_no_RabbitMq_dependency_is_required()
+    {
+        var constructor = Assert.Single(typeof(OutboxBackgroundService).GetConstructors());
+
+        Assert.DoesNotContain(constructor.GetParameters(), parameter =>
+            parameter.ParameterType.FullName?.Contains(".RabbitMq.", StringComparison.Ordinal) == true);
+    }
+
     private async Task SeedPending(Guid id,
         OutboxEventStatus status = OutboxEventStatus.Pending,
         int attempts = 0)
