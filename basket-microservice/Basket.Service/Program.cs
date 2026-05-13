@@ -6,6 +6,7 @@ using Basket.Service.IntegrationEvents;
 using Basket.Service.IntegrationEvents.EventHandlers;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
+using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
@@ -15,8 +16,8 @@ using OpenTelemetry.Metrics;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IBasketStore, RedisBasketStore>();
-builder.Services.AddRabbitMqEventBus(builder.Configuration)
-    .AddRabbitMqSubscriberService(builder.Configuration)
+builder.Services.AddPlatformEventBus(builder.Configuration)
+    .AddPlatformSubscriberService(builder.Configuration)
     .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
     .AddEventHandler<ProductPriceUpdatedEvent, ProductPriceUpdatedEventHandler>();
 
