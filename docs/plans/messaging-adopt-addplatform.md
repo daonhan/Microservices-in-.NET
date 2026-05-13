@@ -132,3 +132,10 @@ Make the provider-aware messaging snippet the canonical pattern for future servi
 - [ ] Phase-4 RabbitMQ smoke tests remain the regression gate for unchanged local behavior.
 - [ ] Code search shows no direct RabbitMQ messaging registration in service composition roots except where intentionally retained for Rabbit-specific health checks or deferred DLQ implementation.
 - [ ] The implementation notes identify PRD C as the owner of ASB DLQ capture/replay.
+
+### Implementation notes
+
+- Canonical service wiring is `AddPlatformEventBus(builder.Configuration)` plus `AddPlatformEventPublisher(builder.Configuration)` for publishers and `AddPlatformSubscriberService(builder.Configuration)` for subscribers.
+- RabbitMQ remains the default local and Compose provider via `Messaging:Provider=RabbitMq` or missing provider config.
+- RabbitMQ-specific readiness probes remain acceptable where the local health model still checks RabbitMQ directly.
+- Gateway DLQ capture/replay remains RabbitMQ-specific in this PRD. Provider-agnostic ASB DLQ capture/replay belongs to PRD C, `PRD-Messaging-DLQ-Provider-Abstraction.md`.

@@ -8,8 +8,8 @@ A single internal NuGet package under [`shared-libs/ECommerce.Shared`](https://g
 graph LR
     subgraph ECommerce.Shared
         Jwt[JWT auth]
-        Bus[RabbitMQ EventBus]
-        Sub[RabbitMQ Subscriber]
+        Bus[Platform messaging]
+        Sub[Provider subscriber]
         Outbox[Transactional Outbox]
         Obs[Observability]
         Health[Health Checks]
@@ -29,9 +29,9 @@ graph LR
 | `AddJwtAuthentication(IConfiguration)` | Configures JWT Bearer (HS256 user tokens + RS256 service tokens via JWKS) and the standard claim map |
 | `UseJwtAuthentication()` | Middleware pair (`UseAuthentication()` + `UseAuthorization()`) |
 | `AddRequireOperatorPolicy()` / `AddRequireServicePolicy()` | Register the `RequireOperator` and `RequireService` authorization policies (see [Authorization policies](#authorization-policies)) |
-| `AddRabbitMqEventBus()` | Connection + channel management |
-| `AddRabbitMqEventPublisher()` | Registers `IEventBus` for publishing |
-| `AddRabbitMqSubscriberService()` | Hosts `RabbitMqHostedService` to consume events |
+| `AddPlatformEventBus(IConfiguration)` | Registers the configured messaging provider; `Messaging:Provider` defaults to `RabbitMq` and can be set to `AzureServiceBus` |
+| `AddPlatformEventPublisher(IConfiguration)` | Registers `IEventBus` for publishing through the selected provider |
+| `AddPlatformSubscriberService(IConfiguration)` | Hosts the selected provider's subscriber service |
 | `AddEventHandler<TEvent, THandler>()` | Keyed DI so one service can register many handlers |
 | `AddOutbox<TContext>()` | Outbox table, `OutboxBackgroundService`, and write helpers |
 | `AddPlatformObservability()` | OTLP traces + Prometheus metrics + OTLP logs |
@@ -46,7 +46,7 @@ graph LR
 | `Event` | Base class for all integration events (carries `Id`, `OccurredAt`) |
 | `IEventBus` | Publish an `Event` to the fanout exchange |
 | `IEventHandler<TEvent>` | Subscriber contract; implementations are keyed-DI-registered |
-| `IRabbitMqConnection` | Shared connection with Polly retry |
+| `IRabbitMqConnection` | RabbitMQ adapter connection used when `Messaging:Provider=RabbitMq` |
 | `IOutboxStore` | Atomic "persist + enqueue event" primitive |
 | `MetricFactory` | Cached creation of Counters and Histograms |
 
@@ -77,6 +77,19 @@ With the outbox, the business row and the outbox row are written in the **same**
 - **Traces**: ASP.NET Core, HttpClient, EF Core, RabbitMQ span context propagation → OTLP → Jaeger
 - **Metrics**: Runtime, ASP.NET Core, custom via `MetricFactory` → scraped on `/metrics` by Prometheus
 - **Logs**: Structured logs → OTLP → Loki
+
+## Canonical messaging wiring
+
+New service composition roots should use the provider-aware platform extensions, then register the service's event handlers:
+
+```csharp
+builder.Services.AddPlatformEventBus(builder.Configuration)
+    .AddPlatformEventPublisher(builder.Configuration)
+    .AddPlatformSubscriberService(builder.Configuration)
+    .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>();
+```
+
+Omit the publisher extension for subscriber-only services and omit the subscriber extension for publisher-only services. RabbitMQ-specific readiness probes can stay on services that need RabbitMQ local health checks. Gateway DLQ capture/replay is still RabbitMQ-specific until the provider-agnostic DLQ work in `PRD-Messaging-DLQ-Provider-Abstraction.md`.
 
 See [Observability](Observability) for the full pipeline.
 
