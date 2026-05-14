@@ -26,4 +26,10 @@ public class AzureServiceBusOptions
     /// Controls whether the Azure Service Bus adapter should create topic/subscription topology on startup.
     /// </summary>
     public string AutoProvisionTopology { get; set; } = AutoProvisionTopologyAuto;
+
+    /// <summary>
+    /// Subscription name whose dead-letter sub-queue is captured into the dead-letter store.
+    /// Empty disables ASB capture; the operator endpoints remain available regardless.
+    /// </summary>
+    public string DeadLetterCaptureSubscription { get; set; } = string.Empty;
 }
