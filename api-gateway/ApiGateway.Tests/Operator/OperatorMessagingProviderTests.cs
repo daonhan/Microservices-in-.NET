@@ -46,7 +46,7 @@ public sealed class OperatorMessagingProviderTests
             descriptor.ServiceType.FullName == "ECommerce.Shared.Infrastructure.DeadLetter.IDeadLetterPublisher"
             && descriptor.ImplementationType?.FullName == "ECommerce.Shared.Infrastructure.DeadLetter.AzureServiceBusDeadLetterPublisher");
         Assert.DoesNotContain(builder.Services, descriptor =>
-            descriptor.ImplementationType?.FullName == "ECommerce.Shared.Infrastructure.DeadLetter.DeadLetterHostedService");
+            descriptor.ImplementationType?.FullName == "ECommerce.Shared.Infrastructure.DeadLetter.RabbitMqDeadLetterCapture");
         Assert.DoesNotContain(builder.Services, descriptor =>
             descriptor.ImplementationType?.FullName == "ECommerce.Shared.Infrastructure.DeadLetter.RabbitMqDeadLetterPublisher");
 

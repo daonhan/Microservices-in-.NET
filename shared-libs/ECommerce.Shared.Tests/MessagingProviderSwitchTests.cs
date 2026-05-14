@@ -94,7 +94,7 @@ public sealed class MessagingProviderSwitchTests
             && descriptor.ImplementationType == typeof(RabbitMqDeadLetterPublisher));
         Assert.DoesNotContain(services, descriptor =>
             descriptor.ServiceType == typeof(IHostedService)
-            && descriptor.ImplementationType == typeof(DeadLetterHostedService));
+            && descriptor.ImplementationType == typeof(RabbitMqDeadLetterCapture));
     }
 
     [Theory]
@@ -118,7 +118,7 @@ public sealed class MessagingProviderSwitchTests
 
         var capture = Assert.Single(services, descriptor =>
             descriptor.ServiceType == typeof(IDeadLetterCapture));
-        Assert.Equal(typeof(DeadLetterHostedService), capture.ImplementationType);
+        Assert.Equal(typeof(RabbitMqDeadLetterCapture), capture.ImplementationType);
     }
 
     [Fact]

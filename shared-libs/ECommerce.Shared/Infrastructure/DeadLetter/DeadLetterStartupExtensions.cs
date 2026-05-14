@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace ECommerce.Shared.Infrastructure.DeadLetter;
 
@@ -22,9 +23,17 @@ public static class DeadLetterStartupExtensions
                     errorNumbersToAdd: [0])));
 
         services.AddScoped<IDeadLetterStore>(sp => sp.GetRequiredService<DeadLetterDbContext>());
-        services.AddProviderDeadLetterServices(MessagingProviderResolver.Resolve(configuration));
-        services.AddScoped<IDeadLetterReplayer, DeadLetterReplayer>();
-        services.AddScoped<IDeadLetterDiscarder, DeadLetterDiscarder>();
+        var provider = MessagingProviderResolver.Resolve(configuration);
+        services.AddProviderDeadLetterServices(provider);
+        services.AddScoped<IDeadLetterReplayer>(sp => new DeadLetterReplayer(
+            sp.GetRequiredService<IDeadLetterStore>(),
+            sp.GetRequiredService<IDeadLetterPublisher>(),
+            sp.GetRequiredService<ILogger<DeadLetterReplayer>>(),
+            provider));
+        services.AddScoped<IDeadLetterDiscarder>(sp => new DeadLetterDiscarder(
+            sp.GetRequiredService<IDeadLetterStore>(),
+            sp.GetRequiredService<ILogger<DeadLetterDiscarder>>(),
+            provider));
 
         return services;
     }
@@ -35,7 +44,7 @@ public static class DeadLetterStartupExtensions
         {
             case MessagingOptions.RabbitMqProvider:
                 services.AddSingleton<IDeadLetterPublisher, RabbitMqDeadLetterPublisher>();
-                services.AddDeadLetterCapture<DeadLetterHostedService>();
+                services.AddDeadLetterCapture<RabbitMqDeadLetterCapture>();
                 break;
             case MessagingOptions.AzureServiceBusProvider:
                 services.AddSingleton<IDeadLetterPublisher, AzureServiceBusDeadLetterPublisher>();

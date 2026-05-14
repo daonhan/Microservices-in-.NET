@@ -2,6 +2,7 @@ using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Text;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
+using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,7 +12,7 @@ using RabbitMQ.Client.Events;
 
 namespace ECommerce.Shared.Infrastructure.DeadLetter;
 
-public sealed partial class DeadLetterHostedService : IDeadLetterCapture
+public sealed partial class RabbitMqDeadLetterCapture : IDeadLetterCapture
 {
     [LoggerMessage(EventId = 1, Level = LogLevel.Error,
         Message = "Failed to capture dead-letter message; requeueing.")]
@@ -22,13 +23,13 @@ public sealed partial class DeadLetterHostedService : IDeadLetterCapture
 
     private static readonly Counter<long> CapturedCounter = DeadLetterMetrics.Meter.CreateCounter<long>(
         "dlq_messages_total",
-        description: "Number of messages captured into the dead-letter store");
+        description: "Number of messages captured into the dead-letter store, tagged with provider, service, and event type.");
 
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<DeadLetterHostedService> _logger;
+    private readonly ILogger<RabbitMqDeadLetterCapture> _logger;
     private IModel? _channel;
 
-    public DeadLetterHostedService(IServiceProvider serviceProvider, ILogger<DeadLetterHostedService> logger)
+    public RabbitMqDeadLetterCapture(IServiceProvider serviceProvider, ILogger<RabbitMqDeadLetterCapture> logger)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -89,6 +90,7 @@ public sealed partial class DeadLetterHostedService : IDeadLetterCapture
             store.CaptureAsync(message).GetAwaiter().GetResult();
 
             CapturedCounter.Add(1,
+                new KeyValuePair<string, object?>("provider", MessagingOptions.RabbitMqProvider),
                 new KeyValuePair<string, object?>("service", message.Service),
                 new KeyValuePair<string, object?>("event_type", message.EventType));
 
