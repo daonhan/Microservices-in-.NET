@@ -28,7 +28,7 @@ docker compose up sql rabbitmq redis -d                         # infra only
 
 Activate once: `dotnet tool restore && dotnet husky install`. Hook runs `dotnet format --verify-no-changes`, `dotnet build --no-restore`, then Basket tests only — **run other suites manually before pushing cross-service changes**.
 
-Known WSL/virtiofs issue: pre-commit may fail at `dotnet build --no-restore` with `MSB3248 No such device` due to root-owned `bin/obj`. Not a regression. Workaround from a writable host shell:
+Known WSL/virtiofs/Docker sandbox issue: pre-commit may fail at `dotnet build --no-restore` with `MSB3248 No such device` due to root-owned or sandbox-created `bin/obj`. Not a regression. Workaround from a writable host shell:
 
 ```bash
 find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
