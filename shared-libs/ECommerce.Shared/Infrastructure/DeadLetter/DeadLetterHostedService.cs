@@ -11,7 +11,7 @@ using RabbitMQ.Client.Events;
 
 namespace ECommerce.Shared.Infrastructure.DeadLetter;
 
-public sealed partial class DeadLetterHostedService : IHostedService
+public sealed partial class DeadLetterHostedService : IDeadLetterCapture
 {
     [LoggerMessage(EventId = 1, Level = LogLevel.Error,
         Message = "Failed to capture dead-letter message; requeueing.")]

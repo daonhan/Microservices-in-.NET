@@ -17,7 +17,7 @@ public static class MessagingStartupExtensions
 {
     public static IServiceCollection AddPlatformEventBus(this IServiceCollection services, IConfigurationManager configuration)
     {
-        var provider = ResolveProvider(configuration);
+        var provider = MessagingProviderResolver.Resolve(configuration);
         services.AddMessagingProviderLog(provider);
 
         return provider switch
@@ -30,7 +30,7 @@ public static class MessagingStartupExtensions
 
     public static IServiceCollection AddPlatformEventPublisher(this IServiceCollection services, IConfigurationManager configuration)
     {
-        var provider = ResolveProvider(configuration);
+        var provider = MessagingProviderResolver.Resolve(configuration);
         services.AddMessagingProviderLog(provider);
 
         return provider switch
@@ -43,7 +43,7 @@ public static class MessagingStartupExtensions
 
     public static IServiceCollection AddPlatformSubscriberService(this IServiceCollection services, IConfigurationManager configuration)
     {
-        var provider = ResolveProvider(configuration);
+        var provider = MessagingProviderResolver.Resolve(configuration);
         services.AddMessagingProviderLog(provider);
 
         return provider switch
@@ -52,28 +52,6 @@ public static class MessagingStartupExtensions
             MessagingOptions.AzureServiceBusProvider => services.AddAzureServiceBusSubscriberService(configuration),
             _ => throw new InvalidOperationException($"Unhandled messaging provider '{provider}'."),
         };
-    }
-
-    private static string ResolveProvider(IConfiguration configuration)
-    {
-        var provider = configuration[$"{MessagingOptions.MessagingSectionName}:Provider"];
-        if (string.IsNullOrWhiteSpace(provider))
-        {
-            return MessagingOptions.RabbitMqProvider;
-        }
-
-        if (string.Equals(provider, MessagingOptions.RabbitMqProvider, StringComparison.OrdinalIgnoreCase))
-        {
-            return MessagingOptions.RabbitMqProvider;
-        }
-
-        if (string.Equals(provider, MessagingOptions.AzureServiceBusProvider, StringComparison.OrdinalIgnoreCase))
-        {
-            return MessagingOptions.AzureServiceBusProvider;
-        }
-
-        throw new InvalidOperationException(
-            $"Unknown messaging provider '{provider}'. Valid values: {MessagingOptions.RabbitMqProvider}, {MessagingOptions.AzureServiceBusProvider}.");
     }
 
     private static void AddMessagingProviderLog(this IServiceCollection services, string provider)
