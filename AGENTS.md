@@ -35,6 +35,8 @@ find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
 dotnet restore && dotnet husky run --group pre-commit
 ```
 
+Sandbox validation note: `dotnet format --verify-no-changes` and shared-library `dotnet build` can pass clean in Docker sandbox while `ECommerce.Shared.Tests` still fails with `MSB3248 No such device` when reading the freshly built shared DLL. If a sandbox-only automation already used `--no-verify` because of this issue, record the passing commands and require a host workflow to rerun the skipped hook/tests before push or merge.
+
 If cleanup is blocked, commit from a host where hooks pass. **Do not bypass hooks.**
 
 ## Shared library (`ECommerce.Shared`)
