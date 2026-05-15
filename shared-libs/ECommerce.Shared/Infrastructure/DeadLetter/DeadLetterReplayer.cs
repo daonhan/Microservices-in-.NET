@@ -1,4 +1,5 @@
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
+using ECommerce.Shared.Infrastructure.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace ECommerce.Shared.Infrastructure.DeadLetter;
@@ -20,15 +21,26 @@ public sealed partial class DeadLetterReplayer : IDeadLetterReplayer
     private readonly IDeadLetterStore _store;
     private readonly IDeadLetterPublisher _publisher;
     private readonly ILogger<DeadLetterReplayer> _logger;
+    private readonly string _provider;
 
     public DeadLetterReplayer(
         IDeadLetterStore store,
         IDeadLetterPublisher publisher,
         ILogger<DeadLetterReplayer> logger)
+        : this(store, publisher, logger, MessagingOptions.RabbitMqProvider)
+    {
+    }
+
+    internal DeadLetterReplayer(
+        IDeadLetterStore store,
+        IDeadLetterPublisher publisher,
+        ILogger<DeadLetterReplayer> logger,
+        string provider)
     {
         _store = store;
         _publisher = publisher;
         _logger = logger;
+        _provider = provider;
     }
 
     public async Task<DeadLetterReplayResult> ReplayAsync(Guid failureId, string replayedBy, CancellationToken cancellationToken = default)
@@ -104,9 +116,10 @@ public sealed partial class DeadLetterReplayer : IDeadLetterReplayer
         return new DeadLetterReplayResult(DeadLetterReplayOutcome.Success, newMessageId, null, message);
     }
 
-    private static void RecordOutcome(DeadLetterMessage message, string outcome)
+    private void RecordOutcome(DeadLetterMessage message, string outcome)
     {
         DeadLetterMetrics.Replays.Add(1,
+            new KeyValuePair<string, object?>("provider", _provider),
             new KeyValuePair<string, object?>("service", message.Service),
             new KeyValuePair<string, object?>("event_type", message.EventType),
             new KeyValuePair<string, object?>("outcome", outcome));

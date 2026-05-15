@@ -3,7 +3,7 @@ using ApiGateway.Operator.OutboxPolling;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
-using ECommerce.Shared.Infrastructure.RabbitMq;
+using ECommerce.Shared.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ApiGateway.Operator;
@@ -14,7 +14,7 @@ public static class OperatorModule
 
     public static void AddServices(WebApplicationBuilder builder)
     {
-        builder.Services.AddRabbitMqEventBus(builder.Configuration);
+        builder.Services.AddPlatformEventBus(builder.Configuration);
         builder.Services.AddDeadLetter(builder.Configuration);
         builder.Services.AddRequireOperatorPolicy();
 

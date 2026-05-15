@@ -1,5 +1,7 @@
+using System.Diagnostics.Metrics;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
+using ECommerce.Shared.Infrastructure.Messaging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 
@@ -22,11 +24,12 @@ public sealed class DeadLetterReplayerTests
         CorrelationId = Guid.NewGuid()
     };
 
-    private static (DeadLetterReplayer replayer, IDeadLetterStore store, IDeadLetterPublisher publisher) Build()
+    private static (DeadLetterReplayer replayer, IDeadLetterStore store, IDeadLetterPublisher publisher) Build(
+        string provider = MessagingOptions.RabbitMqProvider)
     {
         var store = Substitute.For<IDeadLetterStore>();
         var publisher = Substitute.For<IDeadLetterPublisher>();
-        var replayer = new DeadLetterReplayer(store, publisher, NullLogger<DeadLetterReplayer>.Instance);
+        var replayer = new DeadLetterReplayer(store, publisher, NullLogger<DeadLetterReplayer>.Instance, provider);
         return (replayer, store, publisher);
     }
 
@@ -141,5 +144,69 @@ public sealed class DeadLetterReplayerTests
         Assert.Equal(msg.EventType, replayActivity.GetTagItem("dlq.event_type"));
         Assert.Equal(msg.OriginalQueue, replayActivity.GetTagItem("dlq.original_queue"));
         Assert.Equal("success", replayActivity.GetTagItem("dlq.outcome"));
+    }
+
+    [Theory]
+    [InlineData(MessagingOptions.RabbitMqProvider)]
+    [InlineData(MessagingOptions.AzureServiceBusProvider)]
+    public async Task Given_pending_message_When_ReplayAsync_Then_dlq_replays_total_is_tagged_with_selected_provider(
+        string provider)
+    {
+        var (replayer, store, publisher) = Build(provider);
+        var msg = NewPending();
+        store.GetAsync(msg.Id, Arg.Any<CancellationToken>()).Returns(msg);
+        store.MarkReplayedAsync(msg.Id, Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
+        publisher.Publish(Arg.Any<DeadLetterReplayRequest>()).Returns(Guid.NewGuid());
+
+        var capturedTags = new List<KeyValuePair<string, object?>>();
+        var metricEmitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == DeadLetterMetrics.MeterName
+                && instrument.Name == "dlq_replays_total")
+            {
+                listener.EnableMeasurementEvents(instrument);
+            }
+        };
+        meterListener.SetMeasurementEventCallback<long>((_, _, tags, _) =>
+        {
+            var matchedProvider = false;
+            lock (capturedTags)
+            {
+                foreach (var tag in tags)
+                {
+                    capturedTags.Add(new KeyValuePair<string, object?>(tag.Key, tag.Value));
+                    if (tag.Key == "provider" && (string?)tag.Value == provider)
+                    {
+                        matchedProvider = true;
+                    }
+                }
+            }
+
+            if (matchedProvider)
+            {
+                metricEmitted.TrySetResult();
+            }
+        });
+        meterListener.Start();
+
+        var result = await replayer.ReplayAsync(msg.Id, "alice");
+        var metricSeen = await Task.WhenAny(metricEmitted.Task, Task.Delay(TimeSpan.FromSeconds(3)))
+            == metricEmitted.Task;
+
+        Assert.Equal(DeadLetterReplayOutcome.Success, result.Outcome);
+        Assert.True(metricSeen, $"dlq_replays_total was not tagged with provider={provider}.");
+
+        KeyValuePair<string, object?>[] snapshot;
+        lock (capturedTags)
+        {
+            snapshot = capturedTags.ToArray();
+        }
+
+        Assert.Contains(snapshot, t => t.Key == "provider" && (string?)t.Value == provider);
+        Assert.Contains(snapshot, t => t.Key == "service" && (string?)t.Value == msg.Service);
+        Assert.Contains(snapshot, t => t.Key == "event_type" && (string?)t.Value == msg.EventType);
+        Assert.Contains(snapshot, t => t.Key == "outcome" && (string?)t.Value == "success");
     }
 }
