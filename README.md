@@ -184,20 +184,20 @@ The UI is gated to Development and Staging environments. Production gateway bina
 
 `shared-libs/ECommerce.Shared` is distributed as a local NuGet package and provides:
 
-- **RabbitMQ** — `IEventBus` publisher, `RabbitMqHostedService` subscriber, keyed DI event handler registration; manual ack with retry + dead-letter on poison messages (DLX → `ecommerce-dlq`)
+- **Platform messaging** — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; both share `IEventBus`, keyed DI event handler registration, retry, dead-letter capture, and replay through the gateway operator API
 - **Transactional Outbox** — `OutboxBackgroundService` polls for unpublished events, preventing data/event inconsistency; tracks publish failures and stops retrying after `MaxAttempts`, and exposes `/internal/outbox/failed` (gated by `RequireService`) for the gateway DLQ poller
 - **JWT Authentication** — `AddJwtAuthentication()` shared across all secured services; validates RS256 user tokens via Auth's `/jwks` and supports the `RequireService` policy for service-to-service calls
-- **Observability** — `AddPlatformObservability()` wires OpenTelemetry traces (OTLP → Jaeger), metrics (Prometheus scrape), and logs (OTLP → Loki), plus `MetricFactory` for custom counters/histograms, RabbitMQ span context propagation, and the DLQ `ActivitySource` / `Meter` (including `dlq_messages_total`, `dlq_replays_total`, `dlq_discards_total`)
+- **Observability** — `AddPlatformObservability()` wires OpenTelemetry traces (OTLP → Jaeger), metrics (Prometheus scrape), and logs (OTLP → Loki), plus `MetricFactory` for custom counters/histograms, broker span context propagation, and the DLQ `ActivitySource` / `Meter` (including `dlq_messages_total`, `dlq_replays_total`, `dlq_discards_total` tagged by provider)
 - **Health Checks** — `AddPlatformHealthChecks()` with SQL Server / RabbitMQ / Redis probes, exposed via `MapPlatformHealthChecks()`
 
-Current published version: **`ECommerce.Shared` 2.8.0** (see `shared-libs/ECommerce.Shared/ECommerce.Shared.csproj`).
+Current published version: **`ECommerce.Shared` 2.14.0** (see `shared-libs/ECommerce.Shared/ECommerce.Shared.csproj`).
 
 ### Build and Publish
 
 ```bash
 cd shared-libs/ECommerce.Shared
 dotnet pack -c Release
-dotnet nuget push bin/Release/*.nupkg -s ../local-nuget-packages
+dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
 ```
 
 ## Key Patterns
@@ -205,10 +205,10 @@ dotnet nuget push bin/Release/*.nupkg -s ../local-nuget-packages
 | Pattern | Implementation |
 |---------|---------------|
 | **Per-service datastore** | Each service owns its data — no shared databases |
-| **Event-driven communication** | RabbitMQ fanout exchange for async cross-service events |
+| **Event-driven communication** | Provider-aware async cross-service events over RabbitMQ or Azure Service Bus |
 | **Transactional Outbox** | DB write + outbox record in single transaction; background service publishes |
 | **Saga coordination** | Order ↔ Inventory ↔ Payment ↔ Shipping coordinate via integration events; no orchestrator |
-| **Dead-Letter Queue + replay** | Failed messages flow to `ecommerce-dlq`; gateway poller persists them in `dead_letter_messages`; operator API allows replay/discard (single + batch) |
+| **Dead-Letter Queue + replay** | Failed broker messages and failed outbox rows are persisted in `dead_letter_messages`; the provider-agnostic gateway operator API allows replay/discard (single + batch) |
 | **API Gateway** | YARP reverse proxy centralizes routing, JWT validation, and role-based access (Ocelot implementation retained as runtime-switchable fallback) |
 | **Service auth** | Auth issues RS256 user tokens (`/login`) and service tokens (`/token`, `client_credentials`); consumers validate via `/jwks` and the shared `RequireService` policy |
 | **DTOs** | `ApiModels/` for API contracts, `Models/` for internal domain entities |
@@ -268,7 +268,7 @@ See [docs/wiki/API-Reference.md](docs/wiki/API-Reference.md) for the complete en
 
 ## Dead-Letter Queue (DLQ) and Operator API
 
-Messages that exhaust their retry budget on a consumer queue are dead-lettered to the platform-wide `ecommerce-dlq` exchange. A poller in the API Gateway persists them — plus failed outbox rows pulled from each service's `/internal/outbox/failed` endpoint — into a `dead_letter_messages` table. Operators interact with failures through gateway-hosted endpoints under `/operator/api/failures` (Bearer + `Operator` claim required):
+Messages that exhaust their retry budget on a consumer queue are dead-lettered by the configured broker: RabbitMQ uses the platform DLQ queue, while Azure Service Bus uses each configured subscription's dead-letter subqueue. The API Gateway persists those broker failures — plus failed outbox rows pulled from each service's `/internal/outbox/failed` endpoint — into the same `dead_letter_messages` table. Operators interact with failures through gateway-hosted endpoints under `/operator/api/failures` (Bearer + `Operator` claim required):
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -278,9 +278,11 @@ Messages that exhaust their retry budget on a consumer queue are dead-lettered t
 | `POST` | `/operator/api/failures/{id}/discard` | Mark a failure `Discarded` (body: `{ reason }`, required) |
 | `POST` | `/operator/api/failures/replay-batch` | Replay many failures in one call (body: `{ ids: [...] }`) |
 
-Observability: `dlq_messages_total`, `dlq_replays_total`, and `dlq_discards_total` Prometheus counters (tagged with `service`, `event_type`, and `outcome`); `dlq.replay` spans are emitted with the original event's `CorrelationId` for end-to-end trace linking.
+The operator routes and stored failure shape are unchanged across providers. For ASB, the gateway captures the subscriber DLQs named by service `EventBus:QueueName`: `basket-microservice`, `order-microservice`, `inventory-microservice`, `payment-microservice`, and `shipping-microservice`. If the local ASB emulator or one subscription is unavailable, the gateway logs the unavailable capture processor and keeps the operator endpoints alive.
 
-Details: [docs/plans/dlq-replay-ui.md](docs/plans/dlq-replay-ui.md), [docs/prd/PRD-DLQ-Replay-UI.md](docs/prd/PRD-DLQ-Replay-UI.md).
+Observability: `dlq_messages_total`, `dlq_replays_total`, and `dlq_discards_total` Prometheus counters (tagged with `provider`, `service`, `event_type`, and `outcome` where applicable); `dlq.replay` spans are emitted with the original event's `CorrelationId` for end-to-end trace linking.
+
+Details: [docs/runbooks/provider-agnostic-dlq.md](docs/runbooks/provider-agnostic-dlq.md), [docs/plans/dlq-replay-ui.md](docs/plans/dlq-replay-ui.md), [docs/prd/PRD-DLQ-Replay-UI.md](docs/prd/PRD-DLQ-Replay-UI.md).
 
 ## Testing
 
@@ -372,12 +374,12 @@ Services discover each other via Kubernetes DNS (e.g., `rabbitmq-clusterip-servi
 | Category | Technologies |
 |----------|-------------|
 | Framework | .NET 10, ASP.NET Core Minimal APIs, C# 14 |
-| Messaging | RabbitMQ (fanout exchange, pub/sub) |
+| Messaging | RabbitMQ fanout exchange or Azure Service Bus topic/subscriptions via `Messaging:Provider` |
 | Data | EF Core (SQL Server), Redis (distributed cache) |
 | Testing | xUnit, NSubstitute, WebApplicationFactory |
 | Observability | OpenTelemetry (traces + metrics + logs via OTLP), OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki |
 | Health | `Microsoft.Extensions.Diagnostics.HealthChecks` via shared `AddPlatformHealthChecks` |
-| Resilience | Polly, EF Core retries, Outbox pattern with failure tracking, RabbitMQ DLX/DLQ + replay, saga-style order/inventory/payment/shipping coordination |
+| Resilience | Polly, EF Core retries, Outbox pattern with failure tracking, provider-agnostic DLQ capture/replay, saga-style order/inventory/payment/shipping coordination |
 | Security | RS256 JWTs (`/jwks` discovery), `client_credentials` service tokens, `RequireService` policy, YARP API Gateway (Ocelot fallback), role-based auth |
 | Tooling | Husky.Net pre-commit hooks (`dotnet format` + build + Basket tests) |
 | Deployment | Docker, Docker Compose, Kubernetes |

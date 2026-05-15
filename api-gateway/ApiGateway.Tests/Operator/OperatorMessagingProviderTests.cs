@@ -8,6 +8,28 @@ namespace ApiGateway.Tests.Operator;
 public sealed class OperatorMessagingProviderTests
 {
     [Fact]
+    public void Given_gateway_appsettings_When_ASB_dead_letter_capture_is_configured_Then_subscriber_queue_names_are_declared()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile(GatewayAppSettingsPath)
+            .Build();
+
+        var subscriptions = configuration
+            .GetSection("AzureServiceBus:DeadLetterCaptureSubscriptions")
+            .Get<string[]>() ?? [];
+
+        Assert.Equal(
+            [
+                "basket-microservice",
+                "order-microservice",
+                "inventory-microservice",
+                "payment-microservice",
+                "shipping-microservice"
+            ],
+            subscriptions);
+    }
+
+    [Fact]
     public void Given_AzureServiceBus_messaging_provider_When_operator_services_are_added_Then_Azure_bus_infrastructure_is_registered()
     {
         var builder = WebApplication.CreateBuilder();
@@ -55,4 +77,7 @@ public sealed class OperatorMessagingProviderTests
             ValidateOnBuild = true,
         });
     }
+
+    private static string GatewayAppSettingsPath =>
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "ApiGateway", "appsettings.json"));
 }

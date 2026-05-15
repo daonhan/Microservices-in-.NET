@@ -1,6 +1,6 @@
 # Architecture
 
-The platform decomposes an e-commerce domain into seven independently deployable services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on a RabbitMQ fanout exchange.
+The platform decomposes an e-commerce domain into seven independently deployable services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on the provider-selected broker. RabbitMQ is the default local provider; Azure Service Bus uses the same event and operator contracts when `Messaging:Provider=AzureServiceBus`.
 
 ## High-level topology
 
@@ -23,16 +23,16 @@ graph TD
     Shipping --- SQLShipping[(SQL · Shipping)]
     Payment --- SQLPayment[(SQL · Payment)]
 
-    Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>ecommerce-exchange"}}
-    Product -- publishes --> RabbitMQ
-    Inventory -- publishes --> RabbitMQ
-    Shipping -- publishes --> RabbitMQ
-    Payment -- publishes --> RabbitMQ
-    RabbitMQ -- subscribes --> Basket
-    RabbitMQ -- subscribes --> Order
-    RabbitMQ -- subscribes --> Inventory
-    RabbitMQ -- subscribes --> Shipping
-    RabbitMQ -- subscribes --> Payment
+    Order -- publishes --> Broker{{"Broker<br/>RabbitMQ exchange<br/>or ASB topic"}}
+    Product -- publishes --> Broker
+    Inventory -- publishes --> Broker
+    Shipping -- publishes --> Broker
+    Payment -- publishes --> Broker
+    Broker -- subscribes --> Basket
+    Broker -- subscribes --> Order
+    Broker -- subscribes --> Inventory
+    Broker -- subscribes --> Shipping
+    Broker -- subscribes --> Payment
 ```
 
 ## Core design rules
@@ -56,7 +56,7 @@ Order, Inventory, Payment, and Shipping coordinate via a choreographed saga. Eac
 sequenceDiagram
     participant Client
     participant Order
-    participant Bus as RabbitMQ
+    participant Bus as Broker
     participant Inventory
     participant Payment
     participant Shipping

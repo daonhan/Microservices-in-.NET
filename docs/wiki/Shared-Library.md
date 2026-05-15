@@ -47,6 +47,8 @@ graph LR
 | `IEventBus` | Publish an `Event` to the fanout exchange |
 | `IEventHandler<TEvent>` | Subscriber contract; implementations are keyed-DI-registered |
 | `IRabbitMqConnection` | RabbitMQ adapter connection used when `Messaging:Provider=RabbitMq` |
+| `IDeadLetterCapture` | Provider-selected broker dead-letter capture hosted by the gateway |
+| `IDeadLetterPublisher` | Provider-selected replay publisher used by the gateway operator API |
 | `IOutboxStore` | Atomic "persist + enqueue event" primitive |
 | `MetricFactory` | Cached creation of Counters and Histograms |
 
@@ -89,7 +91,9 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>();
 ```
 
-Omit the publisher extension for subscriber-only services and omit the subscriber extension for publisher-only services. RabbitMQ-specific readiness probes can stay on services that need RabbitMQ local health checks. Gateway DLQ capture/replay is still RabbitMQ-specific until the provider-agnostic DLQ work in `PRD-Messaging-DLQ-Provider-Abstraction.md`.
+Omit the publisher extension for subscriber-only services and omit the subscriber extension for publisher-only services. RabbitMQ-specific readiness probes can stay on services that need RabbitMQ local health checks.
+
+Gateway DLQ capture and replay are provider-selected through the same `Messaging:Provider` value. RabbitMQ captures from the shared DLQ queue; Azure Service Bus captures from configured subscription dead-letter subqueues. The operator routes and `dead_letter_messages` schema stay unchanged. Details: [Provider-Agnostic DLQ Capture and Replay](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/runbooks/provider-agnostic-dlq.md).
 
 See [Observability](Observability) for the full pipeline.
 
@@ -98,7 +102,7 @@ See [Observability](Observability) for the full pipeline.
 ```bash
 cd shared-libs/ECommerce.Shared
 dotnet pack -c Release
-dotnet nuget push bin/Release/*.nupkg -s ../local-nuget-packages
+dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
 ```
 
 Services consume it via `nuget.config` in each microservice folder, pointing at `../local-nuget-packages`.

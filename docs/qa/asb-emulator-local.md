@@ -85,6 +85,22 @@ Remove-Item Env:ASB_EMULATOR_CONNECTION_STRING -ErrorAction SilentlyContinue
 Remove-Item Env:ASB_EMULATOR_ADMINISTRATION_CONNECTION_STRING -ErrorAction SilentlyContinue
 ```
 
+## Verify Provider-Agnostic DLQ
+
+Gateway ASB DLQ capture uses the same emulator connection strings plus the configured subscription list from `api-gateway/ApiGateway/appsettings.json`:
+
+| Subscription | Source service config |
+|---|---|
+| `basket-microservice` | `Basket.Service` `EventBus:QueueName` |
+| `order-microservice` | `Order.Service` `EventBus:QueueName` |
+| `inventory-microservice` | `Inventory.Service` `EventBus:QueueName` |
+| `payment-microservice` | `Payment.Service` `EventBus:QueueName` |
+| `shipping-microservice` | `Shipping.Service` `EventBus:QueueName` |
+
+The gateway operator endpoints and `dead_letter_messages` table do not change between RabbitMQ and ASB. Replay and discard still go through `/operator/api/failures*`; only the capture/replay publisher behind `IDeadLetterCapture` and `IDeadLetterPublisher` changes with `Messaging__Provider`.
+
+If the emulator or one configured subscription is unavailable, the ASB capture processor logs a warning and the gateway keeps running. If persisting a received dead-letter message fails, the message is abandoned so the broker can redeliver it.
+
 ## Real Azure Namespaces
 
 Real Azure topology remains Bicep-owned. With `AzureServiceBus__AutoProvisionTopology=Auto`, non-emulator connection strings are detected as cloud namespaces and topology provisioning is skipped. Production, staging, and shared dev namespaces should get topics and subscriptions from the infrastructure deployment rather than application startup.
