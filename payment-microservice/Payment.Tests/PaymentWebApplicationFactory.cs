@@ -1,4 +1,5 @@
 using ECommerce.Shared.Infrastructure.Outbox;
+using ECommerce.Shared.Infrastructure.RabbitMq;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -33,21 +34,24 @@ public class PaymentWebApplicationFactory : WebApplicationFactory<Program>, IAsy
     {
         builder.ConfigureTestServices(services =>
         {
-            DisableOutboxBackgroundService(services);
+            RemoveHostedService<OutboxBackgroundService>(services);
+            RemoveHostedService<RabbitMqHostedService>(services);
             ApplyMigrations(services);
             ConfigureTestAuthentication(services);
         });
     }
 
-    private static void DisableOutboxBackgroundService(IServiceCollection services)
+    private static void RemoveHostedService<THostedService>(IServiceCollection services)
+        where THostedService : IHostedService
     {
-        // Tests assert against the Outbox state directly. The poller racing
-        // with the assertion would mark events Sent and exclude them from
-        // GetUnpublishedOutboxEvents, masking real failures.
-        var hosted = services
-            .Where(d => d.ImplementationType == typeof(OutboxBackgroundService))
-            .ToList();
-        foreach (var descriptor in hosted)
+        // Some tests assert against the Outbox state directly. The poller
+        // racing with assertions can mark events Sent and mask real failures.
+        var descriptors = services
+            .Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && descriptor.ImplementationType == typeof(THostedService))
+            .ToArray();
+
+        foreach (var descriptor in descriptors)
         {
             services.Remove(descriptor);
         }

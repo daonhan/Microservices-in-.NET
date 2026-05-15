@@ -51,6 +51,14 @@ Both providers share:
 
 Clients and ops tooling are unaffected by the YARP↔Ocelot switch.
 
+## Operator DLQ API
+
+The gateway owns the provider-agnostic failure surface under `/operator/api/failures*`. Broker dead letters and failed outbox rows are persisted in `dead_letter_messages`; the list, detail, replay, batch replay, and discard routes are unchanged across RabbitMQ and Azure Service Bus.
+
+For RabbitMQ, capture reads the shared DLQ queue. For Azure Service Bus, capture reads the dead-letter subqueues for the configured subscriber subscriptions: `basket-microservice`, `order-microservice`, `inventory-microservice`, `payment-microservice`, and `shipping-microservice`. These names match the services' `EventBus:QueueName` values. Product is publisher-only for this topology, and Auth does not own a broker subscription.
+
+When the ASB emulator or a configured subscription is unavailable, the capture processor logs the unavailable subscription and the gateway keeps the operator endpoints alive. See [Provider-Agnostic DLQ Capture and Replay](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/runbooks/provider-agnostic-dlq.md).
+
 ## Combined Swagger UI
 
 In Development and Staging the gateway exposes a single Swagger UI that aggregates every service behind a dropdown:

@@ -1,7 +1,7 @@
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;
+using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
@@ -14,8 +14,8 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 
 builder.Services.AddOutbox(builder.Configuration);
 
-builder.Services.AddRabbitMqEventBus(builder.Configuration)
-    .AddRabbitMqEventPublisher(builder.Configuration);
+builder.Services.AddPlatformEventBus(builder.Configuration)
+    .AddPlatformEventPublisher(builder.Configuration);
 
 builder.AddPlatformObservability("Product",
     customTracing: t => t.WithSqlInstrumentation());

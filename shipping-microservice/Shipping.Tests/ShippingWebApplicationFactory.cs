@@ -1,3 +1,4 @@
+using ECommerce.Shared.Infrastructure.RabbitMq;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -32,9 +33,24 @@ public class ShippingWebApplicationFactory : WebApplicationFactory<Program>, IAs
     {
         builder.ConfigureTestServices(services =>
         {
+            RemoveHostedService<RabbitMqHostedService>(services);
             ApplyMigrations(services);
             ConfigureTestAuthentication(services);
         });
+    }
+
+    private static void RemoveHostedService<THostedService>(IServiceCollection services)
+        where THostedService : IHostedService
+    {
+        var descriptors = services
+            .Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && descriptor.ImplementationType == typeof(THostedService))
+            .ToArray();
+
+        foreach (var descriptor in descriptors)
+        {
+            services.Remove(descriptor);
+        }
     }
 
     private void ApplyMigrations(IServiceCollection services)

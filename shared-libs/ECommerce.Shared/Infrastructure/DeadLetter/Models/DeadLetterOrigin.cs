@@ -6,7 +6,7 @@ namespace ECommerce.Shared.Infrastructure.DeadLetter.Models;
 /// </summary>
 public enum DeadLetterOrigin
 {
-    /// <summary>RabbitMQ DLX captures from <c>DeadLetterHostedService</c>.</summary>
+    /// <summary>RabbitMQ DLX captures from <c>RabbitMqDeadLetterCapture</c>.</summary>
     DeadLetter = 0,
 
     /// <summary>Outbox publish failures pulled from per-service <c>/internal/outbox/failed</c>.</summary>

@@ -24,3 +24,17 @@ body:json {
     "quantity": 1
   }
 }
+
+tests {
+  test("reserves low-stock inventory for the manual order", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.orderId).to.equal("00000000-0000-0000-0000-000090040001");
+    expect(res.body.lines).to.be.an("array").and.have.lengthOf(1);
+
+    const line = res.body.lines[0];
+    expect(line.productId).to.equal(Number(bru.getEnvVar("productLowStockId")));
+    expect(line.warehouseId).to.be.a("number");
+    expect(line.quantity).to.equal(1);
+  });
+}

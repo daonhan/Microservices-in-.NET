@@ -20,7 +20,7 @@ public class ObservabilityTests : IntegrationTestBase
     public async Task Restock_IncrementsStockMovementsCounter_TaggedByMovementType()
     {
         // Arrange
-        const int productId = 9001;
+        const int productId = 9901;
         InventoryContext.StockItems.Add(new StockItem
         {
             ProductId = productId,

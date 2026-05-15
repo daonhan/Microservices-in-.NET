@@ -33,3 +33,17 @@ body:json {
     "overrideQuote": null
   }
 }
+
+tests {
+  test("dispatches the shipment", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.shipmentId).to.equal((bru.getVar("shipmentId") || bru.getEnvVar("shipmentId")));
+    expect(res.body.status).to.equal("Shipped");
+    expect(res.body.carrierKey).to.equal("fake-ground");
+    expect(res.body.trackingNumber).to.be.a("string").and.not.be.empty;
+    expect(res.body.labelRef).to.be.a("string").and.not.be.empty;
+    expect(res.body.quotedPriceAmount).to.be.a("number");
+    expect(res.body.quotedPriceCurrency).to.equal("USD");
+  });
+}

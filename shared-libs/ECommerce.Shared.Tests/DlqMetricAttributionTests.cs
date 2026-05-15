@@ -2,6 +2,7 @@ using System.Diagnostics.Metrics;
 using System.Text;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
+using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -31,12 +32,12 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Given_dead_lettered_message_with_service_header_When_capturer_consumes_Then_dlq_messages_total_is_tagged_with_service_and_event_type()
+    public async Task Given_dead_lettered_message_with_service_header_When_capturer_consumes_Then_dlq_messages_total_is_tagged_with_provider_service_and_event_type()
     {
         // AC #7 of issue #41: per-service dlq_messages_total rows with the correct `service` label.
         // RabbitMqHostedService stamps `x-service` from EventBusOptions.QueueName before BasicNack
-        // (RabbitMqHostedService.cs:199). DeadLetterHostedService reads that header into
-        // DeadLetterMessage.Service and tags the counter (DeadLetterHostedService.cs:91-93).
+        // (RabbitMqHostedService.cs:199). RabbitMqDeadLetterCapture reads that header into
+        // DeadLetterMessage.Service and tags the counter.
         // This test exercises the capture half end-to-end: publish a real DLQ message with the
         // headers RabbitMqHostedService would emit, then assert the metric tags match.
         const string serviceName = "basket-microservice";
@@ -47,7 +48,7 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == DeadLetterHostedService.MeterName
+            if (instrument.Meter.Name == RabbitMqDeadLetterCapture.MeterName
                 && instrument.Name == "dlq_messages_total")
             {
                 listener.EnableMeasurementEvents(instrument);
@@ -61,7 +62,7 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
                 foreach (var tag in tags)
                 {
                     capturedTags.Add(new KeyValuePair<string, object?>(tag.Key, tag.Value));
-                    if (tag.Key == "service" && (string?)tag.Value == serviceName)
+                    if (tag.Key == "provider" && (string?)tag.Value == MessagingOptions.RabbitMqProvider)
                     {
                         matchedThisCallback = true;
                     }
@@ -80,10 +81,10 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
         services.AddSingleton<IRabbitMqConnection>(new ExistingConnection(_connection!));
         var fakeStore = new RecordingDeadLetterStore();
         services.AddSingleton<IDeadLetterStore>(fakeStore);
-        services.AddSingleton<DeadLetterHostedService>();
+        services.AddSingleton<RabbitMqDeadLetterCapture>();
         await using var provider = services.BuildServiceProvider();
 
-        var capturer = provider.GetRequiredService<DeadLetterHostedService>();
+        var capturer = provider.GetRequiredService<RabbitMqDeadLetterCapture>();
         await capturer.StartAsync(CancellationToken.None);
 
         await WaitForQueueAsync(RabbitMqTopology.DeadLetterQueueName);
@@ -97,7 +98,7 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
         await capturer.StopAsync(CancellationToken.None);
 
         Assert.True(captured, "DLQ capture did not occur within timeout.");
-        Assert.True(metricSeen, "dlq_messages_total was not observed for the expected service.");
+        Assert.True(metricSeen, "dlq_messages_total was not tagged with provider=RabbitMq.");
 
         KeyValuePair<string, object?>[] snapshot;
         lock (capturedTags)
@@ -105,13 +106,114 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
             snapshot = capturedTags.ToArray();
         }
 
+        Assert.Contains(snapshot, t => t.Key == "provider" && (string?)t.Value == MessagingOptions.RabbitMqProvider);
         Assert.Contains(snapshot, t => t.Key == "service" && (string?)t.Value == serviceName);
         Assert.Contains(snapshot, t => t.Key == "event_type" && (string?)t.Value == eventType);
         Assert.Equal(serviceName, fakeStore.LastMessage?.Service);
         Assert.Equal(eventType, fakeStore.LastMessage?.EventType);
     }
 
-    private void PublishDeadLetter(string serviceName, string eventType, string payload)
+    [Fact]
+    public async Task Given_RabbitMq_dead_lettered_message_When_capturer_consumes_Then_store_receives_normalized_message_and_queue_is_acked()
+    {
+        const string serviceName = "order-microservice";
+        const string eventType = nameof(MetricTestEvent);
+        const string originalQueue = "order-subscription";
+        const string payload = """{"Payload":"captured"}""";
+        const string failureReason = "handler exhausted retry budget";
+        const string stackTrace = "System.InvalidOperationException: boom";
+        const int attempts = 4;
+        var failedAt = new DateTime(2026, 5, 14, 1, 2, 3, DateTimeKind.Utc);
+        var correlationId = Guid.NewGuid();
+
+        var services = new ServiceCollection();
+        services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
+        services.AddSingleton<IRabbitMqConnection>(new ExistingConnection(_connection!));
+        var fakeStore = new RecordingDeadLetterStore();
+        services.AddSingleton<IDeadLetterStore>(fakeStore);
+        services.AddSingleton<RabbitMqDeadLetterCapture>();
+        await using var provider = services.BuildServiceProvider();
+
+        var capturer = provider.GetRequiredService<RabbitMqDeadLetterCapture>();
+        await capturer.StartAsync(CancellationToken.None);
+
+        await WaitForQueueAsync(RabbitMqTopology.DeadLetterQueueName);
+
+        PublishDeadLetter(
+            serviceName,
+            eventType,
+            payload,
+            originalQueue,
+            failureReason,
+            stackTrace,
+            attempts,
+            failedAt,
+            correlationId);
+
+        var captured = await fakeStore.WaitForCaptureAsync(TimeSpan.FromSeconds(15));
+        var acked = await WaitForMessageCountAsync(RabbitMqTopology.DeadLetterQueueName, expectedCount: 0, TimeSpan.FromSeconds(5));
+
+        await capturer.StopAsync(CancellationToken.None);
+
+        Assert.True(captured, "DLQ capture did not occur within timeout.");
+        Assert.True(acked, "DLQ message was not acked after capture.");
+
+        var message = Assert.IsType<DeadLetterMessage>(fakeStore.LastMessage);
+        Assert.Equal(eventType, message.EventType);
+        Assert.Equal(eventType, message.RoutingKey);
+        Assert.Equal(originalQueue, message.OriginalQueue);
+        Assert.Equal(serviceName, message.Service);
+        Assert.Equal(payload, message.Payload);
+        Assert.Equal(failureReason, message.FailureReason);
+        Assert.Equal(stackTrace, message.StackTrace);
+        Assert.Equal(attempts, message.Attempts);
+        Assert.Equal(failedAt, message.FailedAt);
+        Assert.Equal(correlationId, message.CorrelationId);
+        Assert.Equal(DeadLetterOrigin.DeadLetter, message.Origin);
+    }
+
+    [Fact]
+    public async Task Given_store_capture_throws_When_capturer_consumes_Then_message_is_nacked_requeued_and_captured_again()
+    {
+        const string serviceName = "payment-microservice";
+        const string eventType = nameof(MetricTestEvent);
+
+        var services = new ServiceCollection();
+        services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
+        services.AddSingleton<IRabbitMqConnection>(new ExistingConnection(_connection!));
+        var fakeStore = new RecordingDeadLetterStore(failuresBeforeSuccess: 1);
+        services.AddSingleton<IDeadLetterStore>(fakeStore);
+        services.AddSingleton<RabbitMqDeadLetterCapture>();
+        await using var provider = services.BuildServiceProvider();
+
+        var capturer = provider.GetRequiredService<RabbitMqDeadLetterCapture>();
+        await capturer.StartAsync(CancellationToken.None);
+
+        await WaitForQueueAsync(RabbitMqTopology.DeadLetterQueueName);
+
+        PublishDeadLetter(serviceName, eventType, payload: """{"Payload":"retry-capture"}""");
+
+        var capturedAfterRetry = await fakeStore.WaitForCaptureAsync(TimeSpan.FromSeconds(15));
+        var acked = await WaitForMessageCountAsync(RabbitMqTopology.DeadLetterQueueName, expectedCount: 0, TimeSpan.FromSeconds(5));
+
+        await capturer.StopAsync(CancellationToken.None);
+
+        Assert.True(capturedAfterRetry, "DLQ capture did not succeed after the store failure.");
+        Assert.True(acked, "DLQ message was not acked after the retry capture succeeded.");
+        Assert.True(fakeStore.CaptureAttempts >= 2, $"Expected at least two capture attempts, saw {fakeStore.CaptureAttempts}.");
+        Assert.Equal(serviceName, fakeStore.LastMessage?.Service);
+    }
+
+    private void PublishDeadLetter(
+        string serviceName,
+        string eventType,
+        string payload,
+        string? originalQueue = null,
+        string failureReason = "test failure",
+        string? stackTrace = null,
+        int attempts = 2,
+        DateTime? failedAt = null,
+        Guid? correlationId = null)
     {
         using var channel = _connection!.CreateModel();
 
@@ -125,12 +227,27 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
         var props = channel.CreateBasicProperties();
         props.Headers = new Dictionary<string, object>
         {
-            [RabbitMqTopology.OriginalQueueHeader] = Encoding.UTF8.GetBytes(serviceName),
+            [RabbitMqTopology.OriginalQueueHeader] = Encoding.UTF8.GetBytes(originalQueue ?? serviceName),
             [RabbitMqTopology.EventTypeHeader] = Encoding.UTF8.GetBytes(eventType),
             [RabbitMqTopology.ServiceHeader] = Encoding.UTF8.GetBytes(serviceName),
-            [RabbitMqTopology.FailureReasonHeader] = Encoding.UTF8.GetBytes("test failure"),
-            [RabbitMqTopology.AttemptsHeader] = 2,
+            [RabbitMqTopology.FailureReasonHeader] = Encoding.UTF8.GetBytes(failureReason),
+            [RabbitMqTopology.AttemptsHeader] = attempts,
         };
+        if (stackTrace is not null)
+        {
+            props.Headers[RabbitMqTopology.StackTraceHeader] = Encoding.UTF8.GetBytes(stackTrace);
+        }
+
+        if (failedAt is not null)
+        {
+            props.Headers[RabbitMqTopology.FailedAtHeader] = Encoding.UTF8.GetBytes(failedAt.Value.ToString("O"));
+        }
+
+        if (correlationId is not null)
+        {
+            props.CorrelationId = correlationId.Value.ToString();
+            props.Headers[RabbitMqTopology.CorrelationIdHeader] = Encoding.UTF8.GetBytes(correlationId.Value.ToString());
+        }
 
         channel.BasicPublish(
             exchange: RabbitMqTopology.DeadLetterExchangeName,
@@ -161,6 +278,24 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
         throw new TimeoutException($"Queue {queueName} was not declared in time.");
     }
 
+    private async Task<bool> WaitForMessageCountAsync(string queueName, uint expectedCount, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            using var channel = _connection!.CreateModel();
+            var declareOk = channel.QueueDeclarePassive(queueName);
+            if (declareOk.MessageCount == expectedCount)
+            {
+                return true;
+            }
+
+            await Task.Delay(100);
+        }
+
+        return false;
+    }
+
     public sealed record MetricTestEvent
     {
         public string Payload { get; init; } = string.Empty;
@@ -176,11 +311,26 @@ public sealed class DlqMetricAttributionTests : IAsyncLifetime
     private sealed class RecordingDeadLetterStore : IDeadLetterStore
     {
         private readonly TaskCompletionSource _captured = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _remainingFailures;
+
+        public RecordingDeadLetterStore(int failuresBeforeSuccess = 0)
+        {
+            _remainingFailures = failuresBeforeSuccess;
+        }
 
         public DeadLetterMessage? LastMessage { get; private set; }
 
+        public int CaptureAttempts { get; private set; }
+
         public Task CaptureAsync(DeadLetterMessage message, CancellationToken cancellationToken = default)
         {
+            CaptureAttempts++;
+            if (_remainingFailures > 0)
+            {
+                _remainingFailures--;
+                throw new InvalidOperationException("store unavailable");
+            }
+
             LastMessage = message;
             _captured.TrySetResult();
             return Task.CompletedTask;

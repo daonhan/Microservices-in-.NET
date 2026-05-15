@@ -1,4 +1,5 @@
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
+using ECommerce.Shared.Infrastructure.Messaging;
 using Microsoft.Extensions.Logging;
 
 namespace ECommerce.Shared.Infrastructure.DeadLetter;
@@ -15,11 +16,21 @@ public sealed partial class DeadLetterDiscarder : IDeadLetterDiscarder
 
     private readonly IDeadLetterStore _store;
     private readonly ILogger<DeadLetterDiscarder> _logger;
+    private readonly string _provider;
 
     public DeadLetterDiscarder(IDeadLetterStore store, ILogger<DeadLetterDiscarder> logger)
+        : this(store, logger, MessagingOptions.RabbitMqProvider)
+    {
+    }
+
+    internal DeadLetterDiscarder(
+        IDeadLetterStore store,
+        ILogger<DeadLetterDiscarder> logger,
+        string provider)
     {
         _store = store;
         _logger = logger;
+        _provider = provider;
     }
 
     public async Task<DeadLetterDiscardResult> DiscardAsync(Guid failureId, string discardedBy, string discardReason, CancellationToken cancellationToken = default)
@@ -79,9 +90,10 @@ public sealed partial class DeadLetterDiscarder : IDeadLetterDiscarder
         return new DeadLetterDiscardResult(DeadLetterDiscardOutcome.Success, null, message);
     }
 
-    private static void RecordOutcome(DeadLetterMessage message, string outcome)
+    private void RecordOutcome(DeadLetterMessage message, string outcome)
     {
         DeadLetterMetrics.Discards.Add(1,
+            new KeyValuePair<string, object?>("provider", _provider),
             new KeyValuePair<string, object?>("service", message.Service),
             new KeyValuePair<string, object?>("event_type", message.EventType),
             new KeyValuePair<string, object?>("outcome", outcome));

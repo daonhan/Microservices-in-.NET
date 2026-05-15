@@ -1,142 +1,91 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Entry points
-
-- [README.md](README.md) — full architecture diagram, services table, deploy guide.
-- [CONTEXT.md](CONTEXT.md) — human-narrated project pitch, decisions index, ADR links.
-- [.claude/CLAUDE.md](.claude/CLAUDE.md) — behavioral guidelines (think first, simplicity, surgical changes).
+Guidance for Claude Code in this repo. See [README.md](README.md), [CONTEXT.md](CONTEXT.md), [.claude/CLAUDE.md](.claude/CLAUDE.md) (behavioral rules).
 
 ## Repo shape
 
-.NET microservices monorepo. Each top-level `*-microservice/` (and `api-gateway/`, `shared-libs/`) is an independent solution using a `.slnx` file (no root `.sln`). All projects target **net10.0**.
+.NET microservices monorepo, **net10.0**, no root solution. Each `*-microservice/`, `api-gateway/`, `shared-libs/` is its own `.slnx`.
 
-Services and ports (see `docker-compose.yaml`):
-
-| Service | Port | Datastore |
-|---|---|---|
-| basket | 8000 | Redis |
-| order | 8001 | SQL Server (+ Redis cache) |
-| product | 8002 | SQL Server |
-| auth | 8003 | SQL Server |
-| api-gateway | 8004 | — (YARP, Ocelot fallback via `Gateway:Provider`) |
-| inventory | 8005 | SQL Server |
-| shipping | 8006 | SQL Server |
-| payment | 8007 | SQL Server |
+Services (port, datastore): basket 8000 Redis · order 8001 SQL+Redis · product 8002 SQL · auth 8003 SQL · api-gateway 8004 — · inventory 8005 SQL · shipping 8006 SQL · payment 8007 SQL.
 
 ## Build / test / run
 
-Operate per-solution from the service directory — there is no root solution.
+Per-solution from the service directory.
 
 ```bash
-# Build a service (restore happens implicitly)
-cd order-microservice && dotnet build
-
-# Test a service
-cd order-microservice && dotnet test
-cd order-microservice && dotnet test --filter "FullyQualifiedName~OrderEndpointTests"   # single class
-cd order-microservice && dotnet test --filter "DisplayName~Given_X_When_Y_Then_Z"        # single test
-
-# Format check (mirrors pre-commit)
-dotnet format --verify-no-changes --verbosity minimal
-dotnet format                                                 # apply fixes
-
-# Full stack via Docker
-docker compose up --build
-docker compose up sql rabbitmq redis -d                       # infra only, then dotnet run a service
+cd <svc>-microservice && dotnet build
+cd <svc>-microservice && dotnet test
+dotnet test --filter "FullyQualifiedName~OrderEndpointTests"   # class
+dotnet test --filter "DisplayName~Given_X_When_Y_Then_Z"       # single
+dotnet format --verify-no-changes --verbosity minimal          # mirrors pre-commit
+docker compose up --build                                       # full stack
+docker compose up sql rabbitmq redis -d                         # infra only
 ```
 
-`Directory.Build.props` enables `TreatWarningsAsErrors` and `EnforceCodeStyleInBuild` — analyzer warnings break the build. The `NoWarn` list there documents intentional exemptions (e.g. `CA1707` for `Given_When_Then` test names, `CA1711` for `*EventHandler` types).
+`Directory.Build.props` sets `TreatWarningsAsErrors` + `EnforceCodeStyleInBuild`; its `NoWarn` list documents intentional exemptions.
 
 ## Pre-commit (Husky.Net)
 
-One-time activation per fresh clone:
+Activate once: `dotnet tool restore && dotnet husky install`. Hook runs `dotnet format --verify-no-changes`, `dotnet build --no-restore`, then Basket tests only — **run other suites manually before pushing cross-service changes**.
+
+Known WSL/virtiofs/Docker sandbox issue: pre-commit may fail at `dotnet build --no-restore` with `MSB3248 No such device` due to root-owned or sandbox-created `bin/obj`. Not a regression. Workaround from a writable host shell:
 
 ```bash
-dotnet tool restore
-dotnet husky install
-```
-
-`.husky/task-runner.json` runs on commit:
-1. `dotnet format --verify-no-changes`
-2. `dotnet build --no-restore`
-3. `dotnet test basket-microservice/Basket.Service.slnx --no-build --no-restore`
-
-Only Basket tests run pre-commit. Run other service test suites manually before pushing changes that cross service boundaries.
-
-Known environment issue (do not bypass hooks): in some WSL/virtiofs sandboxes, pre-commit can fail at `dotnet build --no-restore` with `MSB3248` (`No such device`) when test-project references are read from root-owned `bin/obj` artifacts. Treat this as filesystem ownership/mount behavior, not a branch regression.
-
-Workaround path:
-
-```bash
-# run from a writable host shell
 find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
-dotnet restore
-dotnet husky run --group pre-commit
+dotnet restore && dotnet husky run --group pre-commit
 ```
 
-If ownership restrictions prevent cleanup in the current sandbox, finish the commit on a host where hooks pass (Windows PowerShell from the checkout path, or a WSL-native checkout under `~/src`).
+Sandbox validation note: `dotnet format --verify-no-changes` and shared-library `dotnet build` can pass clean in Docker sandbox while `ECommerce.Shared.Tests` still fails with `MSB3248 No such device` when reading the freshly built shared DLL. If a sandbox-only automation already used `--no-verify` because of this issue, record the passing commands and require a host workflow to rerun the skipped hook/tests before push or merge.
 
-## Shared library workflow (`ECommerce.Shared`)
+If cleanup is blocked, commit from a host where hooks pass. **Do not bypass hooks.**
 
-`shared-libs/ECommerce.Shared` is consumed as a **NuGet package** (`<PackageReference Include="ECommerce.Shared" Version="..." />`), not a project reference. Current published version lives in `shared-libs/ECommerce.Shared/ECommerce.Shared.csproj`. The package is published to `local-nuget-packages/` (gitignored). After editing the shared lib:
+## Shared library (`ECommerce.Shared`)
+
+Consumed as a NuGet package (not project ref). Local feed: `local-nuget-packages/` (gitignored). After edits:
 
 ```bash
 cd shared-libs/ECommerce.Shared
 dotnet pack -c Release
 dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
-# Bump <Version> in ECommerce.Shared.csproj if consumers should pick it up
+# bump <Version> in .csproj so consumers pick it up
 ```
 
-Consumers won't see changes until the version is bumped and the new `.nupkg` lands in the local feed.
+Consumers see no change until version bump + new `.nupkg` in feed.
 
 ## Cross-service architecture
 
-The "big picture" lives in three places that have to be read together:
+Read together: each service's `Program.cs` (composition root, uses `ECommerce.Shared` extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`); `shared-libs/ECommerce.Shared/Infrastructure/` (`EventBus/`, `Messaging/`, `RabbitMq/`, `AzureServiceBus/` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; `Outbox/` — `OutboxBackgroundService`, services that publish need `AddOutbox(...)` + `app.ApplyOutboxMigrations()` in Dev). New cross-cutting concerns belong in `ECommerce.Shared`.
 
-1. **Each service's `Program.cs`** — composition root. All wiring uses extension methods from `ECommerce.Shared`: `AddSqlServerDatastore`, `AddOutbox`, `AddRabbitMqEventBus`, `AddRabbitMqEventPublisher`, `AddRabbitMqSubscriberService`, `AddEventHandler<TEvent, THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`. New cross-cutting concerns belong in `shared-libs/ECommerce.Shared`, not duplicated per service.
+**Saga (no orchestrator):** `OrderCreatedEvent` → Inventory reserves → `StockReserved`/`StockReservationFailed` → Order emits `OrderConfirmed`/`OrderCancelled` → Inventory commits/releases → Payment authorizes/captures (`PaymentAuthorized|Captured|Failed|Refunded`) → Shipping on `StockCommitted` (`ShipmentCreated|Dispatched|Delivered|Cancelled|Returned|Failed`). Touching one leg without the others desyncs the flow. Events: `IntegrationEvents/Events/`; handlers: `IntegrationEvents/EventHandlers/`.
 
-2. **`shared-libs/ECommerce.Shared/Infrastructure/`** —
-   - `EventBus/` — `IEventBus`, `Event` base type, handler registration via keyed DI.
-   - `RabbitMq/` — fanout exchange `ecommerce-exchange`, `RabbitMqHostedService` subscribes, `RabbitMqEventBus` publishes, OTEL context propagates through message headers (`RabbitMqTelemetry`).
-   - `Outbox/` — transactional outbox. `OutboxBackgroundService` polls `OutboxContext` for unpublished events. Services that publish events must call `AddOutbox(...)` and (in Development) `app.ApplyOutboxMigrations()`.
-
-3. **Saga across Order, Inventory, Payment, Shipping** — `OrderCreatedEvent` → Inventory reserves stock → `StockReserved`/`StockReservationFailed` → Order emits `OrderConfirmed`/`OrderCancelled` → Inventory commits or releases → Payment authorizes/captures (`PaymentAuthorized`/`PaymentCaptured`/`PaymentFailed`/`PaymentRefunded`) → Shipping creates a shipment on `StockCommitted` (`ShipmentCreated`/`ShipmentDispatched`/`ShipmentDelivered`/`ShipmentCancelled`/`ShipmentReturned`/`ShipmentFailed`). No central orchestrator — each service reacts to upstream events. Touching one leg without considering the others desynchronizes the flow. Event types live in each service's `IntegrationEvents/Events/`; handlers in `IntegrationEvents/EventHandlers/`.
-
-Each service follows the same internal layout: `Endpoints/` (Minimal API handlers), `ApiModels/` (DTOs), `Models/` (domain), `Infrastructure/Data/` (EF Core or Redis), `IntegrationEvents/`, `Migrations/`. Keep this split — DTOs in `ApiModels`, domain types in `Models`.
+Per-service layout: `Endpoints/` (Minimal API), `ApiModels/` (DTOs), `Models/` (domain), `Infrastructure/Data/`, `IntegrationEvents/`, `Migrations/`. Keep DTOs vs domain split.
 
 ## API Gateway provider switch
 
-The gateway compiles **both** YARP and Ocelot. `Gateway:Provider` (env `Gateway__Provider`) selects at startup; values `Yarp` (default) or `Ocelot`. Unknown values fail fast. Logged at boot as `ApiGateway starting with provider=...`. Routes, port, auth, health checks, and metrics are identical across both — no client-side change needed when switching.
+Gateway compiles both YARP and Ocelot. `Gateway:Provider` (env `Gateway__Provider`) = `Yarp` (default) or `Ocelot`; unknown values fail fast. Routes/port/auth/health/metrics identical across both.
 
 ## DLQ + operator API
 
-Messages that exhaust their retry budget on a consumer queue are dead-lettered to the platform-wide `ecommerce-dlq` exchange. A poller in the API Gateway persists them — plus failed outbox rows pulled from each service's `/internal/outbox/failed` (gated by `RequireService`) — into the gateway-owned `dead_letter_messages` table. Operators interact via gateway endpoints under `/operator/api/failures*` (Bearer + `Operator` claim): list/detail, single replay, batch replay, discard. Replay re-publishes to the failure's `OriginalQueue`; `dlq.replay` spans carry the original `CorrelationId` for trace linking. Prometheus counters: `dlq_messages_total`, `dlq_replays_total`, `dlq_discards_total`.
+Retry-exhausted messages dead-letter to `ecommerce-dlq` exchange. API Gateway poller persists them (plus failed outbox rows from each service's `/internal/outbox/failed`, gated by `RequireService`) into gateway-owned `dead_letter_messages`. Operator endpoints under `/operator/api/failures*` (Bearer + `Operator` claim): list/detail/single replay/batch replay/discard. Replay re-publishes to `OriginalQueue`; `dlq.replay` spans carry original `CorrelationId`. Counters: `dlq_messages_total`, `dlq_replays_total`, `dlq_discards_total`.
 
-When changing event payloads, retry policy, or queue routing, audit both the consumer side **and** the DLQ poller — failures here surface as "stuck" messages users can't replay.
+When changing event payloads, retry policy, or queue routing, audit both consumer side **and** the DLQ poller.
 
 ## Authentication
 
-RS256 user JWTs from Auth (`POST /login`) and `client_credentials` service tokens (`POST /token`). Resource services validate via `AddJwtAuthentication()` which fetches+caches Auth's `/jwks` — **no shared symmetric secret**. Service-to-service endpoints under `/internal/*` are gated by the shared `RequireService` policy (requires `scope=service`); user tokens cannot reach them. Dev RSA keys ship under `auth-microservice/Auth.Service/dev-keys/`.
+RS256 user JWTs from Auth (`POST /login`); `client_credentials` service tokens (`POST /token`). Resources validate via `AddJwtAuthentication()` (fetches+caches `/jwks` — no shared secret). `/internal/*` gated by `RequireService` policy (`scope=service`); user tokens cannot reach. Dev keys: `auth-microservice/Auth.Service/dev-keys/`.
 
 ## CI/CD
 
-**Azure Pipelines per service** (`azure-pipelines.yml` in each service dir). Bicep provisions cloud infra (AKS, ACR, Azure SQL, Service Bus, App Insights). Deploy stages roll images into `ecommerce-dev`/`-staging`/`-prod` AKS namespaces. GitHub Actions is **not** used.
+Azure Pipelines per service (`azure-pipelines.yml`). Bicep provisions AKS/ACR/Azure SQL/Service Bus/App Insights. Deploys to `ecommerce-{dev,staging,prod}` namespaces. **GitHub Actions is not used.**
 
-## Conventions worth knowing
+## Conventions
 
-- File-scoped namespaces, `var` preferred, usings outside namespace (enforced by `.editorconfig`, warning level).
-- Test names use `Given_When_Then` with underscores (suppressed `CA1707`).
-- EF Core migrations under `**/Migrations/*.cs` are marked `generated_code = true` — don't hand-edit style.
-- `IDesignTimeDbContextFactory` is implemented per service so `dotnet ef migrations add ...` works without running `Program.cs`.
-- Integration tests use `WebApplicationFactory<Program>`; each service exposes `public partial class Program { }` at the bottom of `Program.cs` to make this work.
+- File-scoped namespaces, `var` preferred, usings outside namespace (`.editorconfig`).
+- Test names `Given_When_Then` with underscores (`CA1707` suppressed).
+- `**/Migrations/*.cs` marked `generated_code = true` — don't hand-edit style.
+- Per-service `IDesignTimeDbContextFactory` so `dotnet ef migrations add` works without running `Program.cs`.
+- Integration tests use `WebApplicationFactory<Program>`; each service has `public partial class Program { }` at end of `Program.cs`.
 
-## Behavioral guidelines
+## Behavioral
 
-`.claude/CLAUDE.md` contains general LLM coding guidelines (think before coding, simplicity, surgical changes, goal-driven execution). Read once. Apply it to all work in this repo:
-
-- Make only the changes the user asked for; do not "improve" adjacent code.
-- Match existing style even if you'd write it differently.
-- Prefer the smallest correct change. Push back when something looks over-engineered.
-- For non-trivial work, state a brief plan with verifiable success criteria before implementing.
+Apply `.claude/CLAUDE.md` (think first, simplicity, surgical changes, goal-driven). Make only changes the user asked for; match existing style; prefer smallest correct change; push back on over-engineering; state a brief plan + success criteria for non-trivial work.

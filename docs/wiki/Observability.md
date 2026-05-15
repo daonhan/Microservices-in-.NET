@@ -75,7 +75,7 @@ Services register counters/histograms via `MetricFactory` from [Shared-Library](
 
 ## Tracing across the bus
 
-`RabbitMqEventBus` injects W3C Trace Context into each message's headers, and the subscriber extracts it before invoking the handler. A single Jaeger trace therefore spans the Order `POST /order/{customerId}` request all the way through the Inventory reservation handler and back.
+The broker adapters inject W3C Trace Context into each message's headers/properties, and subscribers extract it before invoking handlers. A single Jaeger trace therefore spans the Order `POST /order/{customerId}` request all the way through the Inventory reservation handler and back. DLQ replay spans use the original correlation id and DLQ counters include the selected provider tag so dashboards can split RabbitMQ and Azure Service Bus paths.
 
 ## Related PRD and plan
 

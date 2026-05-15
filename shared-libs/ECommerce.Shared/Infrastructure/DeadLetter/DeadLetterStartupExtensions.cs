@@ -1,7 +1,10 @@
+using ECommerce.Shared.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace ECommerce.Shared.Infrastructure.DeadLetter;
 
@@ -20,11 +23,45 @@ public static class DeadLetterStartupExtensions
                     errorNumbersToAdd: [0])));
 
         services.AddScoped<IDeadLetterStore>(sp => sp.GetRequiredService<DeadLetterDbContext>());
-        services.AddSingleton<IDeadLetterPublisher, RabbitMqDeadLetterPublisher>();
-        services.AddScoped<IDeadLetterReplayer, DeadLetterReplayer>();
-        services.AddScoped<IDeadLetterDiscarder, DeadLetterDiscarder>();
-        services.AddHostedService<DeadLetterHostedService>();
+        var provider = MessagingProviderResolver.Resolve(configuration);
+        services.AddProviderDeadLetterServices(provider);
+        services.AddScoped<IDeadLetterReplayer>(sp => new DeadLetterReplayer(
+            sp.GetRequiredService<IDeadLetterStore>(),
+            sp.GetRequiredService<IDeadLetterPublisher>(),
+            sp.GetRequiredService<ILogger<DeadLetterReplayer>>(),
+            provider));
+        services.AddScoped<IDeadLetterDiscarder>(sp => new DeadLetterDiscarder(
+            sp.GetRequiredService<IDeadLetterStore>(),
+            sp.GetRequiredService<ILogger<DeadLetterDiscarder>>(),
+            provider));
 
+        return services;
+    }
+
+    private static IServiceCollection AddProviderDeadLetterServices(this IServiceCollection services, string provider)
+    {
+        switch (provider)
+        {
+            case MessagingOptions.RabbitMqProvider:
+                services.AddSingleton<IDeadLetterPublisher, RabbitMqDeadLetterPublisher>();
+                services.AddDeadLetterCapture<RabbitMqDeadLetterCapture>();
+                break;
+            case MessagingOptions.AzureServiceBusProvider:
+                services.AddSingleton<IDeadLetterPublisher, AzureServiceBusDeadLetterPublisher>();
+                services.AddDeadLetterCapture<AzureServiceBusDeadLetterCapture>();
+                break;
+            default:
+                throw new InvalidOperationException($"Unhandled messaging provider '{provider}'.");
+        }
+
+        return services;
+    }
+
+    private static IServiceCollection AddDeadLetterCapture<TCapture>(this IServiceCollection services)
+        where TCapture : class, IDeadLetterCapture
+    {
+        services.AddSingleton<IDeadLetterCapture, TCapture>();
+        services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<IDeadLetterCapture>());
         return services;
     }
 

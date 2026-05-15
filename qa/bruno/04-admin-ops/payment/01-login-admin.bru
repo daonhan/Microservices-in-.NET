@@ -10,13 +10,26 @@ post {
   auth: none
 }
 
+headers {
+  Content-Type: application/json
+}
+
 body:json {
   {
-    "email": "{{adminEmail}}",
+    "username": "{{adminEmail}}",
     "password": "{{adminPassword}}"
   }
 }
 
-vars:post-response {
-  adminToken: res.body.token
+tests {
+  test("returns an admin token", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.token).to.be.a("string").and.not.be.empty;
+    expect(res.body.expiresIn).to.be.a("number").and.be.greaterThan(0);
+  });
+}
+
+script:post-response {
+  bru.setVar("adminToken", res.body.token);
 }

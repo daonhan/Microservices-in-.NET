@@ -35,24 +35,27 @@ jobs:
         run: |
           set -euo pipefail
           # service:port pairs that expose /health/ready behind their published port.
-          declare -A services=(
-            [basket]=8000
-            [order]=8001
-            [product]=8002
-            [auth]=8003
-            [api-gateway]=8004
-            [inventory]=8005
-            [shipping]=8006
-            [payment]=8007
+          # Wait order: auth first (issues JWKS), then dependents, gateway last.
+          services=(
+            "auth:8003"
+            "product:8002"
+            "basket:8000"
+            "order:8001"
+            "inventory:8005"
+            "shipping:8006"
+            "payment:8007"
+            "gateway:8004"
           )
-          deadline=$(( $(date +%s) + 600 ))
-          for svc in "${!services[@]}"; do
-            port="${services[$svc]}"
+          per_service_budget=600
+          for entry in "${services[@]}"; do
+            svc="${entry%%:*}"
+            port="${entry##*:}"
             url="http://localhost:${port}/health/ready"
-            echo "waiting for ${svc} at ${url}"
+            deadline=$(( $(date +%s) + per_service_budget ))
+            echo "waiting for ${svc} at ${url} (budget ${per_service_budget}s)"
             until curl -fsS --max-time 3 "${url}" >/dev/null 2>&1; do
               if (( $(date +%s) > deadline )); then
-                echo "::error::${svc} (${url}) did not become ready within 10 minutes"
+                echo "::error::${svc} (${url}) did not become ready within ${per_service_budget}s"
                 docker compose ps
                 docker compose logs --tail=200 "${svc}" || true
                 exit 1
@@ -67,8 +70,490 @@ jobs:
         run: |
           foreach ($scenario in @('happy', 'stock-out', 'decline', 'admin')) {
             Write-Host "=== running scenario: $scenario ==="
-            ./scripts/local-smoke-test.ps1 -Scenario $scenario
+            ./scripts/local-smoke-test.ps1 -Scenario $scenario -PollSeconds 60
           }
+
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --tail=500
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  bruno-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pack shared library
+        run: |
+          mkdir -p local-nuget-packages
+          dotnet pack shared-libs/ECommerce.Shared/ECommerce.Shared.csproj \
+            --configuration Release --output local-nuget-packages
+
+      - name: Boot stack
+        run: docker compose up -d --build
+
+      - name: Wait for /health/ready on every service
+        shell: bash
+        run: |
+          set -euo pipefail
+          # service:port pairs that expose /health/ready behind their published port.
+          # Wait order: auth first (issues JWKS), then dependents, gateway last.
+          services=(
+            "auth:8003"
+            "product:8002"
+            "basket:8000"
+            "order:8001"
+            "inventory:8005"
+            "shipping:8006"
+            "payment:8007"
+            "gateway:8004"
+          )
+          # Use a single global deadline (20 min) to stay well within
+          # the job's timeout-minutes: 45, rather than a per-service budget
+          # that could sum to 80+ minutes across all 8 services.
+          global_deadline=$(( $(date +%s) + 1200 ))
+          for entry in "${services[@]}"; do
+            svc="${entry%%:*}"
+            port="${entry##*:}"
+            url="http://localhost:${port}/health/ready"
+            echo "waiting for ${svc} at ${url}"
+            until curl -fsS --max-time 3 "${url}" >/dev/null 2>&1; do
+              if (( $(date +%s) > global_deadline )); then
+                echo "::error::readiness deadline exceeded waiting for ${svc} (${url})"
+                docker compose ps
+                docker compose logs --tail=200 "${svc}" || true
+                exit 1
+              fi
+              sleep 3
+            done
+            echo "${svc} ready"
+          done
+
+      - name: Run Bruno smoke scenarios
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $brunoVersion = '3.3.0'
+          $collectionRoot = Join-Path $env:RUNNER_TEMP 'bruno-smoke'
+          $reportRoot = Join-Path $env:RUNNER_TEMP 'bruno-reports'
+          $envFile = Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/qa-local.bru'
+
+          New-Item -ItemType Directory -Force $collectionRoot, $reportRoot | Out-Null
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/bruno.json') $collectionRoot
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/01-happy-path') $collectionRoot -Recurse
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/02-stock-shortage') $collectionRoot -Recurse
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/03-payment-decline') $collectionRoot -Recurse
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/04-admin-ops') $collectionRoot -Recurse
+
+          function Write-Summary([string]$Line) {
+            Write-Host $Line
+            if ($env:GITHUB_STEP_SUMMARY) {
+              $Line | Out-File $env:GITHUB_STEP_SUMMARY -Append
+            }
+          }
+
+          function Get-PropertyValue([object]$Value, [string]$Name) {
+            if ($null -eq $Value) {
+              return $null
+            }
+
+            $property = $Value.PSObject.Properties[$Name]
+            if ($property) {
+              return $property.Value
+            }
+
+            return $null
+          }
+
+          function ConvertTo-SummaryJson([object]$Value) {
+            if ($null -eq $Value) {
+              return ''
+            }
+
+            $json = $Value | ConvertTo-Json -Compress -Depth 8
+            if ($json.Length -gt 800) {
+              return "$($json.Substring(0, 800))..."
+            }
+
+            return $json
+          }
+
+          function Get-BrunoFailureCount([object]$Run) {
+            $summary = $Run[0].summary
+            return $summary.failedRequests + $summary.errorRequests + $summary.failedTests + $summary.failedAssertions
+          }
+
+          function Get-BrunoFirstFailure([object]$Run) {
+            return @($Run[0].results | Where-Object {
+              $_.status -in @('fail', 'error') -or $_.error
+            } | Select-Object -First 1)[0]
+          }
+
+          function Test-BrunoTransportFailure([object]$Run) {
+            $summary = $Run[0].summary
+            if (($summary.failedTests + $summary.failedAssertions) -gt 0) {
+              return $false
+            }
+
+            $failure = Get-BrunoFirstFailure $Run
+            if ($null -eq $failure) {
+              return $false
+            }
+
+            $error = Get-PropertyValue $failure 'error'
+            return $error -match '(?i)(ECONNRESET|ECONNABORTED|ETIMEDOUT|socket hang up|network timeout)'
+          }
+
+          function Write-BrunoFailureDetail([object]$Failure) {
+            if ($null -eq $Failure) {
+              return
+            }
+
+            $response = Get-PropertyValue $Failure 'response'
+            $status = Get-PropertyValue $response 'status'
+            $error = Get-PropertyValue $Failure 'error'
+            Write-Summary "  - request: $(Get-PropertyValue $Failure 'name') status=$status error=$error"
+
+            foreach ($propertyName in @('failedAssertions', 'assertionResults', 'testResults', 'tests')) {
+              $value = Get-PropertyValue $Failure $propertyName
+              if ($null -eq $value) {
+                continue
+              }
+
+              $badItems = @($value | Where-Object {
+                $itemStatus = Get-PropertyValue $_ 'status'
+                $passed = Get-PropertyValue $_ 'passed'
+                $itemError = Get-PropertyValue $_ 'error'
+                $failure = Get-PropertyValue $_ 'failure'
+
+                ($itemStatus -and $itemStatus -notin @('pass', 'passed')) -or
+                  ($passed -eq $false) -or
+                  $itemError -or
+                  $failure
+              } | Select-Object -First 3)
+
+              if ($badItems.Count -gt 0) {
+                Write-Summary "  - assertion detail: $(ConvertTo-SummaryJson $badItems)"
+                return
+              }
+            }
+
+            $data = Get-PropertyValue $response 'data'
+            if ($null -ne $data) {
+              Write-Summary "  - response body: $(ConvertTo-SummaryJson $data)"
+            }
+          }
+
+          function Invoke-Bruno([string]$Name, [string[]]$Paths, [hashtable]$Vars = @{}, [switch]$AllowFailure, [switch]$Quiet) {
+            $report = Join-Path $reportRoot "$Name.json"
+
+            $maxAttempts = 3
+            $retryDelays = @(2, 5)
+
+            for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+              if (Test-Path $report) {
+                Remove-Item $report
+              }
+
+              $brunoArgs = @(
+                '--yes',
+                "@usebruno/cli@$brunoVersion",
+                'run'
+              ) + $Paths + @(
+                '--env-file',
+                $envFile,
+                '--reporter-json',
+                $report,
+                '--bail'
+              )
+
+              foreach ($entry in $Vars.GetEnumerator()) {
+                $brunoArgs += @('--env-var', "$($entry.Key)=$($entry.Value)")
+              }
+
+              Push-Location $collectionRoot
+              try {
+                $brunoOutput = & npx @brunoArgs 2>&1
+                $exitCode = $LASTEXITCODE
+                $brunoOutput | ForEach-Object { Write-Host $_ }
+              }
+              finally {
+                Pop-Location
+              }
+
+              if (-not (Test-Path $report)) {
+                throw "Bruno did not write report for $Name"
+              }
+
+              $run = Get-Content $report -Raw | ConvertFrom-Json
+              $summary = $run[0].summary
+              $failed = Get-BrunoFailureCount $run
+              $line = "bruno ${Name}: requests $($summary.passedRequests)/$($summary.totalRequests), tests $($summary.passedTests)/$($summary.totalTests), assertions $($summary.passedAssertions)/$($summary.totalAssertions)"
+
+              if ($exitCode -eq 0 -and $failed -eq 0) {
+                if (-not $Quiet) {
+                  Write-Summary "- PASS $line"
+                }
+
+                return $run
+              }
+
+              $firstFailure = Get-BrunoFirstFailure $run
+              $isTransportFailure = Test-BrunoTransportFailure $run
+              if ($isTransportFailure -and $attempt -lt $maxAttempts) {
+                $delaySeconds = $retryDelays[$attempt - 1]
+                $error = Get-PropertyValue $firstFailure 'error'
+                Write-Summary "- RETRY bruno ${Name}: transport error '$error' on attempt $attempt/$maxAttempts; retrying in ${delaySeconds}s"
+                Start-Sleep -Seconds $delaySeconds
+                continue
+              }
+
+              if (-not $Quiet) {
+                Write-Summary "- FAIL $line"
+              }
+
+              if ($firstFailure -and -not $Quiet) {
+                Write-BrunoFailureDetail $firstFailure
+              }
+
+              if (-not $AllowFailure) {
+                throw "Bruno run '$Name' failed. See $report"
+              }
+
+              return $run
+            }
+
+            throw "Bruno run '$Name' failed after $maxAttempts attempts. See $report"
+          }
+
+          function Get-Result([object]$Run, [string]$PathFragment) {
+            return @($Run[0].results | Where-Object { $_.path -like "*$PathFragment*" } | Select-Object -First 1)[0]
+          }
+
+          function Wait-BrunoBody([string]$Name, [string]$Path, [hashtable]$Vars, [scriptblock]$Match, [string]$TimeoutMessage, [switch]$AllowFailedAssertionsWhileWaiting) {
+            $deadline = (Get-Date).AddSeconds(60)
+            $last = $null
+            $lastRun = $null
+            $stopPollingMessage = $null
+
+            do {
+              try {
+                $run = Invoke-Bruno $Name @($Path) $Vars -AllowFailure -Quiet
+                $lastRun = $run
+                $result = @($run[0].results | Select-Object -First 1)[0]
+                $last = $result.response.data
+                $failureCount = Get-BrunoFailureCount $run
+
+                if ($failureCount -gt 0 -and -not $AllowFailedAssertionsWhileWaiting) {
+                  $stopPollingMessage = "Bruno run '$Name' failed while polling. See latest JSON report in $reportRoot"
+                  Write-Summary "- FAIL bruno ${Name}: request assertion failed while polling"
+                  $firstFailure = Get-BrunoFirstFailure $run
+                  Write-BrunoFailureDetail $firstFailure
+                  break
+                }
+
+                if ($failureCount -eq 0 -and (& $Match $last)) {
+                  Write-Summary "- PASS bruno ${Name}: matched expected saga state"
+                  return $last
+                }
+              }
+              catch {
+                $last = $_.Exception.Message
+              }
+
+              Start-Sleep -Milliseconds 750
+            } while ((Get-Date) -lt $deadline)
+
+            if ($stopPollingMessage) {
+              throw $stopPollingMessage
+            }
+
+            Write-Summary "- FAIL $TimeoutMessage last=$($last | ConvertTo-Json -Compress -Depth 8)"
+            if ($lastRun) {
+              $firstFailure = Get-BrunoFirstFailure $lastRun
+              Write-BrunoFailureDetail $firstFailure
+            }
+
+            throw $TimeoutMessage
+          }
+
+          Write-Summary "## Bruno smoke"
+          Write-Summary "Pinned CLI: ``@usebruno/cli@$brunoVersion``"
+
+          $setup = Invoke-Bruno 'happy-setup' @(
+            '01-happy-path/01-login-customer.bru',
+            '01-happy-path/02-login-admin.bru',
+            '01-happy-path/03-get-seeded-basket.bru',
+            '01-happy-path/04-get-product-happy.bru',
+            '01-happy-path/05-get-inventory-happy.bru',
+            '01-happy-path/06-place-order.bru'
+          )
+
+          $customerToken = (Get-Result $setup '01-login-customer').response.data.token
+          $adminToken = (Get-Result $setup '02-login-admin').response.data.token
+          $orderLocation = (Get-Result $setup '06-place-order').response.headers.location
+          $orderId = ([string]$orderLocation).Trim('/').Split('/')[-1]
+
+          if ([string]::IsNullOrWhiteSpace($customerToken) -or [string]::IsNullOrWhiteSpace($adminToken) -or [string]::IsNullOrWhiteSpace($orderId)) {
+            throw "Bruno setup did not produce required customerToken/adminToken/orderId"
+          }
+
+          $baseVars = @{
+            customerToken = $customerToken
+            adminToken = $adminToken
+            orderId = $orderId
+          }
+
+          Wait-BrunoBody `
+            'poll-order-confirmed' `
+            '01-happy-path/07-poll-order.bru' `
+            $baseVars `
+            { param($body) $body.status -eq 'Confirmed' } `
+            "order $orderId did not reach Confirmed within 60s" | Out-Null
+
+          $shipmentBody = Wait-BrunoBody `
+            'poll-shipment-created' `
+            '01-happy-path/08-list-shipping-by-order.bru' `
+            $baseVars `
+            { param($body) @($body).Count -gt 0 -and (@($body)[0].shipmentId -or @($body)[0].id) } `
+            "shipment for order $orderId was not created within 60s" `
+            -AllowFailedAssertionsWhileWaiting
+
+          $shipment = @($shipmentBody)[0]
+          $shipmentId = $shipment.shipmentId
+          if (-not $shipmentId) {
+            $shipmentId = $shipment.id
+          }
+
+          if ([string]::IsNullOrWhiteSpace($shipmentId)) {
+            throw "Bruno shipment poll did not produce shipmentId"
+          }
+
+          $transitionVars = $baseVars.Clone()
+          $transitionVars.shipmentId = $shipmentId
+
+          Invoke-Bruno 'pick-shipment' @('01-happy-path/09-pick-shipment.bru') $transitionVars | Out-Null
+          Invoke-Bruno 'pack-shipment' @('01-happy-path/10-pack-shipment.bru') $transitionVars | Out-Null
+          Invoke-Bruno 'dispatch-shipment' @('01-happy-path/11-dispatch-shipment.bru') $transitionVars | Out-Null
+          Invoke-Bruno 'deliver-shipment' @('01-happy-path/12-deliver-shipment.bru') $transitionVars | Out-Null
+
+          $stockShortageSetup = Invoke-Bruno 'stock-shortage-setup' @(
+            '02-stock-shortage/01-login-customer-cancel.bru',
+            '02-stock-shortage/02-get-seeded-basket.bru',
+            '02-stock-shortage/03-get-zero-stock.bru',
+            '02-stock-shortage/04-place-order.bru'
+          )
+
+          $stockShortageToken = (Get-Result $stockShortageSetup '01-login-customer-cancel').response.data.token
+          $stockShortageOrderLocation = (Get-Result $stockShortageSetup '04-place-order').response.headers.location
+          $stockShortageOrderId = ([string]$stockShortageOrderLocation).Trim('/').Split('/')[-1]
+
+          if ([string]::IsNullOrWhiteSpace($stockShortageToken) -or [string]::IsNullOrWhiteSpace($stockShortageOrderId)) {
+            throw "Bruno stock-shortage setup did not produce required customerToken/orderId"
+          }
+
+          Wait-BrunoBody `
+            'poll-stock-shortage-order-cancelled' `
+            '02-stock-shortage/05-poll-order-cancelled.bru' `
+            @{
+              customerToken = $stockShortageToken
+              orderId = $stockShortageOrderId
+            } `
+            { param($body) $body.status -eq 'Cancelled' } `
+            "stock-shortage order $stockShortageOrderId did not reach Cancelled within 60s" | Out-Null
+
+          $paymentDeclineSetup = Invoke-Bruno 'payment-decline-setup' @(
+            '03-payment-decline/01-login-customer-decline.bru',
+            '03-payment-decline/02-get-seeded-basket.bru',
+            '03-payment-decline/03-get-decline-product.bru',
+            '03-payment-decline/04-place-order.bru'
+          )
+
+          $paymentDeclineToken = (Get-Result $paymentDeclineSetup '01-login-customer-decline').response.data.token
+          $paymentDeclineOrderLocation = (Get-Result $paymentDeclineSetup '04-place-order').response.headers.location
+          $paymentDeclineOrderId = ([string]$paymentDeclineOrderLocation).Trim('/').Split('/')[-1]
+
+          if ([string]::IsNullOrWhiteSpace($paymentDeclineToken) -or [string]::IsNullOrWhiteSpace($paymentDeclineOrderId)) {
+            throw "Bruno payment-decline setup did not produce required customerToken/orderId"
+          }
+
+          $paymentDeclineVars = @{
+            customerToken = $paymentDeclineToken
+            orderId = $paymentDeclineOrderId
+          }
+
+          Wait-BrunoBody `
+            'poll-payment-decline-order-cancelled' `
+            '03-payment-decline/05-poll-order-cancelled.bru' `
+            $paymentDeclineVars `
+            { param($body) $body.status -eq 'Cancelled' } `
+            "payment-decline order $paymentDeclineOrderId did not reach Cancelled within 60s" | Out-Null
+
+          Wait-BrunoBody `
+            'poll-payment-decline-stock-released' `
+            '03-payment-decline/06-confirm-stock-released.bru' `
+            $paymentDeclineVars `
+            { param($body) $body.totalReserved -eq 0 -and $body.available -eq $body.totalOnHand } `
+            "payment-decline stock for product 9002 was not released within 60s" | Out-Null
+
+          Invoke-Bruno 'admin-inventory' @('04-admin-ops/inventory') | Out-Null
+          Invoke-Bruno 'admin-payment' @('04-admin-ops/payment') | Out-Null
+
+          Invoke-Bruno 'admin-shipping-return-path' @(
+            '04-admin-ops/shipping/01-login-admin.bru',
+            '04-admin-ops/shipping/02-pick-pending.bru',
+            '04-admin-ops/shipping/03-pack-picked.bru',
+            '04-admin-ops/shipping/04-dispatch-packed.bru',
+            '04-admin-ops/shipping/07-return-dispatched.bru'
+          ) @{
+            shipmentPickedId = 'c0000000-0000-0000-0000-000000000001'
+            shipmentPackedId = 'c0000000-0000-0000-0000-000000000001'
+            shipmentDispatchedId = 'c0000000-0000-0000-0000-000000000001'
+          } | Out-Null
+
+          Invoke-Bruno 'admin-shipping-deliver-path' @(
+            '04-admin-ops/shipping/01-login-admin.bru',
+            '04-admin-ops/shipping/03-pack-picked.bru',
+            '04-admin-ops/shipping/04-dispatch-packed.bru',
+            '04-admin-ops/shipping/05-deliver-dispatched.bru'
+          ) @{
+            shipmentPickedId = 'c0000000-0000-0000-0000-000000000002'
+            shipmentPackedId = 'c0000000-0000-0000-0000-000000000002'
+            shipmentDispatchedId = 'c0000000-0000-0000-0000-000000000002'
+          } | Out-Null
+
+          Invoke-Bruno 'admin-shipping-fail-path' @(
+            '04-admin-ops/shipping/01-login-admin.bru',
+            '04-admin-ops/shipping/04-dispatch-packed.bru',
+            '04-admin-ops/shipping/06-fail-dispatched.bru'
+          ) @{
+            shipmentPackedId = 'c0000000-0000-0000-0000-000000000003'
+            shipmentDispatchedId = 'c0000000-0000-0000-0000-000000000003'
+          } | Out-Null
+
+          Invoke-Bruno 'admin-shipping-webhook' @(
+            '04-admin-ops/shipping/webhook.bru'
+          ) | Out-Null
+
+          Invoke-Bruno 'admin-shipping-cancel-path' @(
+            '04-admin-ops/shipping/01-login-admin.bru',
+            '04-admin-ops/shipping/08-cancel-pending.bru'
+          ) | Out-Null
 
       - name: Dump container logs on failure
         if: failure()

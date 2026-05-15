@@ -14,8 +14,16 @@ auth:bearer {
   token: {{adminToken}}
 }
 
-assert {
-  res.status: eq 200
-  res.body.paymentId: eq b0000000-0000-0000-0000-000000000002
-  res.body.status: eq Captured
+tests {
+  test("returns the captured payment fixture", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.paymentId).to.equal("b0000000-0000-0000-0000-000000000002");
+    expect(res.body.orderId).to.equal("a0000000-0000-0000-0000-000000000002");
+    expect(res.body.customerId).to.equal(bru.getEnvVar("customerHappyId"));
+    expect(res.body.amount).to.be.a("number");
+    expect(res.body.currency).to.be.a("string").and.not.be.empty;
+    expect(res.body.status).to.equal("Captured");
+    expect(res.body.providerReference).to.be.a("string").and.not.be.empty;
+  });
 }

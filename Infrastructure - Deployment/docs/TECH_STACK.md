@@ -31,6 +31,17 @@
 Both providers expose the same `IEventBus`, so handlers and event types
 do not change when switching providers.
 
+### Messaging provider expectations
+
+| Environment | Expected provider | Notes |
+|-------------|-------------------|-------|
+| Local Docker / F5 | `RabbitMq` by default | ASB is opt-in through the local emulator or a shared dev namespace; see [`docs/local-dev/messaging.md`](../../docs/local-dev/messaging.md). |
+| Dev | `RabbitMq` | Matches the default local smoke path and the RabbitMQ AKS manifests. |
+| Staging | `AzureServiceBus` | Use the Bicep-provisioned namespace for cloud-fidelity validation. RabbitMQ is only a deliberate fallback. |
+| Prod | `AzureServiceBus` | Production messaging is expected to use the managed namespace, not an in-cluster RabbitMQ deployment. |
+
+ASB topology stays Bicep-owned in shared dev, staging, and prod. Application startup must not create or mutate cloud topics/subscriptions; use `AzureServiceBus__AutoProvisionTopology=Never` outside the emulator.
+
 ## Observability
 
 | Service                              | Purpose                                                                                  | Configuration                                                                              |
