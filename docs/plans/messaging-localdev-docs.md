@@ -4,6 +4,15 @@
 > GitHub issue: https://github.com/daonhan/Microservices-in-.NET/issues/82
 > Depends on: `docs/plans/messaging-adopt-addplatform.md`, `docs/plans/messaging-asb-emulator-local.md`, `docs/plans/messaging-dlq-provider-abstraction.md`
 
+## Implementation Issue Index
+
+| Phase | Issue | Blocked by |
+|-------|-------|------------|
+| Phase 1: Explicit `Messaging:Provider` config knob across services | [#108](https://github.com/daonhan/Microservices-in-.NET/issues/108) | None |
+| Phase 2: Local-dev guide skeleton with four scenarios | [#109](https://github.com/daonhan/Microservices-in-.NET/issues/109) | None |
+| Phase 3: Saga verification checklist + troubleshooting | [#110](https://github.com/daonhan/Microservices-in-.NET/issues/110) | [#109](https://github.com/daonhan/Microservices-in-.NET/issues/109) |
+| Phase 4: Cross-doc references and CI gate statement | [#111](https://github.com/daonhan/Microservices-in-.NET/issues/111) | [#109](https://github.com/daonhan/Microservices-in-.NET/issues/109) |
+
 ## Architectural decisions
 
 Durable decisions that apply across all phases:
