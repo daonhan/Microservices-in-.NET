@@ -1,3 +1,4 @@
+using ECommerce.Shared.Infrastructure.RabbitMq;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
 using Inventory.Tests.Authentication;
 using Microsoft.AspNetCore.Authentication;
@@ -32,9 +33,22 @@ public class InventoryWebApplicationFactory : WebApplicationFactory<Program>, IA
     {
         builder.ConfigureTestServices(services =>
         {
+            RemoveRabbitMqSubscriber(services);
             ApplyMigrations(services);
             ConfigureTestAuthentication(services);
         });
+    }
+
+    private static void RemoveRabbitMqSubscriber(IServiceCollection services)
+    {
+        var descriptor = services.SingleOrDefault(service =>
+            service.ServiceType == typeof(IHostedService) &&
+            service.ImplementationType == typeof(RabbitMqHostedService));
+
+        if (descriptor is not null)
+        {
+            services.Remove(descriptor);
+        }
     }
 
     private void ApplyMigrations(IServiceCollection services)
