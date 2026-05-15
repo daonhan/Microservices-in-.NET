@@ -139,6 +139,28 @@ public sealed class MessagingProviderSwitchTests
         var capture = Assert.Single(services, descriptor =>
             descriptor.ServiceType == typeof(IDeadLetterCapture));
         Assert.Equal(typeof(AzureServiceBusDeadLetterCapture), capture.ImplementationType);
+
+        Assert.DoesNotContain(services, descriptor =>
+            descriptor.ImplementationType == typeof(RabbitMqDeadLetterCapture));
+        Assert.DoesNotContain(services, descriptor =>
+            descriptor.ImplementationType == typeof(RabbitMqDeadLetterPublisher));
+    }
+
+    [Fact]
+    public void Given_RabbitMq_provider_When_AddDeadLetter_Then_Azure_dead_letter_implementations_are_not_registered()
+    {
+        var configuration = BuildConfig(new Dictionary<string, string?>
+        {
+            ["Messaging:Provider"] = MessagingOptions.RabbitMqProvider,
+        });
+
+        var services = new ServiceCollection();
+        services.AddDeadLetter(configuration);
+
+        Assert.DoesNotContain(services, descriptor =>
+            descriptor.ImplementationType == typeof(AzureServiceBusDeadLetterCapture));
+        Assert.DoesNotContain(services, descriptor =>
+            descriptor.ImplementationType == typeof(AzureServiceBusDeadLetterPublisher));
     }
 
     [Fact]

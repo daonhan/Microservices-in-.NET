@@ -28,8 +28,9 @@ public class AzureServiceBusOptions
     public string AutoProvisionTopology { get; set; } = AutoProvisionTopologyAuto;
 
     /// <summary>
-    /// Subscription name whose dead-letter sub-queue is captured into the dead-letter store.
-    /// Empty disables ASB capture; the operator endpoints remain available regardless.
+    /// Subscription names whose dead-letter sub-queues are captured into the dead-letter store.
+    /// One processor is started per non-blank entry. An empty list (or one containing only
+    /// blanks) disables ASB capture; the operator endpoints remain available regardless.
     /// </summary>
-    public string DeadLetterCaptureSubscription { get; set; } = string.Empty;
+    public IList<string> DeadLetterCaptureSubscriptions { get; set; } = new List<string>();
 }

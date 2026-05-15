@@ -23,12 +23,12 @@ public sealed partial class AzureServiceBusDeadLetterCapture : IDeadLetterCaptur
     private static partial void LogCaptureFailed(ILogger logger, Exception ex);
 
     [LoggerMessage(EventId = 2, Level = LogLevel.Warning,
-        Message = "Azure Service Bus dead-letter capture is disabled because AzureServiceBus:DeadLetterCaptureSubscription is empty; operator endpoints remain available.")]
+        Message = "Azure Service Bus dead-letter capture is disabled because AzureServiceBus:DeadLetterCaptureSubscriptions is empty; operator endpoints remain available.")]
     private static partial void LogCaptureDisabled(ILogger logger);
 
     [LoggerMessage(EventId = 3, Level = LogLevel.Warning,
-        Message = "Azure Service Bus dead-letter capture could not start for topic {Topic} subscription {Subscription}; operator endpoints remain available.")]
-    private static partial void LogStartUnavailable(ILogger logger, string topic, string subscription, Exception ex);
+        Message = "Azure Service Bus dead-letter capture could not start for topic {Topic} subscription {Subscription} on provider {Provider}; other subscriptions are unaffected.")]
+    private static partial void LogStartUnavailable(ILogger logger, string topic, string subscription, string provider, Exception ex);
 
     [LoggerMessage(EventId = 4, Level = LogLevel.Error,
         Message = "Azure Service Bus dead-letter processor reported an error from {Source}.")]
@@ -38,7 +38,7 @@ public sealed partial class AzureServiceBusDeadLetterCapture : IDeadLetterCaptur
     private readonly ServiceBusClient _client;
     private readonly AzureServiceBusOptions _options;
     private readonly ILogger<AzureServiceBusDeadLetterCapture> _logger;
-    private ServiceBusProcessor? _processor;
+    private readonly List<ServiceBusProcessor> _processors = new();
 
     public AzureServiceBusDeadLetterCapture(
         IServiceProvider serviceProvider,
@@ -54,52 +54,67 @@ public sealed partial class AzureServiceBusDeadLetterCapture : IDeadLetterCaptur
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var subscription = _options.DeadLetterCaptureSubscription;
-        if (string.IsNullOrWhiteSpace(subscription))
+        var subscriptions = _options.DeadLetterCaptureSubscriptions
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        if (subscriptions.Count == 0)
         {
             LogCaptureDisabled(_logger);
             return;
         }
 
-        try
+        foreach (var subscription in subscriptions)
         {
-            _processor = _client.CreateProcessor(_options.TopicName, subscription, new ServiceBusProcessorOptions
+            ServiceBusProcessor? processor = null;
+            try
             {
-                AutoCompleteMessages = false,
-                SubQueue = SubQueue.DeadLetter,
-            });
+                processor = _client.CreateProcessor(_options.TopicName, subscription, new ServiceBusProcessorOptions
+                {
+                    AutoCompleteMessages = false,
+                    SubQueue = SubQueue.DeadLetter,
+                });
 
-            _processor.ProcessMessageAsync += OnMessageReceivedAsync;
-            _processor.ProcessErrorAsync += OnProcessErrorAsync;
+                processor.ProcessMessageAsync += OnMessageReceivedAsync;
+                processor.ProcessErrorAsync += OnProcessErrorAsync;
 
-            await _processor.StartProcessingAsync(cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            LogStartUnavailable(_logger, _options.TopicName, subscription, ex);
-            if (_processor is not null)
+                await processor.StartProcessingAsync(cancellationToken).ConfigureAwait(false);
+                _processors.Add(processor);
+            }
+            catch (Exception ex)
             {
-                await _processor.DisposeAsync().ConfigureAwait(false);
-                _processor = null;
+                LogStartUnavailable(_logger, _options.TopicName, subscription, MessagingOptions.AzureServiceBusProvider, ex);
+                if (processor is not null)
+                {
+                    await processor.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        if (_processor is not null)
+        foreach (var processor in _processors)
         {
-            await _processor.StopProcessingAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await processor.StopProcessingAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                LogProcessorError(_logger, ServiceBusErrorSource.Receive, ex);
+            }
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_processor is not null)
+        foreach (var processor in _processors)
         {
-            await _processor.DisposeAsync().ConfigureAwait(false);
-            _processor = null;
+            await processor.DisposeAsync().ConfigureAwait(false);
         }
+        _processors.Clear();
 
         GC.SuppressFinalize(this);
     }

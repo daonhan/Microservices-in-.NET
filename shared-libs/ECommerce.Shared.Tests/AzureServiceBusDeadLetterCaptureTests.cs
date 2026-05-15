@@ -7,6 +7,7 @@ using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
 using ECommerce.Shared.Infrastructure.Messaging;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -147,16 +148,131 @@ public sealed class AzureServiceBusDeadLetterCaptureTests
     }
 
     [Fact]
-    public async Task Given_capture_subscription_is_empty_When_StartAsync_Then_no_processor_is_created_and_host_stays_alive()
+    public async Task Given_capture_subscriptions_are_empty_When_StartAsync_Then_no_processor_is_created_and_host_stays_alive()
     {
+        var client = Substitute.For<ServiceBusClient>();
         var capture = new AzureServiceBusDeadLetterCapture(
             new ServiceCollection().BuildServiceProvider(),
-            Substitute.For<ServiceBusClient>(),
-            Options.Create(new AzureServiceBusOptions { DeadLetterCaptureSubscription = string.Empty }),
+            client,
+            Options.Create(new AzureServiceBusOptions { DeadLetterCaptureSubscriptions = new List<string>() }),
             NullLogger<AzureServiceBusDeadLetterCapture>.Instance);
 
         await capture.StartAsync(CancellationToken.None);
         await capture.StopAsync(CancellationToken.None);
+        await capture.DisposeAsync();
+
+        client.DidNotReceiveWithAnyArgs().CreateProcessor(default!, default!, default!);
+    }
+
+    [Fact]
+    public async Task Given_capture_subscriptions_contain_only_blanks_When_StartAsync_Then_no_processor_is_created()
+    {
+        var client = Substitute.For<ServiceBusClient>();
+        var capture = new AzureServiceBusDeadLetterCapture(
+            new ServiceCollection().BuildServiceProvider(),
+            client,
+            Options.Create(new AzureServiceBusOptions
+            {
+                DeadLetterCaptureSubscriptions = new List<string> { string.Empty, " ", "\t" },
+            }),
+            NullLogger<AzureServiceBusDeadLetterCapture>.Instance);
+
+        await capture.StartAsync(CancellationToken.None);
+        await capture.StopAsync(CancellationToken.None);
+        await capture.DisposeAsync();
+
+        client.DidNotReceiveWithAnyArgs().CreateProcessor(default!, default!, default!);
+    }
+
+    [Fact]
+    public async Task Given_multiple_subscriptions_When_StartAsync_Then_one_processor_per_subscription_is_started()
+    {
+        var client = Substitute.For<ServiceBusClient>();
+        var p1 = Substitute.For<ServiceBusProcessor>();
+        var p2 = Substitute.For<ServiceBusProcessor>();
+        client.CreateProcessor("ecommerce-topic", "inventory-microservice", Arg.Any<ServiceBusProcessorOptions>()).Returns(p1);
+        client.CreateProcessor("ecommerce-topic", "payment-microservice", Arg.Any<ServiceBusProcessorOptions>()).Returns(p2);
+
+        var capture = new AzureServiceBusDeadLetterCapture(
+            new ServiceCollection().BuildServiceProvider(),
+            client,
+            Options.Create(new AzureServiceBusOptions
+            {
+                TopicName = "ecommerce-topic",
+                DeadLetterCaptureSubscriptions = new List<string> { "inventory-microservice", "payment-microservice" },
+            }),
+            NullLogger<AzureServiceBusDeadLetterCapture>.Instance);
+
+        await capture.StartAsync(CancellationToken.None);
+
+        await p1.Received(1).StartProcessingAsync(Arg.Any<CancellationToken>());
+        await p2.Received(1).StartProcessingAsync(Arg.Any<CancellationToken>());
+
+        await capture.StopAsync(CancellationToken.None);
+        await p1.Received(1).StopProcessingAsync(Arg.Any<CancellationToken>());
+        await p2.Received(1).StopProcessingAsync(Arg.Any<CancellationToken>());
+
+        await capture.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Given_duplicate_subscriptions_When_StartAsync_Then_only_one_processor_per_subscription_is_started()
+    {
+        var client = Substitute.For<ServiceBusClient>();
+        var processor = Substitute.For<ServiceBusProcessor>();
+        client.CreateProcessor("ecommerce-topic", "inventory-microservice", Arg.Any<ServiceBusProcessorOptions>()).Returns(processor);
+
+        var capture = new AzureServiceBusDeadLetterCapture(
+            new ServiceCollection().BuildServiceProvider(),
+            client,
+            Options.Create(new AzureServiceBusOptions
+            {
+                TopicName = "ecommerce-topic",
+                DeadLetterCaptureSubscriptions = new List<string> { "inventory-microservice", "inventory-microservice" },
+            }),
+            NullLogger<AzureServiceBusDeadLetterCapture>.Instance);
+
+        await capture.StartAsync(CancellationToken.None);
+
+        client.Received(1).CreateProcessor("ecommerce-topic", "inventory-microservice", Arg.Any<ServiceBusProcessorOptions>());
+
+        await capture.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Given_one_processor_fails_to_start_When_StartAsync_Then_other_processors_remain_started()
+    {
+        var client = Substitute.For<ServiceBusClient>();
+        var failing = Substitute.For<ServiceBusProcessor>();
+        failing.StartProcessingAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new InvalidOperationException("boom")));
+        var healthy = Substitute.For<ServiceBusProcessor>();
+        client.CreateProcessor("ecommerce-topic", "inventory-microservice", Arg.Any<ServiceBusProcessorOptions>()).Returns(failing);
+        client.CreateProcessor("ecommerce-topic", "payment-microservice", Arg.Any<ServiceBusProcessorOptions>()).Returns(healthy);
+
+        var logger = new RecordingLogger();
+        var capture = new AzureServiceBusDeadLetterCapture(
+            new ServiceCollection().BuildServiceProvider(),
+            client,
+            Options.Create(new AzureServiceBusOptions
+            {
+                TopicName = "ecommerce-topic",
+                DeadLetterCaptureSubscriptions = new List<string> { "inventory-microservice", "payment-microservice" },
+            }),
+            logger);
+
+        await capture.StartAsync(CancellationToken.None);
+
+        await healthy.Received(1).StartProcessingAsync(Arg.Any<CancellationToken>());
+
+        Assert.Contains(logger.Messages, m =>
+            m.Contains("inventory-microservice", StringComparison.Ordinal)
+            && m.Contains("ecommerce-topic", StringComparison.Ordinal)
+            && m.Contains(MessagingOptions.AzureServiceBusProvider, StringComparison.Ordinal));
+
+        await capture.StopAsync(CancellationToken.None);
+        await healthy.Received(1).StopProcessingAsync(Arg.Any<CancellationToken>());
+        await failing.DidNotReceive().StopProcessingAsync(Arg.Any<CancellationToken>());
+
         await capture.DisposeAsync();
     }
 
@@ -170,9 +286,21 @@ public sealed class AzureServiceBusDeadLetterCaptureTests
             Options.Create(new AzureServiceBusOptions
             {
                 TopicName = "ecommerce-topic",
-                DeadLetterCaptureSubscription = "inventory-microservice",
+                DeadLetterCaptureSubscriptions = new List<string> { "inventory-microservice" },
             }),
             NullLogger<AzureServiceBusDeadLetterCapture>.Instance);
+    }
+
+    private sealed class RecordingLogger : ILogger<AzureServiceBusDeadLetterCapture>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            Messages.Add(formatter(state, exception));
+        }
     }
 
     private static ServiceBusReceivedMessage NewMessage(string subscription, string eventType) =>
