@@ -31,7 +31,7 @@ public sealed class MessagingProviderBootTests
             ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
             ["AzureServiceBus:ConnectionString"] = "Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=k;SharedAccessKey=ZmFrZWtleQ==",
             ["AzureServiceBus:TopicName"] = "ecommerce-topic",
-            ["EventBus:QueueName"] = "product"
+            ["EventBus:QueueName"] = "product-microservice"
         });
 
         using var scope = factory.Services.CreateScope();
@@ -50,7 +50,7 @@ public sealed class MessagingProviderBootTests
             ["AzureServiceBus:AdministrationConnectionString"] = "Endpoint=sb://localhost:5300;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;",
             ["AzureServiceBus:AutoProvisionTopology"] = AzureServiceBusOptions.AutoProvisionTopologyNever,
             ["AzureServiceBus:TopicName"] = "ecommerce-topic",
-            ["EventBus:QueueName"] = "product"
+            ["EventBus:QueueName"] = "product-microservice"
         });
 
         using var scope = factory.Services.CreateScope();

@@ -7,12 +7,14 @@ Use this only when you want to exercise the Azure Service Bus provider locally. 
 Start only the emulator infrastructure:
 
 ```powershell
+$env:ASB_EMULATOR_SQL_PASSWORD = "<strong local SQL password>"
 docker compose --profile asb up -d servicebus-emulator servicebus-sql
 ```
 
 To run the emulator beside the full default stack:
 
 ```powershell
+$env:ASB_EMULATOR_SQL_PASSWORD = "<strong local SQL password>"
 docker compose --profile asb up -d
 ```
 
@@ -21,8 +23,11 @@ RabbitMQ already owns host port `5672` in this repo, so the emulator maps host A
 ```powershell
 $env:ASB_EMULATOR_AMQP_PORT = "5672"
 $env:ASB_EMULATOR_HTTP_PORT = "5300"
+$env:ASB_EMULATOR_SQL_PASSWORD = "<strong local SQL password>"
 docker compose --profile asb up -d servicebus-emulator servicebus-sql
 ```
+
+`ASB_EMULATOR_SQL_PASSWORD` is required for both the emulator and its SQL sidecar. Keep it in your shell or a local `.env` file and do not commit the value.
 
 ## Verify Health
 

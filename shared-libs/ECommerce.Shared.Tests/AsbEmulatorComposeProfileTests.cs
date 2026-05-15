@@ -26,6 +26,7 @@ public sealed class AsbEmulatorComposeProfileTests
         Assert.Contains("SQL_SERVER=servicebus-sql", GetEnvironment(emulator));
         Assert.Contains("ACCEPT_EULA=Y", GetEnvironment(emulator));
         Assert.Contains("EMULATOR_HTTP_PORT=${ASB_EMULATOR_HTTP_PORT:-5300}", GetEnvironment(emulator));
+        Assert.Contains("MSSQL_SA_PASSWORD=${ASB_EMULATOR_SQL_PASSWORD:-}", GetEnvironment(emulator));
 
         Assert.Contains("ACCEPT_EULA=Y", GetEnvironment(sql));
         Assert.Contains("MSSQL_SA_PASSWORD=${ASB_EMULATOR_SQL_PASSWORD:-}", GetEnvironment(sql));
@@ -59,6 +60,7 @@ public sealed class AsbEmulatorComposeProfileTests
         Assert.Contains("UseDevelopmentEmulator=true", docs, StringComparison.Ordinal);
         Assert.Contains("ASB_EMULATOR_AMQP_PORT", docs, StringComparison.Ordinal);
         Assert.Contains("ASB_EMULATOR_HTTP_PORT", docs, StringComparison.Ordinal);
+        Assert.Contains("ASB_EMULATOR_SQL_PASSWORD", docs, StringComparison.Ordinal);
     }
 
     [Fact]

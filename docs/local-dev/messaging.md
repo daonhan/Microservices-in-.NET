@@ -68,8 +68,11 @@ Choose this when you want to debug a service from the host while using the local
 Start the emulator infrastructure:
 
 ```powershell
+$env:ASB_EMULATOR_SQL_PASSWORD = "<strong local SQL password>"
 docker compose --profile asb up -d servicebus-emulator servicebus-sql
 ```
+
+`ASB_EMULATOR_SQL_PASSWORD` is required for the emulator SQL sidecar. Keep it in your shell or a local `.env` file and do not commit the value.
 
 Use these environment variables for each host-run service:
 
@@ -148,6 +151,7 @@ Choose this when service containers, not host-run services, should talk to the A
 Start the emulator beside the default stack:
 
 ```powershell
+$env:ASB_EMULATOR_SQL_PASSWORD = "<strong local SQL password>"
 docker compose --profile asb up -d
 ```
 

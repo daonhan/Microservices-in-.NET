@@ -139,10 +139,11 @@ This starts the full stack: 8 microservices (Basket, Order, Product, Auth, Inven
 RabbitMQ remains the default local broker for `docker compose up`, local smoke runs, and the Phase-4 saga regression path. To exercise the Azure Service Bus adapter locally, start the opt-in emulator profile:
 
 ```bash
+export ASB_EMULATOR_SQL_PASSWORD="<strong local SQL password>"
 docker compose --profile asb up -d servicebus-emulator servicebus-sql
 ```
 
-See [docs/local-dev/messaging.md](docs/local-dev/messaging.md) for the four local messaging scenarios and the required provider environment variables. The emulator-specific health check, opt-in adapter test, DLQ verification, and teardown remain in [docs/qa/asb-emulator-local.md](docs/qa/asb-emulator-local.md).
+See [docs/local-dev/messaging.md](docs/local-dev/messaging.md) for the four local messaging scenarios and the required provider environment variables. The emulator-specific SQL password guidance, health check, opt-in adapter test, DLQ verification, and teardown remain in [docs/qa/asb-emulator-local.md](docs/qa/asb-emulator-local.md).
 
 ### Run Individual Services
 
