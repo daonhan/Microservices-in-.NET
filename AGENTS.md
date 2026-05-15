@@ -28,12 +28,14 @@ docker compose up sql rabbitmq redis -d                         # infra only
 
 Activate once: `dotnet tool restore && dotnet husky install`. Hook runs `dotnet format --verify-no-changes`, `dotnet build --no-restore`, then Basket tests only — **run other suites manually before pushing cross-service changes**.
 
-Known WSL/virtiofs issue: pre-commit may fail at `dotnet build --no-restore` with `MSB3248 No such device` due to root-owned `bin/obj`. Not a regression. Workaround from a writable host shell:
+Known WSL/virtiofs/Docker sandbox issue: pre-commit may fail at `dotnet build --no-restore` with `MSB3248 No such device` due to root-owned or sandbox-created `bin/obj`. Not a regression. Workaround from a writable host shell:
 
 ```bash
 find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
 dotnet restore && dotnet husky run --group pre-commit
 ```
+
+Sandbox validation note: `dotnet format --verify-no-changes` and shared-library `dotnet build` can pass clean in Docker sandbox while `ECommerce.Shared.Tests` still fails with `MSB3248 No such device` when reading the freshly built shared DLL. If a sandbox-only automation already used `--no-verify` because of this issue, record the passing commands and require a host workflow to rerun the skipped hook/tests before push or merge.
 
 If cleanup is blocked, commit from a host where hooks pass. **Do not bypass hooks.**
 
@@ -52,7 +54,7 @@ Consumers see no change until version bump + new `.nupkg` in feed.
 
 ## Cross-service architecture
 
-Read together: each service's `Program.cs` (composition root, uses `ECommerce.Shared` extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddRabbitMqEventBus`, `AddRabbitMqEventPublisher`, `AddRabbitMqSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`); `shared-libs/ECommerce.Shared/Infrastructure/` (`EventBus/`, `RabbitMq/` — fanout `ecommerce-exchange`, OTEL via headers; `Outbox/` — `OutboxBackgroundService`, services that publish need `AddOutbox(...)` + `app.ApplyOutboxMigrations()` in Dev). New cross-cutting concerns belong in `ECommerce.Shared`.
+Read together: each service's `Program.cs` (composition root, uses `ECommerce.Shared` extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`); `shared-libs/ECommerce.Shared/Infrastructure/` (`EventBus/`, `Messaging/`, `RabbitMq/`, `AzureServiceBus/` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; `Outbox/` — `OutboxBackgroundService`, services that publish need `AddOutbox(...)` + `app.ApplyOutboxMigrations()` in Dev). New cross-cutting concerns belong in `ECommerce.Shared`.
 
 **Saga (no orchestrator):** `OrderCreatedEvent` → Inventory reserves → `StockReserved`/`StockReservationFailed` → Order emits `OrderConfirmed`/`OrderCancelled` → Inventory commits/releases → Payment authorizes/captures (`PaymentAuthorized|Captured|Failed|Refunded`) → Shipping on `StockCommitted` (`ShipmentCreated|Dispatched|Delivered|Cancelled|Returned|Failed`). Touching one leg without the others desyncs the flow. Events: `IntegrationEvents/Events/`; handlers: `IntegrationEvents/EventHandlers/`.
 

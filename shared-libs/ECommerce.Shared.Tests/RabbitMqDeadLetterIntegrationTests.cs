@@ -1,4 +1,5 @@
 using System.Text;
+using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.RabbitMq;
@@ -139,6 +140,44 @@ public sealed class RabbitMqDeadLetterIntegrationTests : IAsyncLifetime
         Assert.Equal(correlationId.ToString(), deadLettered.BasicProperties.CorrelationId);
     }
 
+    [Fact]
+    public async Task Given_dead_letter_replay_request_When_RabbitMq_publisher_publishes_Then_original_queue_receives_message_with_event_type_header()
+    {
+        var queueName = $"shared-tests-replay-{Guid.NewGuid():N}";
+        const string payload = """{"Payload":"replayed"}""";
+        var failureId = Guid.NewGuid();
+        var correlationId = Guid.NewGuid();
+
+        using (var channel = _testConnection!.CreateModel())
+        {
+            channel.QueueDeclare(
+                queue: queueName,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: null);
+        }
+
+        var publisher = new RabbitMqDeadLetterPublisher(new ExistingConnection(_testConnection!));
+
+        var newMessageId = publisher.Publish(new DeadLetterReplayRequest(
+            OriginalQueue: queueName,
+            EventType: nameof(TestEvent),
+            Payload: payload,
+            CorrelationId: correlationId,
+            FailureId: failureId));
+
+        var replayed = await PollForMessageAsync(queueName, TimeSpan.FromSeconds(5));
+
+        Assert.NotNull(replayed);
+        Assert.Equal(payload, Encoding.UTF8.GetString(replayed.Body.Span));
+        Assert.Equal(newMessageId.ToString(), replayed.BasicProperties.MessageId);
+        Assert.Equal(correlationId.ToString(), replayed.BasicProperties.CorrelationId);
+        Assert.Equal(nameof(TestEvent), ReadHeaderString(replayed.BasicProperties, RabbitMqTopology.EventTypeHeader));
+        Assert.Equal(failureId.ToString(), ReadHeaderString(replayed.BasicProperties, RabbitMqTopology.ReplayedFromHeader));
+        Assert.Equal(correlationId.ToString(), ReadHeaderString(replayed.BasicProperties, RabbitMqTopology.CorrelationIdHeader));
+    }
+
     private TestHost BuildHost<TEvent, THandler>(string queueName, int retryCount, Action<THandler> configure)
         where TEvent : Event
         where THandler : class, IEventHandler<TEvent>, new()
@@ -255,7 +294,7 @@ public sealed class RabbitMqDeadLetterIntegrationTests : IAsyncLifetime
         };
     }
 
-    // Mirrors DeadLetterHostedService.ReadFirstDeathHeader: when the consumer cannot
+    // Mirrors RabbitMqDeadLetterCapture.ReadFirstDeathHeader: when the consumer cannot
     // mutate properties before BasicNack, RabbitMQ's built-in x-death header still
     // identifies the original queue.
     private static string? ReadFirstDeathQueue(IBasicProperties props)

@@ -1,8 +1,8 @@
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
+using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
@@ -19,9 +19,9 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 
 builder.Services.AddOutbox(builder.Configuration);
 
-builder.Services.AddRabbitMqEventBus(builder.Configuration)
-    .AddRabbitMqEventPublisher(builder.Configuration)
-    .AddRabbitMqSubscriberService(builder.Configuration)
+builder.Services.AddPlatformEventBus(builder.Configuration)
+    .AddPlatformEventPublisher(builder.Configuration)
+    .AddPlatformSubscriberService(builder.Configuration)
     .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
     .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>()
     .AddEventHandler<StockCommittedEvent, StockCommittedEventHandler>();

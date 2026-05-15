@@ -33,19 +33,21 @@ public class InventoryWebApplicationFactory : WebApplicationFactory<Program>, IA
     {
         builder.ConfigureTestServices(services =>
         {
-            RemoveRabbitMqSubscriber(services);
+            RemoveHostedService<RabbitMqHostedService>(services);
             ApplyMigrations(services);
             ConfigureTestAuthentication(services);
         });
     }
 
-    private static void RemoveRabbitMqSubscriber(IServiceCollection services)
+    private static void RemoveHostedService<THostedService>(IServiceCollection services)
+        where THostedService : IHostedService
     {
-        var descriptor = services.SingleOrDefault(service =>
-            service.ServiceType == typeof(IHostedService) &&
-            service.ImplementationType == typeof(RabbitMqHostedService));
+        var descriptors = services
+            .Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && descriptor.ImplementationType == typeof(THostedService))
+            .ToArray();
 
-        if (descriptor is not null)
+        foreach (var descriptor in descriptors)
         {
             services.Remove(descriptor);
         }

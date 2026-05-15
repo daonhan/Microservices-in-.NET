@@ -3,6 +3,15 @@
 > GitHub issue: [#82](https://github.com/daonhan/Microservices-in-.NET/issues/82)
 > Part of the RabbitMQ → Azure Service Bus local-dev migration. **Depends on PRDs A, B, C** (`PRD-Messaging-Adopt-AddPlatform.md`, `PRD-Messaging-AsbEmulator-Local.md`, `PRD-Messaging-DLQ-Provider-Abstraction.md`).
 
+## Implementation Issue Index
+
+| Slice | Issue |
+|-------|-------|
+| Provider defaults | [#108](https://github.com/daonhan/Microservices-in-.NET/issues/108) |
+| Four-scenario guide | [#109](https://github.com/daonhan/Microservices-in-.NET/issues/109) |
+| Saga verification and troubleshooting | [#110](https://github.com/daonhan/Microservices-in-.NET/issues/110) |
+| Cross-docs and CI contract | [#111](https://github.com/daonhan/Microservices-in-.NET/issues/111) |
+
 ## Problem Statement
 
 Even after PRDs A–C land, a new contributor has no clear instructions on how to choose between Rabbit and ASB locally, what env vars to set, what the emulator profile is for, or how to verify the saga end-to-end on each broker. `Messaging:Provider` lives only in the shared library — services do not surface it in their `appsettings*.json` or in the Compose env. This is a docs and config-defaults gap that turns into surprise the first time someone tries to "use ASB locally" without context.

@@ -180,6 +180,7 @@ that observes it.
 
 Scenario pages:
 
+- [ASB Emulator Local Profile](asb-emulator-local.md)
 - [01 Happy Path](scenarios/01-happy-path.md)
 - [02 Stock Shortage](scenarios/02-stock-shortage.md)
 - [03 Payment Decline](scenarios/03-payment-decline.md)
