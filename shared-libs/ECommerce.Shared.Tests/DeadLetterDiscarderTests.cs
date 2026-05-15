@@ -24,10 +24,11 @@ public sealed class DeadLetterDiscarderTests
         CorrelationId = Guid.NewGuid()
     };
 
-    private static (DeadLetterDiscarder discarder, IDeadLetterStore store) Build()
+    private static (DeadLetterDiscarder discarder, IDeadLetterStore store) Build(
+        string provider = MessagingOptions.RabbitMqProvider)
     {
         var store = Substitute.For<IDeadLetterStore>();
-        var discarder = new DeadLetterDiscarder(store, NullLogger<DeadLetterDiscarder>.Instance);
+        var discarder = new DeadLetterDiscarder(store, NullLogger<DeadLetterDiscarder>.Instance, provider);
         return (discarder, store);
     }
 
@@ -113,10 +114,13 @@ public sealed class DeadLetterDiscarderTests
         await store.Received(1).MarkDiscardedAsync(msg.Id, "unknown", "duplicate event", Arg.Any<CancellationToken>());
     }
 
-    [Fact]
-    public async Task Given_pending_message_When_DiscardAsync_Then_dlq_discards_total_is_tagged_with_RabbitMq_provider()
+    [Theory]
+    [InlineData(MessagingOptions.RabbitMqProvider)]
+    [InlineData(MessagingOptions.AzureServiceBusProvider)]
+    public async Task Given_pending_message_When_DiscardAsync_Then_dlq_discards_total_is_tagged_with_selected_provider(
+        string provider)
     {
-        var (discarder, store) = Build();
+        var (discarder, store) = Build(provider);
         var msg = NewPending();
         store.GetAsync(msg.Id, Arg.Any<CancellationToken>()).Returns(msg);
         store.MarkDiscardedAsync(msg.Id, Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(true);
@@ -140,7 +144,7 @@ public sealed class DeadLetterDiscarderTests
                 foreach (var tag in tags)
                 {
                     capturedTags.Add(new KeyValuePair<string, object?>(tag.Key, tag.Value));
-                    if (tag.Key == "provider" && (string?)tag.Value == MessagingOptions.RabbitMqProvider)
+                    if (tag.Key == "provider" && (string?)tag.Value == provider)
                     {
                         matchedProvider = true;
                     }
@@ -159,7 +163,7 @@ public sealed class DeadLetterDiscarderTests
             == metricEmitted.Task;
 
         Assert.Equal(DeadLetterDiscardOutcome.Success, result.Outcome);
-        Assert.True(metricSeen, "dlq_discards_total was not tagged with provider=RabbitMq.");
+        Assert.True(metricSeen, $"dlq_discards_total was not tagged with provider={provider}.");
 
         KeyValuePair<string, object?>[] snapshot;
         lock (capturedTags)
@@ -167,7 +171,7 @@ public sealed class DeadLetterDiscarderTests
             snapshot = capturedTags.ToArray();
         }
 
-        Assert.Contains(snapshot, t => t.Key == "provider" && (string?)t.Value == MessagingOptions.RabbitMqProvider);
+        Assert.Contains(snapshot, t => t.Key == "provider" && (string?)t.Value == provider);
         Assert.Contains(snapshot, t => t.Key == "service" && (string?)t.Value == msg.Service);
         Assert.Contains(snapshot, t => t.Key == "event_type" && (string?)t.Value == msg.EventType);
         Assert.Contains(snapshot, t => t.Key == "outcome" && (string?)t.Value == "success");
