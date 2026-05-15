@@ -30,6 +30,12 @@ internal class PaymentContext : DbContext, IPaymentStore
         modelBuilder.ApplyConfiguration(new OrderCustomerConfiguration());
     }
 
+    public Task Add(Models.Payment payment)
+    {
+        Payments.Add(payment);
+        return Task.CompletedTask;
+    }
+
     public async Task<Models.Payment?> GetById(Guid paymentId)
     {
         return await Payments.FirstOrDefaultAsync(p => p.PaymentId == paymentId);
@@ -92,6 +98,10 @@ internal class PaymentContext : DbContext, IPaymentStore
 
     private static Event Translate(IDomainEvent domainEvent) => domainEvent switch
     {
+        PaymentAuthorizedDomainEvent e => new PaymentAuthorizedEvent(
+            e.PaymentId, e.OrderId, e.CustomerId, e.Amount, e.Currency),
+        PaymentFailedDomainEvent e => new PaymentFailedEvent(
+            e.PaymentId, e.OrderId, e.CustomerId, e.Reason),
         PaymentCapturedDomainEvent e => new PaymentCapturedEvent(e.PaymentId, e.OrderId, e.Amount),
         PaymentRefundedDomainEvent e => new PaymentRefundedEvent(e.PaymentId, e.OrderId, e.Amount),
         _ => throw new InvalidOperationException(

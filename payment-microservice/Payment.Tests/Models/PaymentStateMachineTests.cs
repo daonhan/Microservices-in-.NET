@@ -26,6 +26,13 @@ public class PaymentStateMachineTests
         Assert.Equal(PaymentStatus.Authorized, payment.Status);
         Assert.Equal("ref-1", payment.ProviderReference);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var authorized = Assert.Single(payment.DomainEvents.OfType<PaymentAuthorizedDomainEvent>());
+        Assert.Equal(payment.PaymentId, authorized.PaymentId);
+        Assert.Equal(payment.OrderId, authorized.OrderId);
+        Assert.Equal(payment.CustomerId, authorized.CustomerId);
+        Assert.Equal(payment.Amount, authorized.Amount);
+        Assert.Equal(payment.Currency, authorized.Currency);
     }
 
     [Fact]
@@ -34,10 +41,16 @@ public class PaymentStateMachineTests
         var payment = NewPending();
         var occurredAt = DateTime.UtcNow;
 
-        payment.Fail(occurredAt);
+        payment.Fail("Card declined by issuer", occurredAt);
 
         Assert.Equal(PaymentStatus.Failed, payment.Status);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var failed = Assert.Single(payment.DomainEvents.OfType<PaymentFailedDomainEvent>());
+        Assert.Equal(payment.PaymentId, failed.PaymentId);
+        Assert.Equal(payment.OrderId, failed.OrderId);
+        Assert.Equal(payment.CustomerId, failed.CustomerId);
+        Assert.Equal("Card declined by issuer", failed.Reason);
     }
 
     [Fact]
@@ -110,7 +123,7 @@ public class PaymentStateMachineTests
     public void Fail_FromNonPending_Throws(PaymentStatus current)
     {
         var payment = MoveTo(current);
-        Assert.Throws<InvalidOperationException>(() => payment.Fail(DateTime.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => payment.Fail("reason", DateTime.UtcNow));
     }
 
     [Theory]
@@ -143,10 +156,16 @@ public class PaymentStateMachineTests
         var payment = MoveTo(current);
         var occurredAt = DateTime.UtcNow;
 
-        payment.Void(occurredAt);
+        payment.Void("Order cancelled", occurredAt);
 
         Assert.Equal(PaymentStatus.Failed, payment.Status);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var failed = Assert.Single(payment.DomainEvents.OfType<PaymentFailedDomainEvent>());
+        Assert.Equal(payment.PaymentId, failed.PaymentId);
+        Assert.Equal(payment.OrderId, failed.OrderId);
+        Assert.Equal(payment.CustomerId, failed.CustomerId);
+        Assert.Equal("Order cancelled", failed.Reason);
     }
 
     [Theory]
@@ -156,7 +175,7 @@ public class PaymentStateMachineTests
     public void Void_FromTerminal_Throws(PaymentStatus current)
     {
         var payment = MoveTo(current);
-        Assert.Throws<InvalidOperationException>(() => payment.Void(DateTime.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => payment.Void("reason", DateTime.UtcNow));
     }
 
     private static Service.Models.Payment MoveTo(PaymentStatus target)
@@ -179,7 +198,7 @@ public class PaymentStateMachineTests
                 payment.Refund(payment.Amount, DateTime.UtcNow);
                 return payment;
             case PaymentStatus.Failed:
-                payment.Fail(DateTime.UtcNow);
+                payment.Fail("reason", DateTime.UtcNow);
                 return payment;
             default:
                 throw new ArgumentOutOfRangeException(nameof(target), target, null);

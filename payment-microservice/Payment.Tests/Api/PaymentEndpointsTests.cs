@@ -197,7 +197,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
 
         if (status == PaymentStatus.Failed)
         {
-            payment.Fail(now);
+            payment.Fail("seed", now);
         }
         else if (status != PaymentStatus.Pending)
         {

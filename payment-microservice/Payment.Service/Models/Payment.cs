@@ -46,9 +46,10 @@ public class Payment : Entity
         ProviderReference = providerReference;
         Status = PaymentStatus.Authorized;
         UpdatedAt = occurredAt;
+        Raise(new PaymentAuthorizedDomainEvent(PaymentId, OrderId, CustomerId, Amount, Currency));
     }
 
-    public void Fail(DateTime occurredAt)
+    public void Fail(string reason, DateTime occurredAt)
     {
         if (Status != PaymentStatus.Pending)
         {
@@ -58,6 +59,7 @@ public class Payment : Entity
 
         Status = PaymentStatus.Failed;
         UpdatedAt = occurredAt;
+        Raise(new PaymentFailedDomainEvent(PaymentId, OrderId, CustomerId, reason));
     }
 
     public void Capture(DateTime occurredAt)
@@ -86,7 +88,7 @@ public class Payment : Entity
         Raise(new PaymentRefundedDomainEvent(PaymentId, OrderId, refundAmount));
     }
 
-    public void Void(DateTime occurredAt)
+    public void Void(string reason, DateTime occurredAt)
     {
         if (Status != PaymentStatus.Pending && Status != PaymentStatus.Authorized)
         {
@@ -96,5 +98,6 @@ public class Payment : Entity
 
         Status = PaymentStatus.Failed;
         UpdatedAt = occurredAt;
+        Raise(new PaymentFailedDomainEvent(PaymentId, OrderId, CustomerId, reason));
     }
 }
