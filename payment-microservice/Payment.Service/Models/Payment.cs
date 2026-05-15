@@ -35,8 +35,13 @@ public class Payment : Entity
         };
     }
 
-    public void Authorize(string providerReference, DateTime occurredAt)
+    public bool Authorize(string providerReference, DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Authorized)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Pending)
         {
             throw new InvalidOperationException(
@@ -47,10 +52,16 @@ public class Payment : Entity
         Status = PaymentStatus.Authorized;
         UpdatedAt = occurredAt;
         Raise(new PaymentAuthorizedDomainEvent(PaymentId, OrderId, CustomerId, Amount, Currency));
+        return true;
     }
 
-    public void Fail(string reason, DateTime occurredAt)
+    public bool Fail(string reason, DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Failed)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Pending)
         {
             throw new InvalidOperationException(
@@ -60,10 +71,16 @@ public class Payment : Entity
         Status = PaymentStatus.Failed;
         UpdatedAt = occurredAt;
         Raise(new PaymentFailedDomainEvent(PaymentId, OrderId, CustomerId, reason));
+        return true;
     }
 
-    public void Capture(DateTime occurredAt)
+    public bool Capture(DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Captured)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Authorized)
         {
             throw new InvalidOperationException(
@@ -73,10 +90,16 @@ public class Payment : Entity
         Status = PaymentStatus.Captured;
         UpdatedAt = occurredAt;
         Raise(new PaymentCapturedDomainEvent(PaymentId, OrderId, Amount));
+        return true;
     }
 
-    public void Refund(decimal refundAmount, DateTime occurredAt)
+    public bool Refund(decimal refundAmount, DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Refunded)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Captured)
         {
             throw new InvalidOperationException(
@@ -86,10 +109,16 @@ public class Payment : Entity
         Status = PaymentStatus.Refunded;
         UpdatedAt = occurredAt;
         Raise(new PaymentRefundedDomainEvent(PaymentId, OrderId, refundAmount));
+        return true;
     }
 
-    public void Void(string reason, DateTime occurredAt)
+    public bool Void(string reason, DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Failed)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Pending && Status != PaymentStatus.Authorized)
         {
             throw new InvalidOperationException(
@@ -99,5 +128,6 @@ public class Payment : Entity
         Status = PaymentStatus.Failed;
         UpdatedAt = occurredAt;
         Raise(new PaymentFailedDomainEvent(PaymentId, OrderId, CustomerId, reason));
+        return true;
     }
 }

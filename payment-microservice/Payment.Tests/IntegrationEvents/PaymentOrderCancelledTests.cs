@@ -86,6 +86,16 @@ public class PaymentOrderCancelledTests : IntegrationTestBase
 
         Assert.Equal(PaymentStatus.Failed, after.Status);
         Assert.Equal(beforeUpdatedAt, after.UpdatedAt);
+
+        using var scope = Factory.Services.CreateScope();
+        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
+
+        var failedEvents = outboxEvents.Where(e =>
+            e.EventType.Contains(nameof(PaymentFailedEvent), StringComparison.Ordinal) &&
+            e.Data.Contains(orderId.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        Assert.Single(failedEvents);
     }
 
     [Fact]
@@ -113,6 +123,16 @@ public class PaymentOrderCancelledTests : IntegrationTestBase
 
         Assert.Equal(PaymentStatus.Failed, after.Status);
         Assert.Equal(firstUpdate, after.UpdatedAt);
+
+        using var scope = Factory.Services.CreateScope();
+        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
+
+        var failedEvents = outboxEvents.Where(e =>
+            e.EventType.Contains(nameof(PaymentFailedEvent), StringComparison.Ordinal) &&
+            e.Data.Contains(orderId.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        Assert.Single(failedEvents);
     }
 
     private async Task DispatchAsync<TEvent>(TEvent @event)

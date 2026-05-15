@@ -148,6 +148,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
             new PaymentApiEndpoints.RefundPaymentRequest(Amount: null));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        await AssertOutboxContainsAsync(nameof(PaymentRefundedEvent), paymentId, expectedCount: 0);
     }
 
     [Fact]

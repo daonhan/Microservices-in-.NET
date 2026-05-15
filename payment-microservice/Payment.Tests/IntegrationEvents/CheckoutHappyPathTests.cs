@@ -84,6 +84,16 @@ public class CheckoutHappyPathTests : IntegrationTestBase
             .ToListAsync();
 
         Assert.Single(payments);
+
+        using var scope = Factory.Services.CreateScope();
+        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
+
+        var matching = outboxEvents.Where(e =>
+            e.EventType.Contains(nameof(PaymentAuthorizedEvent), StringComparison.Ordinal) &&
+            e.Data.Contains(orderId.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        Assert.Single(matching);
     }
 
     private async Task DispatchAsync<TEvent>(TEvent @event)
