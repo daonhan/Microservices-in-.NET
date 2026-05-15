@@ -93,6 +93,7 @@ internal class PaymentContext : DbContext, IPaymentStore
     private static Event Translate(IDomainEvent domainEvent) => domainEvent switch
     {
         PaymentCapturedDomainEvent e => new PaymentCapturedEvent(e.PaymentId, e.OrderId, e.Amount),
+        PaymentRefundedDomainEvent e => new PaymentRefundedEvent(e.PaymentId, e.OrderId, e.Amount),
         _ => throw new InvalidOperationException(
             $"No integration-event translation registered for domain event {domainEvent.GetType().Name}")
     };

@@ -73,7 +73,7 @@ public class Payment : Entity
         Raise(new PaymentCapturedDomainEvent(PaymentId, OrderId, Amount));
     }
 
-    public void Refund(DateTime occurredAt)
+    public void Refund(decimal refundAmount, DateTime occurredAt)
     {
         if (Status != PaymentStatus.Captured)
         {
@@ -83,6 +83,7 @@ public class Payment : Entity
 
         Status = PaymentStatus.Refunded;
         UpdatedAt = occurredAt;
+        Raise(new PaymentRefundedDomainEvent(PaymentId, OrderId, refundAmount));
     }
 
     public void Void(DateTime occurredAt)

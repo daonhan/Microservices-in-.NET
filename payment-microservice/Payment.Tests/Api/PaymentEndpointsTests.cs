@@ -210,7 +210,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
 
             if (status == PaymentStatus.Refunded)
             {
-                payment.Refund(now);
+                payment.Refund(payment.Amount, now);
             }
         }
 

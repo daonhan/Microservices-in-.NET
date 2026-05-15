@@ -67,10 +67,28 @@ public class PaymentStateMachineTests
         payment.Capture(DateTime.UtcNow);
         var occurredAt = DateTime.UtcNow;
 
-        payment.Refund(occurredAt);
+        payment.Refund(payment.Amount, occurredAt);
 
         Assert.Equal(PaymentStatus.Refunded, payment.Status);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var refunded = Assert.Single(payment.DomainEvents.OfType<PaymentRefundedDomainEvent>());
+        Assert.Equal(payment.PaymentId, refunded.PaymentId);
+        Assert.Equal(payment.OrderId, refunded.OrderId);
+        Assert.Equal(payment.Amount, refunded.Amount);
+    }
+
+    [Fact]
+    public void Refund_WithPartialAmount_RaisesRefundedEventWithThatAmount()
+    {
+        var payment = NewPending();
+        payment.Authorize("ref-1", DateTime.UtcNow);
+        payment.Capture(DateTime.UtcNow);
+
+        payment.Refund(20.00m, DateTime.UtcNow);
+
+        var refunded = Assert.Single(payment.DomainEvents.OfType<PaymentRefundedDomainEvent>());
+        Assert.Equal(20.00m, refunded.Amount);
     }
 
     [Theory]
@@ -114,7 +132,7 @@ public class PaymentStateMachineTests
     public void Refund_FromNonCaptured_Throws(PaymentStatus current)
     {
         var payment = MoveTo(current);
-        Assert.Throws<InvalidOperationException>(() => payment.Refund(DateTime.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => payment.Refund(payment.Amount, DateTime.UtcNow));
     }
 
     [Theory]
@@ -158,7 +176,7 @@ public class PaymentStateMachineTests
             case PaymentStatus.Refunded:
                 payment.Authorize("ref", DateTime.UtcNow);
                 payment.Capture(DateTime.UtcNow);
-                payment.Refund(DateTime.UtcNow);
+                payment.Refund(payment.Amount, DateTime.UtcNow);
                 return payment;
             case PaymentStatus.Failed:
                 payment.Fail(DateTime.UtcNow);
