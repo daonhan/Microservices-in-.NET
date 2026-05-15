@@ -142,7 +142,7 @@ RabbitMQ remains the default local broker for `docker compose up`, local smoke r
 docker compose --profile asb up -d servicebus-emulator servicebus-sql
 ```
 
-See [docs/qa/asb-emulator-local.md](docs/qa/asb-emulator-local.md) for F5 connection strings, Compose-container settings, topology auto-provisioning behavior, opt-in emulator verification, and teardown.
+See [docs/local-dev/messaging.md](docs/local-dev/messaging.md) for the four local messaging scenarios and the required provider environment variables. The emulator-specific health check, opt-in adapter test, DLQ verification, and teardown remain in [docs/qa/asb-emulator-local.md](docs/qa/asb-emulator-local.md).
 
 ### Run Individual Services
 

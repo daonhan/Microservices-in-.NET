@@ -20,6 +20,7 @@
 
 - Code-first reference: [README.md](README.md)
 - Wiki home: [docs/wiki/Home.md](docs/wiki/Home.md)
+- Local messaging dev guide: [docs/local-dev/messaging.md](docs/local-dev/messaging.md)
 - LinkedIn: [linkedin.com/in/daonhan](https://www.linkedin.com/in/daonhan)
 - Substack: [substack.com/@daonhan](https://substack.com/@daonhan)
 
@@ -41,7 +42,7 @@ A seven-service e-commerce platform on .NET 10, built to run locally in Docker C
 - **Datastores.** SQL Server for everything except Basket, which uses Redis. Each service owns its schema; there is no shared database.
 - **Gateway.** A single API Gateway in front of the seven services that compiles **both** YARP and Ocelot and selects between them at boot via the `Gateway:Provider` flag. Same routes, same auth rules, same metrics either way.
 - **Auth.** RS256 JWTs issued by the Auth service and validated by every other service via the `/jwks` discovery endpoint — no shared secrets, no copy-pasted signing keys.
-- **Async backbone.** RabbitMQ is the default local broker, and Azure Service Bus can be selected with `Messaging:Provider`. Both paths use the gateway operator API for captured dead letters. Publishers go through a transactional outbox so a crash between "committed" and "published" cannot desynchronise the system.
+- **Async backbone.** RabbitMQ is the default local broker, and Azure Service Bus can be selected with `Messaging:Provider`. Use [docs/local-dev/messaging.md](docs/local-dev/messaging.md) to choose between Compose Rabbit, F5 + ASB emulator, F5 + shared dev namespace, and Compose `--profile asb`. Both broker paths use the gateway operator API for captured dead letters. Publishers go through a transactional outbox so a crash between "committed" and "published" cannot desynchronise the system.
 - **Saga.** Order → Inventory → Payment → Shipping, choreographed through integration events. No central orchestrator; the workflow lives in the events themselves.
 - **Observability.** OpenTelemetry traces, metrics, and logs flow through an OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top and Alertmanager wired to a starter set of alerts.
 - **Deployment.** Docker Compose for local, Kubernetes manifests under `kubernetes/` for `dev`/`staging`/`prod`, and an Azure-flavoured infra/pipelines folder under `Infrastructure - Deployment/`.
