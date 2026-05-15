@@ -1,6 +1,6 @@
 # Architecture
 
-The platform decomposes an e-commerce domain into seven independently deployable services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on the provider-selected broker. RabbitMQ is the default local provider; Azure Service Bus uses the same event and operator contracts when `Messaging:Provider=AzureServiceBus`.
+The platform decomposes an e-commerce domain into seven independently deployable services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on the provider-selected broker. RabbitMQ is the default local provider; Azure Service Bus uses the same event and operator contracts when `Messaging:Provider=AzureServiceBus`. For local broker selection, use [docs/local-dev/messaging.md](../local-dev/messaging.md).
 
 ## High-level topology
 

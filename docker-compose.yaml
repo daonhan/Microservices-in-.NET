@@ -188,6 +188,10 @@ services:
       - "5672:5672"
       - "15672:15672"
 
+  # ASB emulator is opt-in: docker compose --profile asb up -d servicebus-emulator servicebus-sql.
+  # The profile starts broker infrastructure only; service containers stay on RabbitMQ unless
+  # local overrides set Messaging__Provider=AzureServiceBus and the AzureServiceBus__* values.
+  # See docs/local-dev/messaging.md for the full override pattern.
   servicebus-emulator:
     container_name: servicebus-emulator
     image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
@@ -208,6 +212,7 @@ services:
     depends_on:
       - servicebus-sql
 
+  # SQL sidecar for the ASB emulator profile; not part of the default RabbitMQ stack.
   servicebus-sql:
     container_name: servicebus-sql
     image: mcr.microsoft.com/mssql/server:2022-latest

@@ -169,6 +169,12 @@ Inside the Compose network, `AzureServiceBus__ConnectionString` uses `servicebus
 
 Keep these overrides local to the run. The committed default Compose environment stays RabbitMQ-first.
 
+## CI and smoke contract
+
+`dotnet test` and the Phase-4 smoke workflow remain RabbitMQ-only. The default test and smoke path must keep using `Messaging__Provider=RabbitMq` or the committed `appsettings.json` default.
+
+Do not add the ASB emulator, the `asb` Compose profile, or `Messaging__Provider=AzureServiceBus` to the Phase-4 gate without a separate PRD. ASB coverage stays opt-in through the emulator guide and any explicitly gated adapter tests.
+
 ## Verify the saga
 
 Run this checklist after any of the four scenarios above. The HTTP flow is the same for RabbitMQ and Azure Service Bus because the broker switch is below the service API. Start from a clean QA dataset when you need deterministic product, stock, and payment outcomes:
