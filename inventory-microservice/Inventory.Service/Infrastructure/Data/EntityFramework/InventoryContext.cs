@@ -217,20 +217,27 @@ internal class InventoryContext : DbContext, IInventoryStore
             .Where(l => productIds.Contains(l.ProductId) && l.WarehouseId == defaultWarehouse.Id)
             .ToDictionaryAsync(l => l.ProductId);
 
+        var now = DateTime.UtcNow;
         var failedLines = new List<FailedReserveLine>();
+        var holds = new List<HoldResult>(lines.Count);
+
         foreach (var line in lines)
         {
             if (!stockItems.TryGetValue(line.ProductId, out var item) ||
-                !stockLevels.TryGetValue(line.ProductId, out _))
+                !stockLevels.TryGetValue(line.ProductId, out var level))
             {
                 failedLines.Add(new FailedReserveLine(line.ProductId, line.Quantity, 0));
                 continue;
             }
 
-            if (item.Available < line.Quantity)
+            var hold = item.Hold(orderId, defaultWarehouse.Id, line.Quantity, level, [], now);
+            if (hold.Outcome == HoldOutcome.InsufficientStock)
             {
-                failedLines.Add(new FailedReserveLine(line.ProductId, line.Quantity, item.Available));
+                failedLines.Add(new FailedReserveLine(line.ProductId, line.Quantity, hold.Available));
+                continue;
             }
+
+            holds.Add(hold);
         }
 
         if (failedLines.Count > 0)
@@ -238,38 +245,12 @@ internal class InventoryContext : DbContext, IInventoryStore
             return new ReserveResult(Reserved: false, AlreadyProcessed: false, [], failedLines);
         }
 
-        var now = DateTime.UtcNow;
-        var reservedLines = new List<ReservedLine>(lines.Count);
-
-        foreach (var line in lines)
+        var reservedLines = new List<ReservedLine>(holds.Count);
+        foreach (var hold in holds)
         {
-            var item = stockItems[line.ProductId];
-            var level = stockLevels[line.ProductId];
-
-            level.Reserved += line.Quantity;
-            item.TotalReserved += line.Quantity;
-
-            StockReservations.Add(new StockReservation
-            {
-                OrderId = orderId,
-                ProductId = line.ProductId,
-                WarehouseId = defaultWarehouse.Id,
-                Quantity = line.Quantity,
-                Status = ReservationStatus.Held,
-                CreatedAt = now
-            });
-
-            RecordStockMovement(new StockMovement
-            {
-                ProductId = line.ProductId,
-                WarehouseId = defaultWarehouse.Id,
-                Type = MovementType.Reserve,
-                Quantity = line.Quantity,
-                OccurredAt = now,
-                OrderId = orderId
-            });
-
-            reservedLines.Add(new ReservedLine(line.ProductId, defaultWarehouse.Id, line.Quantity));
+            StockReservations.Add(hold.Reservation!);
+            RecordStockMovement(hold.Movement!);
+            reservedLines.Add(new ReservedLine(hold.ProductId, hold.WarehouseId, hold.Quantity));
         }
 
         await SaveChangesAsync();
