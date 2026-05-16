@@ -11,7 +11,9 @@ Implemented as shared infrastructure in [`shared-libs/ECommerce.Shared/Infrastru
 
 ## Decision
 
-Every publishing service owns a transactional outbox: integration events are written to an `OutboxContext` table inside the same DbContext transaction as the business state change. A background `OutboxBackgroundService` (also from the shared library) polls unpublished rows and pushes them to RabbitMQ, then marks them sent. Each service runs its own outbox table — there is no shared outbox database.
+Every publishing service owns a transactional outbox: integration events are written to an `OutboxContext` table inside the same DbContext transaction as the business state change. A background `OutboxBackgroundService` (also from the shared library) polls unpublished rows and pushes them to the configured broker, then marks them sent. Each service runs its own outbox table — there is no shared outbox database.
+
+Business call sites publish through the `IOutboxUnitOfWork` seam, which owns the execution-strategy retry loop, the ambient transaction, event enqueuing, and telemetry. It is provider-neutral — callers never reference RabbitMQ- or Azure Service Bus-specific types; delivery stays selected by `Messaging:Provider`. The lower-level `IOutboxStore` primitive is retained (not removed) for the unit-of-work implementation, the outbox poller, and `/internal/outbox` routes. See [`Shared-Library.md` § Preferred caller seam](../wiki/Shared-Library.md#preferred-caller-seam-ioutboxunitofwork).
 
 ## Consequences
 

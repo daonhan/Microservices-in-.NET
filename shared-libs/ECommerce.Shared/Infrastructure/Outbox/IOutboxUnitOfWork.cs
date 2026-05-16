@@ -7,6 +7,8 @@ namespace ECommerce.Shared.Infrastructure.Outbox;
 /// Caller-facing seam for transactional publishing: runs a unit of work
 /// under the supplied execution strategy and ambient transaction, then
 /// enqueues the returned Integration Events on the Outbox in the same scope.
+/// This seam is provider-neutral and leaves delivery to the configured EventBus provider 
+/// (e.g. RabbitMQ or Azure Service Bus) without requiring provider-specific call-site code.
 /// </summary>
 public interface IOutboxUnitOfWork
 {

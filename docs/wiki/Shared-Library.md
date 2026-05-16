@@ -49,7 +49,8 @@ graph LR
 | `IRabbitMqConnection` | RabbitMQ adapter connection used when `Messaging:Provider=RabbitMq` |
 | `IDeadLetterCapture` | Provider-selected broker dead-letter capture hosted by the gateway |
 | `IDeadLetterPublisher` | Provider-selected replay publisher used by the gateway operator API |
-| `IOutboxStore` | Atomic "persist + enqueue event" primitive |
+| `IOutboxUnitOfWork` | **Preferred caller-facing seam** for transactional publishing — runs business work under the execution strategy + ambient transaction and enqueues the returned events in the same scope |
+| `IOutboxStore` | Low-level "persist + enqueue event" primitive; backs `IOutboxUnitOfWork` and stays available for infrastructure, outbox polling, and `/internal/outbox` routes |
 | `MetricFactory` | Cached creation of Counters and Histograms |
 
 ## Authorization policies
@@ -71,6 +72,32 @@ Without the outbox, a service that writes its domain row and publishes its event
 2. Broker publish succeeds, DB rolls back → phantom event.
 
 With the outbox, the business row and the outbox row are written in the **same** transaction. A background service periodically polls the outbox and publishes. At-least-once delivery + idempotent handlers = exactly-once effect.
+
+### Preferred caller seam: `IOutboxUnitOfWork`
+
+Business call sites should publish through `IOutboxUnitOfWork`, not by hand-rolling the
+`CreateExecutionStrategy + TransactionScope + AddOutboxEvent + Complete` ceremony:
+
+```csharp
+await outboxUnitOfWork.ExecuteAsync(outboxStore.CreateExecutionStrategy(), async () =>
+{
+    await store.SaveChangesAsync();           // business state change
+    return new Event[] { new SomethingHappenedEvent(...) };  // enqueued in the same transaction
+});
+```
+
+The seam owns the execution strategy retry loop, the ambient transaction, enqueuing the
+returned events, and outbox telemetry. Returning an empty list commits the business work
+with no events.
+
+This seam is **provider-neutral**: callers never reference RabbitMQ- or Azure Service
+Bus-specific types. Delivery of the enqueued rows is still selected by `Messaging:Provider`
+(see [Canonical messaging wiring](#canonical-messaging-wiring)), so switching brokers needs
+no call-site changes.
+
+`IOutboxStore` is **not removed** — it remains the low-level primitive that backs
+`IOutboxUnitOfWork` and is still used directly by infrastructure, the outbox poller, and
+`/internal/outbox` routes. New business code should prefer the unit-of-work seam.
 
 ## Observability wiring
 

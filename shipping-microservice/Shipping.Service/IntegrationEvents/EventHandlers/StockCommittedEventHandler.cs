@@ -1,7 +1,6 @@
-using System.Transactions;
+using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
-using Microsoft.EntityFrameworkCore;
 using Shipping.Service.Infrastructure.Data;
 using Shipping.Service.Models;
 
@@ -11,11 +10,16 @@ internal class StockCommittedEventHandler : IEventHandler<StockCommittedEvent>
 {
     private readonly IShipmentStore _shipmentStore;
     private readonly IOutboxStore _outboxStore;
+    private readonly IOutboxUnitOfWork _outboxUnitOfWork;
 
-    public StockCommittedEventHandler(IShipmentStore shipmentStore, IOutboxStore outboxStore)
+    public StockCommittedEventHandler(
+        IShipmentStore shipmentStore,
+        IOutboxStore outboxStore,
+        IOutboxUnitOfWork outboxUnitOfWork)
     {
         _shipmentStore = shipmentStore;
         _outboxStore = outboxStore;
+        _outboxUnitOfWork = outboxUnitOfWork;
     }
 
     public async Task Handle(StockCommittedEvent @event)
@@ -39,17 +43,16 @@ internal class StockCommittedEventHandler : IEventHandler<StockCommittedEvent>
             .Select(i => new CreateShipmentLine(i.ProductId, i.WarehouseId, i.Quantity))
             .ToList();
 
-        await _outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+        await _outboxUnitOfWork.ExecuteAsync(_outboxStore.CreateExecutionStrategy(), async () =>
         {
-            using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
             var result = await _shipmentStore.CreateShipmentsForOrder(@event.OrderId, customerId, lines);
 
             if (!result.Created)
             {
-                scope.Complete();
-                return;
+                return [];
             }
+
+            var events = new List<Event>();
 
             foreach (var shipment in result.Shipments)
             {
@@ -57,14 +60,14 @@ internal class StockCommittedEventHandler : IEventHandler<StockCommittedEvent>
                     .Select(l => new ShipmentLineItem(l.ProductId, l.Quantity))
                     .ToList();
 
-                await _outboxStore.AddOutboxEvent(new ShipmentCreatedEvent(
+                events.Add(new ShipmentCreatedEvent(
                     shipment.Id,
                     shipment.OrderId,
                     shipment.CustomerId,
                     shipment.WarehouseId,
                     lineItems));
 
-                await _outboxStore.AddOutboxEvent(new ShipmentStatusChangedEvent(
+                events.Add(new ShipmentStatusChangedEvent(
                     shipment.Id,
                     shipment.OrderId,
                     FromStatus: null,
@@ -72,7 +75,7 @@ internal class StockCommittedEventHandler : IEventHandler<StockCommittedEvent>
                     OccurredAt: shipment.CreatedAt));
             }
 
-            scope.Complete();
+            return events;
         });
     }
 }
