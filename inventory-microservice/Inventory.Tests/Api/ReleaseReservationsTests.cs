@@ -59,6 +59,74 @@ public class ReleaseReservationsTests : IntegrationTestBase
 
         Assert.Contains(InventoryContext.StockMovements,
             m => m.OrderId == orderId && m.Type == MovementType.Release);
+
+        SpinWait.SpinUntil(
+            () => ReceivedEvents.ToArray().OfType<StockReleasedEvent>().Any(e => e.OrderId == orderId),
+            TimeSpan.FromSeconds(5));
+        var published = Assert.Single(ReceivedEvents.ToArray().OfType<StockReleasedEvent>(), e => e.OrderId == orderId);
+        Assert.Equal(orderId, published.OrderId);
+        var itemPublished = Assert.Single(published.Items);
+        Assert.Equal(productId, itemPublished.ProductId);
+        Assert.Equal(1, itemPublished.WarehouseId);
+        Assert.Equal(4, itemPublished.Quantity);
+    }
+
+    [Fact]
+    public async Task Given_HeldReservation_When_OrderConfirmed_Then_CommitsAndPublishesStockCommitted()
+    {
+        const int productId = 605;
+        var orderId = Guid.NewGuid();
+
+        InventoryContext.StockItems.Add(new StockItem
+        {
+            ProductId = productId,
+            TotalOnHand = 10,
+            TotalReserved = 4,
+        });
+        InventoryContext.StockLevels.Add(new StockLevel
+        {
+            ProductId = productId,
+            WarehouseId = 1,
+            OnHand = 10,
+            Reserved = 4,
+        });
+        InventoryContext.StockReservations.Add(new StockReservation
+        {
+            OrderId = orderId,
+            ProductId = productId,
+            WarehouseId = 1,
+            Quantity = 4,
+            Status = ReservationStatus.Held,
+            CreatedAt = DateTime.UtcNow,
+        });
+        await InventoryContext.SaveChangesAsync();
+
+        Subscribe<StockCommittedEvent>();
+
+        await DispatchConfirmAsync(new OrderConfirmedEvent(orderId, "c-1"));
+
+        InventoryContext.ChangeTracker.Clear();
+
+        var reservation = InventoryContext.StockReservations.Single(r => r.OrderId == orderId);
+        Assert.Equal(ReservationStatus.Committed, reservation.Status);
+
+        var item = InventoryContext.StockItems.Single(s => s.ProductId == productId);
+        Assert.Equal(6, item.TotalOnHand);
+        Assert.Equal(0, item.TotalReserved);
+        Assert.Equal(6, item.Available);
+
+        Assert.Contains(InventoryContext.StockMovements,
+            m => m.OrderId == orderId && m.Type == MovementType.Commit);
+
+        SpinWait.SpinUntil(
+            () => ReceivedEvents.ToArray().OfType<StockCommittedEvent>().Any(e => e.OrderId == orderId),
+            TimeSpan.FromSeconds(5));
+        var published = Assert.Single(ReceivedEvents.ToArray().OfType<StockCommittedEvent>(), e => e.OrderId == orderId);
+        Assert.Equal(orderId, published.OrderId);
+        var itemPublished = Assert.Single(published.Items);
+        Assert.Equal(productId, itemPublished.ProductId);
+        Assert.Equal(1, itemPublished.WarehouseId);
+        Assert.Equal(4, itemPublished.Quantity);
     }
 
     [Fact]
