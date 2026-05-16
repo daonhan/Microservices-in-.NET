@@ -29,6 +29,27 @@ internal class StockItem
         IReadOnlyCollection<StockReservation> orderReservations,
         DateTime timestamp)
     {
+        var plan = EvaluateHold(orderId, warehouseId, quantity, orderReservations, pendingHoldQuantity: 0, timestamp);
+        ApplyHold(plan, level);
+        return plan;
+    }
+
+    /// <summary>
+    /// Computes the outcome of a prospective hold without mutating state. Multi-line callers
+    /// can use this to validate every line before any mutation happens, so a single failed
+    /// line doesn't leave the aggregate or its <see cref="StockLevel"/> partially modified.
+    /// <paramref name="pendingHoldQuantity"/> is the sum of quantities the caller has already
+    /// planned (but not yet applied) for this same product in the current operation, so that
+    /// repeated lines for one product correctly account for cumulative consumption.
+    /// </summary>
+    public HoldResult EvaluateHold(
+        Guid orderId,
+        int warehouseId,
+        int quantity,
+        IReadOnlyCollection<StockReservation> orderReservations,
+        int pendingHoldQuantity,
+        DateTime timestamp)
+    {
         var existing = orderReservations.FirstOrDefault(r => r.OrderId == orderId);
         if (existing is not null)
         {
@@ -42,20 +63,18 @@ internal class StockItem
                 Movement: null);
         }
 
-        if (Available < quantity)
+        var effectiveAvailable = Available - pendingHoldQuantity;
+        if (effectiveAvailable < quantity)
         {
             return new HoldResult(
                 HoldOutcome.InsufficientStock,
                 ProductId,
                 warehouseId,
                 quantity,
-                Available,
+                effectiveAvailable,
                 Reservation: null,
                 Movement: null);
         }
-
-        level.Reserved += quantity;
-        TotalReserved += quantity;
 
         var reservation = new StockReservation
         {
@@ -82,9 +101,25 @@ internal class StockItem
             ProductId,
             warehouseId,
             quantity,
-            Available,
+            effectiveAvailable - quantity,
             reservation,
             movement);
+    }
+
+    /// <summary>
+    /// Applies a previously evaluated hold by mutating <see cref="TotalReserved"/> and the
+    /// per-warehouse <see cref="StockLevel.Reserved"/> together. Non-<see cref="HoldOutcome.Held"/>
+    /// plans are a no-op so callers can apply uniformly.
+    /// </summary>
+    public void ApplyHold(HoldResult plan, StockLevel level)
+    {
+        if (plan.Outcome != HoldOutcome.Held)
+        {
+            return;
+        }
+
+        level.Reserved += plan.Quantity;
+        TotalReserved += plan.Quantity;
     }
 
     /// <summary>

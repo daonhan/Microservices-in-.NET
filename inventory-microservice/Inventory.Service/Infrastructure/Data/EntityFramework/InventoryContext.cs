@@ -215,7 +215,8 @@ internal class InventoryContext : DbContext, IInventoryStore
 
         var now = DateTime.UtcNow;
         var failedLines = new List<FailedReserveLine>();
-        var holds = new List<HoldResult>(lines.Count);
+        var plans = new List<(HoldResult Plan, StockItem Item, StockLevel Level)>(lines.Count);
+        var pendingByProduct = new Dictionary<int, int>();
         bool alreadyProcessed = false;
 
         foreach (var line in lines)
@@ -227,20 +228,23 @@ internal class InventoryContext : DbContext, IInventoryStore
                 continue;
             }
 
-            var hold = item.Hold(orderId, defaultWarehouse.Id, line.Quantity, level, existingReservations, now);
-            if (hold.Outcome == HoldOutcome.AlreadyHeld)
+            pendingByProduct.TryGetValue(line.ProductId, out var pending);
+            var plan = item.EvaluateHold(orderId, defaultWarehouse.Id, line.Quantity, existingReservations, pending, now);
+
+            if (plan.Outcome == HoldOutcome.AlreadyHeld)
             {
                 alreadyProcessed = true;
                 continue;
             }
 
-            if (hold.Outcome == HoldOutcome.InsufficientStock)
+            if (plan.Outcome == HoldOutcome.InsufficientStock)
             {
-                failedLines.Add(new FailedReserveLine(line.ProductId, line.Quantity, hold.Available));
+                failedLines.Add(new FailedReserveLine(line.ProductId, line.Quantity, plan.Available));
                 continue;
             }
 
-            holds.Add(hold);
+            pendingByProduct[line.ProductId] = pending + line.Quantity;
+            plans.Add((plan, item, level));
         }
 
         if (alreadyProcessed)
@@ -256,12 +260,13 @@ internal class InventoryContext : DbContext, IInventoryStore
             return new ReserveResult(Reserved: false, AlreadyProcessed: false, [], failedLines);
         }
 
-        var reservedLines = new List<ReservedLine>(holds.Count);
-        foreach (var hold in holds)
+        var reservedLines = new List<ReservedLine>(plans.Count);
+        foreach (var (plan, item, level) in plans)
         {
-            StockReservations.Add(hold.Reservation!);
-            RecordStockMovement(hold.Movement!);
-            reservedLines.Add(new ReservedLine(hold.ProductId, hold.WarehouseId, hold.Quantity));
+            item.ApplyHold(plan, level);
+            StockReservations.Add(plan.Reservation!);
+            RecordStockMovement(plan.Movement!);
+            reservedLines.Add(new ReservedLine(plan.ProductId, plan.WarehouseId, plan.Quantity));
         }
 
         await SaveChangesAsync();
@@ -290,15 +295,19 @@ internal class InventoryContext : DbContext, IInventoryStore
             .Where(l => productIds.Contains(l.ProductId))
             .ToListAsync();
 
+        var levelsByProduct = stockLevels
+            .GroupBy(l => l.ProductId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyDictionary<int, StockLevel>)g.ToDictionary(l => l.WarehouseId));
+
         var now = DateTime.UtcNow;
         var committedLines = new List<CommittedLine>();
 
         foreach (var group in reservations.GroupBy(r => r.ProductId))
         {
             var item = stockItems[group.Key];
-            var levelsByWarehouse = stockLevels
-                .Where(l => l.ProductId == group.Key)
-                .ToDictionary(l => l.WarehouseId);
+            var levelsByWarehouse = levelsByProduct[group.Key];
 
             var result = item.Commit(orderId, group.ToList(), levelsByWarehouse, now);
             foreach (var movement in result.Movements)
@@ -375,15 +384,19 @@ internal class InventoryContext : DbContext, IInventoryStore
             .Where(l => productIds.Contains(l.ProductId))
             .ToListAsync();
 
+        var levelsByProduct = stockLevels
+            .GroupBy(l => l.ProductId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyDictionary<int, StockLevel>)g.ToDictionary(l => l.WarehouseId));
+
         var now = DateTime.UtcNow;
         var releasedLines = new List<ReleasedLine>();
 
         foreach (var group in reservations.GroupBy(r => r.ProductId))
         {
             var item = stockItems[group.Key];
-            var levelsByWarehouse = stockLevels
-                .Where(l => l.ProductId == group.Key)
-                .ToDictionary(l => l.WarehouseId);
+            var levelsByWarehouse = levelsByProduct[group.Key];
 
             var result = item.Release(orderId, group.ToList(), levelsByWarehouse, now);
             foreach (var movement in result.Movements)
