@@ -129,6 +129,7 @@ Infrastructure/Outbox/
  OutboxEventConfiguration.cs
  OutboxOptions.cs
  OutboxStartupExtensions.cs
+ OutboxTelemetry.cs
  OutboxUnitOfWork.cs
 Infrastructure/RabbitMq/
  IRabbitMqConnection.cs

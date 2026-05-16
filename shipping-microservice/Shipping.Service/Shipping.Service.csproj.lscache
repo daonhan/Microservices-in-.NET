@@ -437,6 +437,59 @@ Program.cs
  System.Xml.XPath.dll
  System.Xml.XPath.XDocument.dll
  WindowsBase.dll
+<NUGET>/
+ azure.core.amqp/1.3.1/lib/netstandard2.0/Azure.Core.Amqp.dll
+ azure.core/1.47.1/lib/net8.0/Azure.Core.dll
+ azure.identity/1.14.2/lib/net8.0/Azure.Identity.dll
+ azure.messaging.servicebus/7.18.2/lib/netstandard2.0/Azure.Messaging.ServiceBus.dll
+ azure.monitor.opentelemetry.exporter/1.3.0/lib/net6.0/Azure.Monitor.OpenTelemetry.Exporter.dll
+ ecommerce.shared/2.16.0/lib/net10.0/ECommerce.Shared.dll
+ google.protobuf/3.22.5/lib/net5.0/Google.Protobuf.dll
+ grpc.core.api/2.52.0/lib/netstandard2.1/Grpc.Core.Api.dll
+ grpc.net.client/2.52.0/lib/net7.0/Grpc.Net.Client.dll
+ grpc.net.common/2.52.0/lib/net7.0/Grpc.Net.Common.dll
+ microsoft.aspnetcore.authentication.jwtbearer/10.0.5/lib/net10.0/Microsoft.AspNetCore.Authentication.JwtBearer.dll
+ microsoft.azure.amqp/2.6.7/lib/netstandard2.0/Microsoft.Azure.Amqp.dll
+ microsoft.bcl.asyncinterfaces/8.0.0/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll
+ microsoft.bcl.cryptography/9.0.4/lib/net9.0/Microsoft.Bcl.Cryptography.dll
+ microsoft.data.sqlclient/6.1.1/ref/net9.0/Microsoft.Data.SqlClient.dll
+ microsoft.entityframeworkcore.abstractions/10.0.5/lib/net10.0/Microsoft.EntityFrameworkCore.Abstractions.dll
+ microsoft.entityframeworkcore.relational/10.0.5/lib/net10.0/Microsoft.EntityFrameworkCore.Relational.dll
+ microsoft.entityframeworkcore.sqlserver/10.0.5/lib/net10.0/Microsoft.EntityFrameworkCore.SqlServer.dll
+ microsoft.entityframeworkcore/10.0.5/lib/net10.0/Microsoft.EntityFrameworkCore.dll
+ microsoft.identity.client.extensions.msal/4.73.1/lib/net8.0/Microsoft.Identity.Client.Extensions.Msal.dll
+ microsoft.identity.client/4.73.1/lib/net8.0/Microsoft.Identity.Client.dll
+ microsoft.identitymodel.abstractions/8.0.1/lib/net9.0/Microsoft.IdentityModel.Abstractions.dll
+ microsoft.identitymodel.jsonwebtokens/8.0.1/lib/net9.0/Microsoft.IdentityModel.JsonWebTokens.dll
+ microsoft.identitymodel.logging/8.0.1/lib/net9.0/Microsoft.IdentityModel.Logging.dll
+ microsoft.identitymodel.protocols.openidconnect/8.0.1/lib/net9.0/Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+ microsoft.identitymodel.protocols/8.0.1/lib/net9.0/Microsoft.IdentityModel.Protocols.dll
+ microsoft.identitymodel.tokens/8.0.1/lib/net9.0/Microsoft.IdentityModel.Tokens.dll
+ microsoft.openapi/1.6.14/lib/netstandard2.0/Microsoft.OpenApi.dll
+ microsoft.sqlserver.server/1.0.0/lib/netstandard2.0/Microsoft.SqlServer.Server.dll
+ opentelemetry.api.providerbuilderextensions/1.10.0/lib/net9.0/OpenTelemetry.Api.ProviderBuilderExtensions.dll
+ opentelemetry.api/1.10.0/lib/net9.0/OpenTelemetry.Api.dll
+ opentelemetry.exporter.console/1.9.0/lib/net8.0/OpenTelemetry.Exporter.Console.dll
+ opentelemetry.exporter.opentelemetryprotocol/1.9.0/lib/net8.0/OpenTelemetry.Exporter.OpenTelemetryProtocol.dll
+ opentelemetry.exporter.prometheus.aspnetcore/1.10.0-beta.1/lib/net9.0/OpenTelemetry.Exporter.Prometheus.AspNetCore.dll
+ opentelemetry.extensions.hosting/1.9.0/lib/net8.0/OpenTelemetry.Extensions.Hosting.dll
+ opentelemetry.instrumentation.aspnetcore/1.9.0/lib/net8.0/OpenTelemetry.Instrumentation.AspNetCore.dll
+ opentelemetry.instrumentation.sqlclient/1.9.0-beta.1/lib/net8.0/OpenTelemetry.Instrumentation.SqlClient.dll
+ opentelemetry.persistentstorage.abstractions/1.0.0/lib/netstandard2.0/OpenTelemetry.PersistentStorage.Abstractions.dll
+ opentelemetry.persistentstorage.filesystem/1.0.0/lib/netstandard2.0/OpenTelemetry.PersistentStorage.FileSystem.dll
+ opentelemetry/1.10.0/lib/net9.0/OpenTelemetry.dll
+ pipelines.sockets.unofficial/2.2.8/lib/net5.0/Pipelines.Sockets.Unofficial.dll
+ polly.core/8.6.6/lib/net8.0/Polly.Core.dll
+ rabbitmq.client/6.8.1/lib/netstandard2.0/RabbitMQ.Client.dll
+ stackexchange.redis/2.8.16/lib/net6.0/StackExchange.Redis.dll
+ swashbuckle.aspnetcore.swagger/6.6.2/lib/net8.0/Swashbuckle.AspNetCore.Swagger.dll
+ swashbuckle.aspnetcore.swaggergen/6.6.2/lib/net8.0/Swashbuckle.AspNetCore.SwaggerGen.dll
+ swashbuckle.aspnetcore.swaggerui/6.6.2/lib/net8.0/Swashbuckle.AspNetCore.SwaggerUI.dll
+ system.clientmodel/1.5.1/lib/net8.0/System.ClientModel.dll
+ system.identitymodel.tokens.jwt/8.0.1/lib/net9.0/System.IdentityModel.Tokens.Jwt.dll
+ system.memory.data/8.0.1/lib/net8.0/System.Memory.Data.dll
+ system.security.cryptography.pkcs/9.0.4/lib/net9.0/System.Security.Cryptography.Pkcs.dll
+ system.security.cryptography.protecteddata/9.0.4/lib/net9.0/System.Security.Cryptography.ProtectedData.dll
 
 [analyzerReferences]
 <DOTNET>/packs/Microsoft.AspNetCore.App.Ref/10.0.8/analyzers/dotnet/cs/
@@ -469,6 +522,12 @@ Program.cs
  Microsoft.CodeAnalysis.CodeStyle.Fixes.dll
  Microsoft.CodeAnalysis.CSharp.CodeStyle.dll
  Microsoft.CodeAnalysis.CSharp.CodeStyle.Fixes.dll
+<NUGET>/microsoft.codeanalysis.analyzers/3.11.0/analyzers/dotnet/cs/
+ Microsoft.CodeAnalysis.Analyzers.dll
+ Microsoft.CodeAnalysis.CSharp.Analyzers.dll
+<NUGET>/
+ microsoft.entityframeworkcore.analyzers/10.0.5/analyzers/dotnet/cs/Microsoft.EntityFrameworkCore.Analyzers.dll
+ system.clientmodel/1.5.1/analyzers/dotnet/cs/System.ClientModel.SourceGeneration.dll
 
 [analyzerConfigFiles]
 ../../.editorconfig
