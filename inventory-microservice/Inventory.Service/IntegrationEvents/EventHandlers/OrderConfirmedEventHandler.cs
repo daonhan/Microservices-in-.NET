@@ -1,43 +1,42 @@
-using System.Transactions;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.Infrastructure.Data;
 using Inventory.Service.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.Service.IntegrationEvents.EventHandlers;
 
 internal class OrderConfirmedEventHandler : IEventHandler<OrderConfirmedEvent>
 {
     private readonly IInventoryStore _inventoryStore;
-    private readonly IOutboxStore _outboxStore;
+    private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly MetricFactory _metricFactory;
 
-    public OrderConfirmedEventHandler(IInventoryStore inventoryStore, IOutboxStore outboxStore, MetricFactory metricFactory)
+    public OrderConfirmedEventHandler(
+        IInventoryStore inventoryStore,
+        IOutboxUnitOfWork outboxUnitOfWork,
+        MetricFactory metricFactory)
     {
         _inventoryStore = inventoryStore;
-        _outboxStore = outboxStore;
+        _outboxUnitOfWork = outboxUnitOfWork;
         _metricFactory = metricFactory;
     }
 
     public async Task Handle(OrderConfirmedEvent @event)
     {
-        await _outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+        await _outboxUnitOfWork.ExecuteAsync(async () =>
         {
-            using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
             var result = await _inventoryStore.CommitReservations(@event.OrderId);
-
-            if (!result.Committed)
-            {
-                return;
-            }
 
             if (result.AlreadyProcessed)
             {
-                scope.Complete();
-                return;
+                return [];
+            }
+
+            if (!result.Committed)
+            {
+                throw new InvalidOperationException(
+                    $"Commit failed for order {@event.OrderId} — rolling back transaction.");
             }
 
             var published = result.Lines
@@ -50,9 +49,7 @@ internal class OrderConfirmedEventHandler : IEventHandler<OrderConfirmedEvent>
                     .Add(1, new KeyValuePair<string, object?>("movement_type", nameof(MovementType.Commit)));
             }
 
-            await _outboxStore.AddOutboxEvent(new StockCommittedEvent(@event.OrderId, published));
-
-            scope.Complete();
+            return [new StockCommittedEvent(@event.OrderId, published)];
         });
     }
 }

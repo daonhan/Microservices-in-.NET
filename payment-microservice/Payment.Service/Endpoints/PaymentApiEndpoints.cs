@@ -1,11 +1,8 @@
 using System.Security.Claims;
-using System.Transactions;
-using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Payment.Service.Infrastructure.Data;
 using Payment.Service.Infrastructure.Gateways;
-using Payment.Service.IntegrationEvents.Events;
 using Payment.Service.Models;
 using Payment.Service.Observability;
 
@@ -59,7 +56,6 @@ public static class PaymentApiEndpoints
 
         routeBuilder.MapPost("/{paymentId:guid}/capture", async Task<IResult> (
             [FromServices] IPaymentStore paymentStore,
-            [FromServices] IOutboxStore outboxStore,
             [FromServices] IPaymentGateway gateway,
             [FromServices] PaymentMetrics metrics,
             Guid paymentId) =>
@@ -86,20 +82,10 @@ public static class PaymentApiEndpoints
 
             await gateway.CaptureAsync(payment.ProviderReference!);
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            await paymentStore.ExecuteAsync(() =>
             {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
                 payment.Capture(DateTime.UtcNow);
-
-                await paymentStore.SaveChangesAsync();
-
-                await outboxStore.AddOutboxEvent(new PaymentCapturedEvent(
-                    payment.PaymentId,
-                    payment.OrderId,
-                    payment.Amount));
-
-                scope.Complete();
+                return Task.CompletedTask;
             });
 
             metrics.RecordStatusChange(PaymentStatus.Captured);
@@ -109,7 +95,6 @@ public static class PaymentApiEndpoints
 
         routeBuilder.MapPost("/{paymentId:guid}/refund", async Task<IResult> (
             [FromServices] IPaymentStore paymentStore,
-            [FromServices] IOutboxStore outboxStore,
             [FromServices] IPaymentGateway gateway,
             [FromServices] PaymentMetrics metrics,
             Guid paymentId,
@@ -134,20 +119,10 @@ public static class PaymentApiEndpoints
 
             await gateway.RefundAsync(payment.ProviderReference!, refundAmount);
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            await paymentStore.ExecuteAsync(() =>
             {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
-                payment.Refund(DateTime.UtcNow);
-
-                await paymentStore.SaveChangesAsync();
-
-                await outboxStore.AddOutboxEvent(new PaymentRefundedEvent(
-                    payment.PaymentId,
-                    payment.OrderId,
-                    refundAmount));
-
-                scope.Complete();
+                payment.Refund(refundAmount, DateTime.UtcNow);
+                return Task.CompletedTask;
             });
 
             metrics.RecordStatusChange(PaymentStatus.Refunded);

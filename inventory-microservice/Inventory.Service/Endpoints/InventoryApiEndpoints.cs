@@ -1,4 +1,4 @@
-using System.Transactions;
+using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.ApiModels;
@@ -86,7 +86,7 @@ public static class InventoryApiEndpoints
 
         routeBuilder.MapPost("/{productId:int}/restock", async Task<IResult> (
             [FromServices] IInventoryStore inventoryStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] MetricFactory metricFactory,
             int productId,
             RestockRequest request) =>
@@ -98,22 +98,23 @@ public static class InventoryApiEndpoints
 
             RestockResult? result = null;
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            await outboxUnitOfWork.ExecuteAsync(async () =>
             {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
                 result = await inventoryStore.Restock(productId, request.Quantity);
 
                 if (result is null)
                 {
-                    return;
+                    return [];
                 }
 
-                await outboxStore.AddOutboxEvent(new StockAdjustedEvent(
-                    productId,
-                    result.WarehouseId,
-                    request.Quantity,
-                    result.NewOnHand));
+                var events = new List<Event>
+                {
+                    new StockAdjustedEvent(
+                        productId,
+                        result.WarehouseId,
+                        request.Quantity,
+                        result.NewOnHand),
+                };
 
                 var lowStock = StockLevelMonitor.TryLowStockCrossing(
                     productId,
@@ -124,7 +125,7 @@ public static class InventoryApiEndpoints
                     result.Threshold);
                 if (lowStock is not null)
                 {
-                    await outboxStore.AddOutboxEvent(lowStock);
+                    events.Add(lowStock);
                 }
 
                 var depleted = StockLevelMonitor.TryDepletedCrossing(
@@ -134,11 +135,11 @@ public static class InventoryApiEndpoints
                     result.AvailableAfter);
                 if (depleted is not null)
                 {
-                    await outboxStore.AddOutboxEvent(depleted);
+                    events.Add(depleted);
                     metricFactory.Counter("stock-depleted", "events").Add(1);
                 }
 
-                scope.Complete();
+                return events;
             });
 
             if (result is null)
@@ -151,7 +152,7 @@ public static class InventoryApiEndpoints
 
         routeBuilder.MapPut("/{productId:int}/threshold", async Task<IResult> (
             [FromServices] IInventoryStore inventoryStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             int productId,
             SetThresholdRequest request) =>
         {
@@ -162,15 +163,13 @@ public static class InventoryApiEndpoints
 
             SetThresholdResult? result = null;
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            await outboxUnitOfWork.ExecuteAsync(async () =>
             {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
                 result = await inventoryStore.SetThreshold(productId, request.Threshold);
 
                 if (result is null)
                 {
-                    return;
+                    return [];
                 }
 
                 var lowStock = StockLevelMonitor.TryLowStockCrossing(
@@ -180,12 +179,13 @@ public static class InventoryApiEndpoints
                     result.Available,
                     result.ThresholdBefore,
                     result.ThresholdAfter);
-                if (lowStock is not null)
+
+                if (lowStock is null)
                 {
-                    await outboxStore.AddOutboxEvent(lowStock);
+                    return [];
                 }
 
-                scope.Complete();
+                return new List<Event> { lowStock };
             });
 
             if (result is null)
@@ -198,7 +198,7 @@ public static class InventoryApiEndpoints
 
         routeBuilder.MapPost("/{productId:int}/reserve", async Task<IResult> (
             [FromServices] IInventoryStore inventoryStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             int productId,
             ReserveRequest request) =>
         {
@@ -214,24 +214,22 @@ public static class InventoryApiEndpoints
 
             ReserveResult? outcome = null;
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            await outboxUnitOfWork.ExecuteAsync(async () =>
             {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
                 outcome = await inventoryStore.Reserve(
                     request.OrderId,
                     [new ReserveLine(productId, request.Quantity)]);
 
-                if (outcome.Reserved && !outcome.AlreadyProcessed)
+                if (!outcome.Reserved || outcome.AlreadyProcessed)
                 {
-                    var published = outcome.Lines
-                        .Select(l => new ReservedItem(l.ProductId, l.WarehouseId, l.Quantity))
-                        .ToList();
-
-                    await outboxStore.AddOutboxEvent(new StockReservedEvent(request.OrderId, published));
+                    return [];
                 }
 
-                scope.Complete();
+                var published = outcome.Lines
+                    .Select(l => new ReservedItem(l.ProductId, l.WarehouseId, l.Quantity))
+                    .ToList();
+
+                return new List<Event> { new StockReservedEvent(request.OrderId, published) };
             });
 
             if (outcome is null || !outcome.Reserved)

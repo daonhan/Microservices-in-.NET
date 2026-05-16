@@ -70,6 +70,16 @@ public class PaymentFailureCompensationTests : IntegrationTestBase
 
         Assert.Single(payments);
         Assert.Equal(PaymentStatus.Failed, payments[0].Status);
+
+        using var scope = Factory.Services.CreateScope();
+        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
+
+        var matching = outboxEvents.Where(e =>
+            e.EventType.Contains(nameof(PaymentFailedEvent), StringComparison.Ordinal) &&
+            e.Data.Contains(orderId.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        Assert.Single(matching);
     }
 
     private async Task DispatchAsync<TEvent>(TEvent @event)

@@ -15,7 +15,7 @@ Durable decisions that apply across all phases:
 
 ## Phase 1: Identity & Persona Seeding
 
-**User stories**: 
+**User stories**:
 - 1. As a QA engineer, I want a pre-seeded `operator@qa.test` persona so I can authenticate against the protected `/operator/api` endpoints without manually tweaking the database.
 
 ### What to build
@@ -32,7 +32,7 @@ Establish the `operator` persona definition in the shared QA library and seed th
 
 ## Phase 2: Automated Smoke Test Scenario (AFK)
 
-**User stories**: 
+**User stories**:
 - 2. As a release manager, I want the `scripts/local-smoke-test.ps1` to support a `-Scenario dlq` flag so the CI and AFK agents can automatically assert the DLQ logic is sound.
 - 5. As an operator, I want to verify that replaying the DLQ message only targets the initially failing service, ensuring no duplicate events are processed by other services (targeted replay).
 
@@ -52,7 +52,7 @@ Implement automated validation of the DLQ routing and Replay mechanics directly 
 
 ## Phase 3: HITL Verification Assets (Bruno & Docs)
 
-**User stories**: 
+**User stories**:
 - 3. As a QA engineer, I want a Bruno collection folder with pre-wired requests for listing failures and triggering replays.
 - 4. As a QA engineer, I want a step-by-step runbook for the DLQ scenario so I can deterministically simulate a transient outage (e.g., stopping a container) and recover from it.
 

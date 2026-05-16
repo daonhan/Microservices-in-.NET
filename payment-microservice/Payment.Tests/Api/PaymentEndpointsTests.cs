@@ -148,6 +148,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
             new PaymentApiEndpoints.RefundPaymentRequest(Amount: null));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        await AssertOutboxContainsAsync(nameof(PaymentRefundedEvent), paymentId, expectedCount: 0);
     }
 
     [Fact]
@@ -197,7 +198,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
 
         if (status == PaymentStatus.Failed)
         {
-            payment.Fail(now);
+            payment.Fail("seed", now);
         }
         else if (status != PaymentStatus.Pending)
         {
@@ -210,7 +211,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
 
             if (status == PaymentStatus.Refunded)
             {
-                payment.Refund(now);
+                payment.Refund(payment.Amount, now);
             }
         }
 

@@ -1,6 +1,6 @@
 # Plan: Adopt provider-agnostic Messaging wiring
 
-> Source PRD: `docs/prd/PRD-Messaging-Adopt-AddPlatform.md`  
+> Source PRD: `docs/prd/PRD-Messaging-Adopt-AddPlatform.md`
 > GitHub issue: https://github.com/daonhan/Microservices-in-.NET/issues/79
 
 ## Architectural decisions

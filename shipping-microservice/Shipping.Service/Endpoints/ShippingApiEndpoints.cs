@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
-using System.Transactions;
+using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -100,13 +100,13 @@ public static class ShippingApiEndpoints
 
         routeBuilder.MapPost("/{shipmentId:guid}/pick", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] ShippingMetrics metrics,
             Guid shipmentId) =>
         {
             return await ApplyTransitionAsync(
                 shipmentStore,
-                outboxStore,
+                outboxUnitOfWork,
                 metrics,
                 shipmentId,
                 (shipment, now) => shipment.TryPick(now, ShipmentStatusSource.Admin));
@@ -114,13 +114,13 @@ public static class ShippingApiEndpoints
 
         routeBuilder.MapPost("/{shipmentId:guid}/pack", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] ShippingMetrics metrics,
             Guid shipmentId) =>
         {
             return await ApplyTransitionAsync(
                 shipmentStore,
-                outboxStore,
+                outboxUnitOfWork,
                 metrics,
                 shipmentId,
                 (shipment, now) => shipment.TryPack(now, ShipmentStatusSource.Admin));
@@ -128,7 +128,7 @@ public static class ShippingApiEndpoints
 
         routeBuilder.MapPost("/{shipmentId:guid}/cancel", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] ShippingMetrics metrics,
             Guid shipmentId,
             [FromBody] CancelShipmentRequest? request) =>
@@ -136,7 +136,7 @@ public static class ShippingApiEndpoints
             var reason = request?.Reason;
             return await ApplyTransitionAsync(
                 shipmentStore,
-                outboxStore,
+                outboxUnitOfWork,
                 metrics,
                 shipmentId,
                 (shipment, now) => shipment.TryCancel(now, ShipmentStatusSource.Admin, reason),
@@ -150,13 +150,13 @@ public static class ShippingApiEndpoints
 
         routeBuilder.MapPost("/{shipmentId:guid}/deliver", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] ShippingMetrics metrics,
             Guid shipmentId) =>
         {
             return await ApplyTransitionAsync(
                 shipmentStore,
-                outboxStore,
+                outboxUnitOfWork,
                 metrics,
                 shipmentId,
                 (shipment, now) => shipment.TryDeliver(now, ShipmentStatusSource.Admin),
@@ -171,7 +171,7 @@ public static class ShippingApiEndpoints
 
         routeBuilder.MapPost("/{shipmentId:guid}/fail", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] ShippingMetrics metrics,
             Guid shipmentId,
             [FromBody] FailShipmentRequest? request) =>
@@ -184,7 +184,7 @@ public static class ShippingApiEndpoints
             var reason = request.Reason;
             return await ApplyTransitionAsync(
                 shipmentStore,
-                outboxStore,
+                outboxUnitOfWork,
                 metrics,
                 shipmentId,
                 (shipment, now) => shipment.TryFail(reason, now, ShipmentStatusSource.Admin),
@@ -200,7 +200,7 @@ public static class ShippingApiEndpoints
 
         routeBuilder.MapPost("/{shipmentId:guid}/return", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] ShippingMetrics metrics,
             Guid shipmentId,
             [FromBody] ReturnShipmentRequest? request) =>
@@ -213,7 +213,7 @@ public static class ShippingApiEndpoints
             var reason = request.Reason;
             return await ApplyTransitionAsync(
                 shipmentStore,
-                outboxStore,
+                outboxUnitOfWork,
                 metrics,
                 shipmentId,
                 (shipment, now) => shipment.TryReturn(reason, now, ShipmentStatusSource.Admin),
@@ -273,7 +273,7 @@ public static class ShippingApiEndpoints
 
         routeBuilder.MapPost("/{shipmentId:guid}/dispatch", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] RateShoppingService rateShopping,
             [FromServices] ShippingMetrics metrics,
             Guid shipmentId,
@@ -347,30 +347,28 @@ public static class ShippingApiEndpoints
                 });
             }
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            await outboxUnitOfWork.ExecuteAsync(async () =>
             {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
                 await shipmentStore.SaveChangesAsync();
 
-                await outboxStore.AddOutboxEvent(new ShipmentDispatchedEvent(
-                    ShipmentId: shipment.Id,
-                    OrderId: shipment.OrderId,
-                    CustomerId: shipment.CustomerId,
-                    CarrierKey: carrier.CarrierKey,
-                    TrackingNumber: dispatchResult.TrackingNumber,
-                    QuotedPriceAmount: quotedPrice.Amount,
-                    QuotedPriceCurrency: quotedPrice.Currency,
-                    OccurredAt: now));
-
-                await outboxStore.AddOutboxEvent(new ShipmentStatusChangedEvent(
-                    shipment.Id,
-                    shipment.OrderId,
-                    FromStatus: fromStatus,
-                    ToStatus: shipment.Status,
-                    OccurredAt: now));
-
-                scope.Complete();
+                return new Event[]
+                {
+                    new ShipmentDispatchedEvent(
+                        ShipmentId: shipment.Id,
+                        OrderId: shipment.OrderId,
+                        CustomerId: shipment.CustomerId,
+                        CarrierKey: carrier.CarrierKey,
+                        TrackingNumber: dispatchResult.TrackingNumber,
+                        QuotedPriceAmount: quotedPrice.Amount,
+                        QuotedPriceCurrency: quotedPrice.Currency,
+                        OccurredAt: now),
+                    new ShipmentStatusChangedEvent(
+                        shipment.Id,
+                        shipment.OrderId,
+                        FromStatus: fromStatus,
+                        ToStatus: shipment.Status,
+                        OccurredAt: now),
+                };
             });
 
             metrics.RecordStatusChange(shipment.Status);
@@ -388,7 +386,7 @@ public static class ShippingApiEndpoints
 
         routeBuilder.MapPost("/webhooks/carrier/{carrierKey}", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
-            [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] IEnumerable<ICarrierGateway> carriers,
             [FromServices] IOptions<CarrierWebhookOptions> options,
             [FromServices] ShippingMetrics metrics,
@@ -433,24 +431,21 @@ public static class ShippingApiEndpoints
 
             var now = DateTime.UtcNow;
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            await outboxUnitOfWork.ExecuteAsync(async () =>
             {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
-                var applied = await CarrierStatusApplier.ApplyAsync(
+                var events = await CarrierStatusApplier.ApplyAsync(
                     shipment,
                     update.Status,
                     ShipmentStatusSource.CarrierWebhook,
                     now,
-                    outboxStore,
                     metrics);
 
-                if (applied)
+                if (events.Count > 0)
                 {
                     await shipmentStore.SaveChangesAsync();
                 }
 
-                scope.Complete();
+                return events;
             });
 
             return TypedResults.Ok(new
@@ -463,11 +458,11 @@ public static class ShippingApiEndpoints
 
     private static async Task<IResult> ApplyTransitionAsync(
         IShipmentStore shipmentStore,
-        IOutboxStore outboxStore,
+        IOutboxUnitOfWork outboxUnitOfWork,
         ShippingMetrics metrics,
         Guid shipmentId,
         Func<Shipment, DateTime, bool> transition,
-        Func<Shipment, DateTime, ECommerce.Shared.Infrastructure.EventBus.Event>? milestoneFactory = null)
+        Func<Shipment, DateTime, Event>? milestoneFactory = null)
     {
         var shipment = await shipmentStore.GetById(shipmentId);
         if (shipment is null)
@@ -488,26 +483,25 @@ public static class ShippingApiEndpoints
             });
         }
 
-        await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+        await outboxUnitOfWork.ExecuteAsync(async () =>
         {
-            using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
             await shipmentStore.SaveChangesAsync();
+
+            var events = new List<Event>();
 
             if (milestoneFactory is not null)
             {
-                var milestone = milestoneFactory(shipment, now);
-                await AddOutboxEventWithRuntimeType(outboxStore, milestone);
+                events.Add(milestoneFactory(shipment, now));
             }
 
-            await outboxStore.AddOutboxEvent(new ShipmentStatusChangedEvent(
+            events.Add(new ShipmentStatusChangedEvent(
                 shipment.Id,
                 shipment.OrderId,
                 FromStatus: fromStatus,
                 ToStatus: shipment.Status,
                 OccurredAt: now));
 
-            scope.Complete();
+            return events;
         });
 
         metrics.RecordStatusChange(shipment.Status);
@@ -531,19 +525,6 @@ public static class ShippingApiEndpoints
 
         var customerId = user.FindFirst(CustomerIdClaim)?.Value;
         return customerId is not null && customerId == shipment.CustomerId;
-    }
-
-    private static Task AddOutboxEventWithRuntimeType(
-        IOutboxStore outboxStore,
-        ECommerce.Shared.Infrastructure.EventBus.Event milestone)
-    {
-        // IOutboxStore.AddOutboxEvent<T>(T) serializes via the generic type;
-        // invoking through reflection with the runtime type preserves
-        // derived-type properties (e.g. Reason) in the stored payload.
-        var method = typeof(IOutboxStore)
-            .GetMethod(nameof(IOutboxStore.AddOutboxEvent))!
-            .MakeGenericMethod(milestone.GetType());
-        return (Task)method.Invoke(outboxStore, [milestone])!;
     }
 
     private static ShipmentResponse ToResponse(Shipment s)

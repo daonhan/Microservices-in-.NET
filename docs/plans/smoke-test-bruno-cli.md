@@ -20,7 +20,7 @@ Durable decisions that apply across all phases:
 
 ### What to build
 
-Establish the parallel CI job (`bruno-smoke`) and instrument the happy path scenarios with assertions. We will add `tests` blocks to all `.bru` files under `qa/bruno/01-happy-path`. We will also add a drift-check reminder to the runbook. The workflow job runs with `continue-on-error: true` to avoid blocking merges during the initial integration. 
+Establish the parallel CI job (`bruno-smoke`) and instrument the happy path scenarios with assertions. We will add `tests` blocks to all `.bru` files under `qa/bruno/01-happy-path`. We will also add a drift-check reminder to the runbook. The workflow job runs with `continue-on-error: true` to avoid blocking merges during the initial integration.
 
 ### Acceptance criteria
 

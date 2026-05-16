@@ -1,7 +1,6 @@
-using System.Transactions;
+using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
-using Microsoft.EntityFrameworkCore;
 using Shipping.Service.Infrastructure.Data;
 using Shipping.Service.Models;
 
@@ -10,14 +9,14 @@ namespace Shipping.Service.IntegrationEvents.EventHandlers;
 internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
 {
     private readonly IShipmentStore _shipmentStore;
-    private readonly IOutboxStore _outboxStore;
+    private readonly IOutboxUnitOfWork _outboxUnitOfWork;
 
     public OrderCancelledEventHandler(
         IShipmentStore shipmentStore,
-        IOutboxStore outboxStore)
+        IOutboxUnitOfWork outboxUnitOfWork)
     {
         _shipmentStore = shipmentStore;
-        _outboxStore = outboxStore;
+        _outboxUnitOfWork = outboxUnitOfWork;
     }
 
     public async Task Handle(OrderCancelledEvent @event)
@@ -28,12 +27,10 @@ internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
             return;
         }
 
-        await _outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+        await _outboxUnitOfWork.ExecuteAsync(async () =>
         {
-            using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
             var now = DateTime.UtcNow;
-            var cancelledAny = false;
+            var events = new List<Event>();
 
             foreach (var shipment in shipments)
             {
@@ -44,16 +41,14 @@ internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
                     continue;
                 }
 
-                cancelledAny = true;
-
-                await _outboxStore.AddOutboxEvent(new ShipmentCancelledEvent(
+                events.Add(new ShipmentCancelledEvent(
                     shipment.Id,
                     shipment.OrderId,
                     shipment.CustomerId,
                     now,
                     Reason: "Order cancelled"));
 
-                await _outboxStore.AddOutboxEvent(new ShipmentStatusChangedEvent(
+                events.Add(new ShipmentStatusChangedEvent(
                     shipment.Id,
                     shipment.OrderId,
                     FromStatus: fromStatus,
@@ -61,12 +56,12 @@ internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
                     OccurredAt: now));
             }
 
-            if (cancelledAny)
+            if (events.Count > 0)
             {
                 await _shipmentStore.SaveChangesAsync();
             }
 
-            scope.Complete();
+            return events;
         });
     }
 }

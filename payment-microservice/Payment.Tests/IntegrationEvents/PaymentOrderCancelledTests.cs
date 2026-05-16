@@ -15,7 +15,7 @@ public class PaymentOrderCancelledTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task OrderCancelled_WhenAuthorizedRowExists_VoidsAndEmitsPaymentFailed()
+    public async Task OrderCancelled_WhenAuthorizedRowExists_VoidsAndEmitsPaymentVoided()
     {
         var orderId = Guid.NewGuid();
         const string customerId = "cust-cancel-auth";
@@ -33,18 +33,18 @@ public class PaymentOrderCancelledTests : IntegrationTestBase
         PaymentContext.ChangeTracker.Clear();
         var payment = await PaymentContext.Payments.SingleAsync(p => p.OrderId == orderId);
 
-        Assert.Equal(PaymentStatus.Failed, payment.Status);
+        Assert.Equal(PaymentStatus.Voided, payment.Status);
 
         using var scope = Factory.Services.CreateScope();
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
         var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
 
-        var failedEvents = outboxEvents.Where(e =>
-            e.EventType.Contains(nameof(PaymentFailedEvent), StringComparison.Ordinal) &&
+        var voidedEvents = outboxEvents.Where(e =>
+            e.EventType.Contains(nameof(PaymentVoidedEvent), StringComparison.Ordinal) &&
             e.Data.Contains(orderId.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
 
-        Assert.Single(failedEvents);
-        Assert.Contains("Order cancelled", failedEvents[0].Data, StringComparison.Ordinal);
+        Assert.Single(voidedEvents);
+        Assert.Contains("Order cancelled", voidedEvents[0].Data, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -86,6 +86,16 @@ public class PaymentOrderCancelledTests : IntegrationTestBase
 
         Assert.Equal(PaymentStatus.Failed, after.Status);
         Assert.Equal(beforeUpdatedAt, after.UpdatedAt);
+
+        using var scope = Factory.Services.CreateScope();
+        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
+
+        var failedEvents = outboxEvents.Where(e =>
+            e.EventType.Contains(nameof(PaymentFailedEvent), StringComparison.Ordinal) &&
+            e.Data.Contains(orderId.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        Assert.Single(failedEvents);
     }
 
     [Fact]
@@ -111,8 +121,18 @@ public class PaymentOrderCancelledTests : IntegrationTestBase
         PaymentContext.ChangeTracker.Clear();
         var after = await PaymentContext.Payments.SingleAsync(p => p.OrderId == orderId);
 
-        Assert.Equal(PaymentStatus.Failed, after.Status);
+        Assert.Equal(PaymentStatus.Voided, after.Status);
         Assert.Equal(firstUpdate, after.UpdatedAt);
+
+        using var scope = Factory.Services.CreateScope();
+        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
+
+        var voidedEvents = outboxEvents.Where(e =>
+            e.EventType.Contains(nameof(PaymentVoidedEvent), StringComparison.Ordinal) &&
+            e.Data.Contains(orderId.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        Assert.Single(voidedEvents);
     }
 
     private async Task DispatchAsync<TEvent>(TEvent @event)

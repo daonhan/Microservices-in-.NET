@@ -1,8 +1,8 @@
 # Plan: Provider-agnostic dead-letter capture and replay
 
-> Source PRD: `docs/prd/PRD-Messaging-DLQ-Provider-Abstraction.md`  
-> GitHub issue: https://github.com/daonhan/Microservices-in-.NET/issues/81  
-> Depends on: `docs/plans/messaging-adopt-addplatform.md`  
+> Source PRD: `docs/prd/PRD-Messaging-DLQ-Provider-Abstraction.md`
+> GitHub issue: https://github.com/daonhan/Microservices-in-.NET/issues/81
+> Depends on: `docs/plans/messaging-adopt-addplatform.md`
 > Benefits from: `docs/plans/messaging-asb-emulator-local.md`
 
 ## Architectural decisions

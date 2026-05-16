@@ -1,25 +1,26 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Transactions;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.Infrastructure.Data;
 using Inventory.Service.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.Service.IntegrationEvents.EventHandlers;
 
 internal class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
 {
     private readonly IInventoryStore _inventoryStore;
-    private readonly IOutboxStore _outboxStore;
+    private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly MetricFactory _metricFactory;
 
-    public OrderCreatedEventHandler(IInventoryStore inventoryStore, IOutboxStore outboxStore, MetricFactory metricFactory)
+    public OrderCreatedEventHandler(
+        IInventoryStore inventoryStore,
+        IOutboxUnitOfWork outboxUnitOfWork,
+        MetricFactory metricFactory)
     {
         _inventoryStore = inventoryStore;
-        _outboxStore = outboxStore;
+        _outboxUnitOfWork = outboxUnitOfWork;
         _metricFactory = metricFactory;
     }
 
@@ -49,16 +50,13 @@ internal class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
             .Select(i => new ReserveLine(int.Parse(i.ProductId, CultureInfo.InvariantCulture), i.Quantity))
             .ToList();
 
-        await _outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+        await _outboxUnitOfWork.ExecuteAsync(async () =>
         {
-            using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
             var result = await _inventoryStore.Reserve(@event.OrderId, lines);
 
             if (result.AlreadyProcessed)
             {
-                scope.Complete();
-                return;
+                return [];
             }
 
             if (!result.Reserved)
@@ -67,12 +65,9 @@ internal class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
                     .Select(l => new FailedItem(l.ProductId, l.Requested, l.Available))
                     .ToList();
 
-                await _outboxStore.AddOutboxEvent(new StockReservationFailedEvent(@event.OrderId, failed));
-
                 _metricFactory.Counter("stock-reservations-failed", "reservations").Add(1);
 
-                scope.Complete();
-                return;
+                return [new StockReservationFailedEvent(@event.OrderId, failed)];
             }
 
             var published = result.Lines
@@ -87,10 +82,7 @@ internal class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
 
             var amount = @event.Items.Sum(i => i.UnitPrice * i.Quantity);
 
-            await _outboxStore.AddOutboxEvent(
-                new StockReservedEvent(@event.OrderId, published, amount, @event.Currency));
-
-            scope.Complete();
+            return [new StockReservedEvent(@event.OrderId, published, amount, @event.Currency)];
         });
     }
 }

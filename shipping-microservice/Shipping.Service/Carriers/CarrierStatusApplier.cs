@@ -1,4 +1,4 @@
-using ECommerce.Shared.Infrastructure.Outbox;
+using ECommerce.Shared.Infrastructure.EventBus;
 using Shipping.Service.IntegrationEvents;
 using Shipping.Service.Models;
 using Shipping.Service.Observability;
@@ -7,40 +7,39 @@ namespace Shipping.Service.Carriers;
 
 /// <summary>
 /// Applies a <see cref="CarrierStatus"/> update to a <see cref="Shipment"/>
-/// through the aggregate's legal transitions and emits the corresponding
-/// milestone + <see cref="ShipmentStatusChangedEvent"/> through the outbox.
-/// The caller is responsible for the surrounding transaction and
-/// <c>SaveChangesAsync</c>.
+/// through the aggregate's legal transitions and returns the corresponding
+/// milestone + <see cref="ShipmentStatusChangedEvent"/> instances.
+/// The caller is responsible for saving changes and enqueueing returned events
+/// through the Outbox unit-of-work.
 /// </summary>
 internal static class CarrierStatusApplier
 {
-    public static async Task<bool> ApplyAsync(
+    public static Task<IReadOnlyList<Event>> ApplyAsync(
         Shipment shipment,
         CarrierStatus status,
         ShipmentStatusSource source,
         DateTime occurredAt,
-        IOutboxStore outboxStore,
         ShippingMetrics? metrics = null)
     {
         ArgumentNullException.ThrowIfNull(shipment);
         ArgumentNullException.ThrowIfNull(status);
-        ArgumentNullException.ThrowIfNull(outboxStore);
 
         if (shipment.IsTerminal)
         {
             // Graceful no-op for late-arriving webhooks / polls.
-            return false;
+            return Task.FromResult<IReadOnlyList<Event>>(Array.Empty<Event>());
         }
 
         var fromStatus = shipment.Status;
         var createdAt = shipment.CreatedAt;
+        var events = new List<Event>();
 
         switch (status.Code)
         {
             case CarrierStatusCode.InTransit:
                 if (!shipment.TryMarkInTransit(occurredAt, source))
                 {
-                    return false;
+                    return Task.FromResult<IReadOnlyList<Event>>(Array.Empty<Event>());
                 }
 
                 break;
@@ -48,10 +47,10 @@ internal static class CarrierStatusApplier
             case CarrierStatusCode.Delivered:
                 if (!shipment.TryDeliver(occurredAt, source))
                 {
-                    return false;
+                    return Task.FromResult<IReadOnlyList<Event>>(Array.Empty<Event>());
                 }
 
-                await outboxStore.AddOutboxEvent(new ShipmentDeliveredEvent(
+                events.Add(new ShipmentDeliveredEvent(
                     ShipmentId: shipment.Id,
                     OrderId: shipment.OrderId,
                     CustomerId: shipment.CustomerId,
@@ -66,10 +65,10 @@ internal static class CarrierStatusApplier
                     : status.Detail!;
                 if (!shipment.TryFail(reason, occurredAt, source))
                 {
-                    return false;
+                    return Task.FromResult<IReadOnlyList<Event>>(Array.Empty<Event>());
                 }
 
-                await outboxStore.AddOutboxEvent(new ShipmentFailedEvent(
+                events.Add(new ShipmentFailedEvent(
                     ShipmentId: shipment.Id,
                     OrderId: shipment.OrderId,
                     CustomerId: shipment.CustomerId,
@@ -82,10 +81,10 @@ internal static class CarrierStatusApplier
             case CarrierStatusCode.Accepted:
             case CarrierStatusCode.Unknown:
             default:
-                return false;
+                return Task.FromResult<IReadOnlyList<Event>>(Array.Empty<Event>());
         }
 
-        await outboxStore.AddOutboxEvent(new ShipmentStatusChangedEvent(
+        events.Add(new ShipmentStatusChangedEvent(
             shipment.Id,
             shipment.OrderId,
             FromStatus: fromStatus,
@@ -101,6 +100,6 @@ internal static class CarrierStatusApplier
             }
         }
 
-        return true;
+        return Task.FromResult<IReadOnlyList<Event>>(events);
     }
 }

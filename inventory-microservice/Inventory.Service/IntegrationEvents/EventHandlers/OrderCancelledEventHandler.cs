@@ -1,38 +1,36 @@
-using System.Transactions;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.Infrastructure.Data;
 using Inventory.Service.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.Service.IntegrationEvents.EventHandlers;
 
 internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
 {
     private readonly IInventoryStore _inventoryStore;
-    private readonly IOutboxStore _outboxStore;
+    private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly MetricFactory _metricFactory;
 
-    public OrderCancelledEventHandler(IInventoryStore inventoryStore, IOutboxStore outboxStore, MetricFactory metricFactory)
+    public OrderCancelledEventHandler(
+        IInventoryStore inventoryStore,
+        IOutboxUnitOfWork outboxUnitOfWork,
+        MetricFactory metricFactory)
     {
         _inventoryStore = inventoryStore;
-        _outboxStore = outboxStore;
+        _outboxUnitOfWork = outboxUnitOfWork;
         _metricFactory = metricFactory;
     }
 
     public async Task Handle(OrderCancelledEvent @event)
     {
-        await _outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+        await _outboxUnitOfWork.ExecuteAsync(async () =>
         {
-            using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
             var result = await _inventoryStore.ReleaseReservations(@event.OrderId);
 
             if (!result.Released || result.AlreadyProcessed)
             {
-                scope.Complete();
-                return;
+                return [];
             }
 
             var published = result.Lines
@@ -45,9 +43,7 @@ internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
                     .Add(1, new KeyValuePair<string, object?>("movement_type", nameof(MovementType.Release)));
             }
 
-            await _outboxStore.AddOutboxEvent(new StockReleasedEvent(@event.OrderId, published));
-
-            scope.Complete();
+            return [new StockReleasedEvent(@event.OrderId, published)];
         });
     }
 }

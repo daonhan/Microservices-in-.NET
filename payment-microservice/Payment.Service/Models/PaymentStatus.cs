@@ -7,4 +7,5 @@ public enum PaymentStatus
     Captured = 2,
     Refunded = 3,
     Failed = 4,
+    Voided = 5,
 }

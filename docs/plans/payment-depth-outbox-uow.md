@@ -1,6 +1,24 @@
 # Plan: Payment Domain-Event Depth + Shared Outbox Unit-of-Work
 
 > Source PRD: [docs/prd/PRD-Payment-Depth-Outbox-UoW.md](../prd/PRD-Payment-Depth-Outbox-UoW.md)
+> Baseline after merging `origin/main` on 2026-05-15: incoming `ECommerce.Shared` was `2.14.0`, services use provider-aware messaging registration, RabbitMQ remains the default provider, and Azure Service Bus is selected with `Messaging:Provider=AzureServiceBus`. This PR branch bumps the shared package to `2.15.0` for the Payment Outbox unit-of-work consumer.
+
+## Current implementation status
+
+Already present on the PR branch:
+
+- Shared `IOutboxUnitOfWork` / `OutboxUnitOfWork` registered by `AddOutbox`.
+- `ECommerce.Shared` bumped to `2.15.0`, with Payment consuming that version while other services remain on `2.14.0` until they adopt the seam.
+- Payment `Entity` / `IDomainEvent` support plus `PaymentCapturedDomainEvent`.
+- `PaymentContext.ExecuteAsync` translating captured-payment domain events into existing captured-payment Integration Events.
+- Capture endpoint using `paymentStore.ExecuteAsync(...)` instead of direct transaction/outbox ceremony.
+- Payment and shared tests covering the first capture-oriented slice, with the Payment test factory disabling the Outbox poller and provider subscriber hosted service to avoid background races.
+
+Still remaining:
+
+- Refund, Authorize, Fail, and Void-style transitions need domain events and context translations where they emit Integration Events.
+- Payment event handlers still contain direct `CreateExecutionStrategy + TransactionScope + AddOutboxEvent` ceremony and need migration through the shared seam.
+- Inventory and Shipping adoption, unit-of-work observability, package release, and final direct-pattern cleanup are still future phases.
 
 ## Architectural decisions
 
@@ -12,8 +30,9 @@ Durable decisions that apply across all phases:
 - **Authorization**: existing Administrator-only authorization for Capture and Refund stays unchanged.
 - **External payment gateway**: payment gateway calls remain outside the database/outbox transaction. The unit-of-work covers only persisted Payment state and Outbox enqueue.
 - **Integration Events**: `PaymentAuthorizedEvent`, `PaymentCapturedEvent`, and `PaymentRefundedEvent` payloads remain unchanged.
+- **Messaging provider**: the Outbox unit-of-work is broker-agnostic. It writes provider-neutral Outbox rows and leaves delivery to the existing `IEventBus` publisher path selected by `Messaging:Provider`.
 - **Saga choreography**: no central orchestrator is introduced. Payment continues to react to and publish Integration Events as a saga participant.
-- **Shared package workflow**: `ECommerce.Shared` changes require a version bump, package creation, local-feed publish, and explicit consumer package upgrades.
+- **Shared package workflow**: `ECommerce.Shared` changes start from the merged `2.14.0` baseline. The Payment slice consumes `2.15.0`; additional consumers still require explicit package upgrades.
 - **Testing style**: tests assert external behaviour through the relevant seam. They do not assert private implementation details or raw transaction mechanics.
 
 ---
@@ -33,7 +52,7 @@ Build the smallest complete path through the new design. Add the shared Outbox u
 - [ ] Capturing a Payment from an illegal state still returns the existing conflict response.
 - [ ] Capturing an already captured Payment remains idempotent and does not enqueue a duplicate captured-payment Integration Event.
 - [ ] A failure inside the Payment unit-of-work rolls back both the Payment state change and the Outbox enqueue.
-- [ ] Payment aggregate tests prove the capture transition and captured-domain-event emission without EF Core, Outbox, RabbitMQ, or the payment gateway.
+- [ ] Payment aggregate tests prove the capture transition and captured-domain-event emission without EF Core, Outbox, RabbitMQ, Azure Service Bus, or the payment gateway.
 - [ ] Shared Outbox unit-of-work tests prove atomic commit and rollback behaviour for the initial happy and failure paths.
 - [ ] Existing Capture endpoint tests continue to assert HTTP behaviour and resulting Outbox state, not transaction implementation details.
 
@@ -94,12 +113,14 @@ Migrate non-Payment publishers that currently hand-roll execution strategy, tran
 - [ ] Existing Inventory handler tests continue to pass or are rewritten to assert reservation outcomes and resulting Integration Events rather than implementation calls.
 - [ ] Existing Shipping endpoint tests continue to pass or are rewritten to assert HTTP outcomes and resulting Integration Events rather than implementation calls.
 - [ ] Shared Outbox unit-of-work tests cover event lists that are known before the work and event lists that depend on the result of the work.
+- [ ] Provider boot tests continue to prove each migrated service resolves RabbitMQ adapters by default and Azure Service Bus adapters when `Messaging:Provider=AzureServiceBus`.
+- [ ] Migrated call sites keep using `AddPlatformEventBus`, `AddPlatformEventPublisher`, and `AddPlatformSubscriberService`; no RabbitMQ-specific publishing dependency is introduced outside the RabbitMQ adapter.
 
 ---
 
 ## Phase 5: Observability and Package Release
 
-**User stories**: 14, 15, 21, 22
+**User stories**: 14, 15, 21, 22, 23
 
 ### What to build
 
@@ -110,10 +131,11 @@ Add operational visibility to the new Outbox unit-of-work seam and ship it throu
 - [ ] Successful Outbox unit-of-work executions emit an OTEL span or equivalent telemetry with enough attributes to identify the publishing service and operation outcome.
 - [ ] Failed or rolled-back Outbox unit-of-work executions emit telemetry with failure outcome and error context that is safe to log.
 - [ ] A shared metric records Outbox transactional success/failure counts across consuming services.
-- [ ] `ECommerce.Shared` version is bumped according to the repo's shared-library workflow.
+- [ ] Any additional `ECommerce.Shared` release after the `2.15.0` Payment slice is versioned according to the repo's shared-library workflow.
 - [ ] A release package is created and published to the local NuGet feed.
 - [ ] Payment, Inventory, and Shipping package references are updated to consume the new shared package version.
 - [ ] Relevant service test suites and shared-library tests pass after the package upgrade.
+- [ ] RabbitMQ-default and Azure Service Bus-selected host-boot tests still pass after the package upgrade.
 - [ ] `dotnet format --verify-no-changes --verbosity minimal` passes for the touched solutions or documented service scopes.
 
 ---
@@ -133,5 +155,6 @@ Harden the new seam after adoption. Remove migrated direct transactional publish
 - [ ] `IOutboxStore` remains available for infrastructure implementation needs and unmigrated code, with no breaking public method removals in this plan.
 - [ ] Payment endpoint tests assert route-level behaviour and Outbox outcomes, not direct calls to low-level Outbox primitives.
 - [ ] Shared Outbox tests cover the public unit-of-work interface as the main test surface.
+- [ ] Final code search shows no direct `CreateExecutionStrategy + TransactionScope + AddOutboxEvent + Complete` pattern in migrated Payment, Inventory, or Shipping publishing paths.
 - [ ] Payment, Inventory, Shipping, and shared-library builds pass with warnings treated as errors.
 - [ ] No new `NoWarn` exemptions are added.

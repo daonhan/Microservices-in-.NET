@@ -1,10 +1,6 @@
 using System.Diagnostics;
-using System.Transactions;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
-using ECommerce.Shared.Infrastructure.Outbox;
-using Microsoft.EntityFrameworkCore;
 using Payment.Service.Infrastructure.Data;
-using Payment.Service.Infrastructure.Data.EntityFramework;
 using Payment.Service.Infrastructure.Gateways;
 using Payment.Service.IntegrationEvents.Events;
 using Payment.Service.Models;
@@ -15,21 +11,15 @@ namespace Payment.Service.IntegrationEvents.EventHandlers;
 internal class StockReservedEventHandler : IEventHandler<StockReservedEvent>
 {
     private readonly IPaymentStore _store;
-    private readonly PaymentContext _context;
-    private readonly IOutboxStore _outboxStore;
     private readonly IPaymentGateway _gateway;
     private readonly PaymentMetrics _metrics;
 
     public StockReservedEventHandler(
         IPaymentStore store,
-        PaymentContext context,
-        IOutboxStore outboxStore,
         IPaymentGateway gateway,
         PaymentMetrics metrics)
     {
         _store = store;
-        _context = context;
-        _outboxStore = outboxStore;
         _gateway = gateway;
         _metrics = metrics;
     }
@@ -55,53 +45,30 @@ internal class StockReservedEventHandler : IEventHandler<StockReservedEvent>
             @event.Amount, @event.Currency, @event.OrderId.ToString());
         _metrics.RecordAuthorizeLatency(sw.Elapsed);
 
-        await _outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+        var now = DateTime.UtcNow;
+        var payment = Models.Payment.Create(
+            paymentId: Guid.NewGuid(),
+            orderId: @event.OrderId,
+            customerId: customerId,
+            amount: @event.Amount,
+            currency: @event.Currency,
+            createdAt: now);
+
+        await _store.ExecuteAsync(async () =>
         {
-            using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+            _store.Add(payment);
 
-            var now = DateTime.UtcNow;
-            var payment = Models.Payment.Create(
-                paymentId: Guid.NewGuid(),
-                orderId: @event.OrderId,
-                customerId: customerId,
-                amount: @event.Amount,
-                currency: @event.Currency,
-                createdAt: now);
-
-            if (!result.Success)
+            if (result.Success)
             {
-                payment.Fail(now);
-
-                _context.Payments.Add(payment);
-                await _context.SaveChangesAsync();
-
-                await _outboxStore.AddOutboxEvent(new PaymentFailedEvent(
-                    payment.PaymentId,
-                    payment.OrderId,
-                    payment.CustomerId,
-                    result.FailureReason ?? "Declined"));
-
-                _metrics.RecordStatusChange(PaymentStatus.Failed);
-
-                scope.Complete();
-                return;
+                payment.Authorize(result.ProviderReference!, now);
             }
-
-            payment.Authorize(result.ProviderReference!, now);
-
-            _context.Payments.Add(payment);
-            await _context.SaveChangesAsync();
-
-            await _outboxStore.AddOutboxEvent(new PaymentAuthorizedEvent(
-                payment.PaymentId,
-                payment.OrderId,
-                payment.CustomerId,
-                payment.Amount,
-                payment.Currency));
-
-            _metrics.RecordStatusChange(PaymentStatus.Authorized);
-
-            scope.Complete();
+            else
+            {
+                payment.Fail(result.FailureReason ?? "Declined", now);
+            }
         });
+
+        _metrics.RecordStatusChange(
+            result.Success ? PaymentStatus.Authorized : PaymentStatus.Failed);
     }
 }

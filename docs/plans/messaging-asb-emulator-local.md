@@ -1,7 +1,7 @@
 # Plan: ASB Emulator local-dev profile and topology auto-provision
 
-> Source PRD: `docs/prd/PRD-Messaging-AsbEmulator-Local.md`  
-> GitHub issue: https://github.com/daonhan/Microservices-in-.NET/issues/80  
+> Source PRD: `docs/prd/PRD-Messaging-AsbEmulator-Local.md`
+> GitHub issue: https://github.com/daonhan/Microservices-in-.NET/issues/80
 > External reference: Microsoft Learn, "Test locally by using the Azure Service Bus emulator"
 
 ## Architectural decisions

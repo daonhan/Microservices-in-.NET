@@ -25,6 +25,7 @@ public static class OutboxStartupExtensions
                 }));
 
         services.AddScoped<IOutboxStore, OutboxContext>();
+        services.AddScoped<IOutboxUnitOfWork, OutboxUnitOfWork>();
         services.AddHostedService<OutboxBackgroundService>();
     }
 

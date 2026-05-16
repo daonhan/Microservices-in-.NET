@@ -21,11 +21,36 @@ public class PaymentStateMachineTests
         var payment = NewPending();
         var occurredAt = DateTime.UtcNow;
 
-        payment.Authorize("ref-1", occurredAt);
+        var authorized = payment.Authorize("ref-1", occurredAt);
 
+        Assert.True(authorized);
         Assert.Equal(PaymentStatus.Authorized, payment.Status);
         Assert.Equal("ref-1", payment.ProviderReference);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var domainEvent = Assert.Single(payment.DomainEvents.OfType<PaymentAuthorizedDomainEvent>());
+        Assert.Equal(payment.PaymentId, domainEvent.PaymentId);
+        Assert.Equal(payment.OrderId, domainEvent.OrderId);
+        Assert.Equal(payment.CustomerId, domainEvent.CustomerId);
+        Assert.Equal(payment.Amount, domainEvent.Amount);
+        Assert.Equal(payment.Currency, domainEvent.Currency);
+    }
+
+    [Fact]
+    public void Authorize_WhenAlreadyAuthorized_IsNoOp()
+    {
+        var payment = NewPending();
+        payment.Authorize("ref-1", DateTime.UtcNow);
+        payment.DequeueDomainEvents();
+        var updatedAt = payment.UpdatedAt;
+
+        var authorized = payment.Authorize("ref-2", DateTime.UtcNow.AddMinutes(1));
+
+        Assert.False(authorized);
+        Assert.Equal(PaymentStatus.Authorized, payment.Status);
+        Assert.Equal("ref-1", payment.ProviderReference);
+        Assert.Equal(updatedAt, payment.UpdatedAt);
+        Assert.Empty(payment.DequeueDomainEvents());
     }
 
     [Fact]
@@ -34,10 +59,33 @@ public class PaymentStateMachineTests
         var payment = NewPending();
         var occurredAt = DateTime.UtcNow;
 
-        payment.Fail(occurredAt);
+        var failed = payment.Fail("Card declined by issuer", occurredAt);
 
+        Assert.True(failed);
         Assert.Equal(PaymentStatus.Failed, payment.Status);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var domainEvent = Assert.Single(payment.DomainEvents.OfType<PaymentFailedDomainEvent>());
+        Assert.Equal(payment.PaymentId, domainEvent.PaymentId);
+        Assert.Equal(payment.OrderId, domainEvent.OrderId);
+        Assert.Equal(payment.CustomerId, domainEvent.CustomerId);
+        Assert.Equal("Card declined by issuer", domainEvent.Reason);
+    }
+
+    [Fact]
+    public void Fail_WhenAlreadyFailed_IsNoOp()
+    {
+        var payment = NewPending();
+        payment.Fail("Card declined by issuer", DateTime.UtcNow);
+        payment.DequeueDomainEvents();
+        var updatedAt = payment.UpdatedAt;
+
+        var failed = payment.Fail("Gateway redelivery", DateTime.UtcNow.AddMinutes(1));
+
+        Assert.False(failed);
+        Assert.Equal(PaymentStatus.Failed, payment.Status);
+        Assert.Equal(updatedAt, payment.UpdatedAt);
+        Assert.Empty(payment.DequeueDomainEvents());
     }
 
     [Fact]
@@ -47,10 +95,33 @@ public class PaymentStateMachineTests
         payment.Authorize("ref-1", DateTime.UtcNow);
         var occurredAt = DateTime.UtcNow;
 
-        payment.Capture(occurredAt);
+        var captured = payment.Capture(occurredAt);
 
+        Assert.True(captured);
         Assert.Equal(PaymentStatus.Captured, payment.Status);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var capturedEvent = Assert.Single(payment.DomainEvents.OfType<PaymentCapturedDomainEvent>());
+        Assert.Equal(payment.PaymentId, capturedEvent.PaymentId);
+        Assert.Equal(payment.OrderId, capturedEvent.OrderId);
+        Assert.Equal(payment.Amount, capturedEvent.Amount);
+    }
+
+    [Fact]
+    public void Capture_WhenAlreadyCaptured_IsNoOp()
+    {
+        var payment = NewPending();
+        payment.Authorize("ref-1", DateTime.UtcNow);
+        payment.Capture(DateTime.UtcNow);
+        payment.DequeueDomainEvents();
+        var updatedAt = payment.UpdatedAt;
+
+        var captured = payment.Capture(DateTime.UtcNow.AddMinutes(1));
+
+        Assert.False(captured);
+        Assert.Equal(PaymentStatus.Captured, payment.Status);
+        Assert.Equal(updatedAt, payment.UpdatedAt);
+        Assert.Empty(payment.DequeueDomainEvents());
     }
 
     [Fact]
@@ -61,14 +132,50 @@ public class PaymentStateMachineTests
         payment.Capture(DateTime.UtcNow);
         var occurredAt = DateTime.UtcNow;
 
-        payment.Refund(occurredAt);
+        var refunded = payment.Refund(payment.Amount, occurredAt);
 
+        Assert.True(refunded);
         Assert.Equal(PaymentStatus.Refunded, payment.Status);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var domainEvent = Assert.Single(payment.DomainEvents.OfType<PaymentRefundedDomainEvent>());
+        Assert.Equal(payment.PaymentId, domainEvent.PaymentId);
+        Assert.Equal(payment.OrderId, domainEvent.OrderId);
+        Assert.Equal(payment.Amount, domainEvent.Amount);
+    }
+
+    [Fact]
+    public void Refund_WhenAlreadyRefunded_IsNoOp()
+    {
+        var payment = NewPending();
+        payment.Authorize("ref-1", DateTime.UtcNow);
+        payment.Capture(DateTime.UtcNow);
+        payment.Refund(payment.Amount, DateTime.UtcNow);
+        payment.DequeueDomainEvents();
+        var updatedAt = payment.UpdatedAt;
+
+        var refunded = payment.Refund(payment.Amount, DateTime.UtcNow.AddMinutes(1));
+
+        Assert.False(refunded);
+        Assert.Equal(PaymentStatus.Refunded, payment.Status);
+        Assert.Equal(updatedAt, payment.UpdatedAt);
+        Assert.Empty(payment.DequeueDomainEvents());
+    }
+
+    [Fact]
+    public void Refund_WithPartialAmount_RaisesRefundedEventWithThatAmount()
+    {
+        var payment = NewPending();
+        payment.Authorize("ref-1", DateTime.UtcNow);
+        payment.Capture(DateTime.UtcNow);
+
+        payment.Refund(20.00m, DateTime.UtcNow);
+
+        var refunded = Assert.Single(payment.DomainEvents.OfType<PaymentRefundedDomainEvent>());
+        Assert.Equal(20.00m, refunded.Amount);
     }
 
     [Theory]
-    [InlineData(PaymentStatus.Authorized)]
     [InlineData(PaymentStatus.Captured)]
     [InlineData(PaymentStatus.Refunded)]
     [InlineData(PaymentStatus.Failed)]
@@ -82,16 +189,14 @@ public class PaymentStateMachineTests
     [InlineData(PaymentStatus.Authorized)]
     [InlineData(PaymentStatus.Captured)]
     [InlineData(PaymentStatus.Refunded)]
-    [InlineData(PaymentStatus.Failed)]
     public void Fail_FromNonPending_Throws(PaymentStatus current)
     {
         var payment = MoveTo(current);
-        Assert.Throws<InvalidOperationException>(() => payment.Fail(DateTime.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => payment.Fail("reason", DateTime.UtcNow));
     }
 
     [Theory]
     [InlineData(PaymentStatus.Pending)]
-    [InlineData(PaymentStatus.Captured)]
     [InlineData(PaymentStatus.Refunded)]
     [InlineData(PaymentStatus.Failed)]
     public void Capture_FromNonAuthorized_Throws(PaymentStatus current)
@@ -103,26 +208,48 @@ public class PaymentStateMachineTests
     [Theory]
     [InlineData(PaymentStatus.Pending)]
     [InlineData(PaymentStatus.Authorized)]
-    [InlineData(PaymentStatus.Refunded)]
     [InlineData(PaymentStatus.Failed)]
     public void Refund_FromNonCaptured_Throws(PaymentStatus current)
     {
         var payment = MoveTo(current);
-        Assert.Throws<InvalidOperationException>(() => payment.Refund(DateTime.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => payment.Refund(payment.Amount, DateTime.UtcNow));
     }
 
     [Theory]
     [InlineData(PaymentStatus.Pending)]
     [InlineData(PaymentStatus.Authorized)]
-    public void Void_FromPendingOrAuthorized_TransitionsToFailed(PaymentStatus current)
+    public void Void_FromPendingOrAuthorized_TransitionsToVoided(PaymentStatus current)
     {
         var payment = MoveTo(current);
         var occurredAt = DateTime.UtcNow;
 
-        payment.Void(occurredAt);
+        var voided = payment.Void("Order cancelled", occurredAt);
 
-        Assert.Equal(PaymentStatus.Failed, payment.Status);
+        Assert.True(voided);
+        Assert.Equal(PaymentStatus.Voided, payment.Status);
         Assert.Equal(occurredAt, payment.UpdatedAt);
+
+        var domainEvent = Assert.Single(payment.DomainEvents.OfType<PaymentVoidedDomainEvent>());
+        Assert.Equal(payment.PaymentId, domainEvent.PaymentId);
+        Assert.Equal(payment.OrderId, domainEvent.OrderId);
+        Assert.Equal(payment.CustomerId, domainEvent.CustomerId);
+        Assert.Equal("Order cancelled", domainEvent.Reason);
+    }
+
+    [Fact]
+    public void Void_WhenAlreadyVoided_IsNoOp()
+    {
+        var payment = MoveTo(PaymentStatus.Authorized);
+        payment.Void("Order cancelled", DateTime.UtcNow);
+        payment.DequeueDomainEvents();
+        var updatedAt = payment.UpdatedAt;
+
+        var voided = payment.Void("Order cancelled redelivery", DateTime.UtcNow.AddMinutes(1));
+
+        Assert.False(voided);
+        Assert.Equal(PaymentStatus.Voided, payment.Status);
+        Assert.Equal(updatedAt, payment.UpdatedAt);
+        Assert.Empty(payment.DequeueDomainEvents());
     }
 
     [Theory]
@@ -132,7 +259,7 @@ public class PaymentStateMachineTests
     public void Void_FromTerminal_Throws(PaymentStatus current)
     {
         var payment = MoveTo(current);
-        Assert.Throws<InvalidOperationException>(() => payment.Void(DateTime.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => payment.Void("reason", DateTime.UtcNow));
     }
 
     private static Service.Models.Payment MoveTo(PaymentStatus target)
@@ -152,10 +279,13 @@ public class PaymentStateMachineTests
             case PaymentStatus.Refunded:
                 payment.Authorize("ref", DateTime.UtcNow);
                 payment.Capture(DateTime.UtcNow);
-                payment.Refund(DateTime.UtcNow);
+                payment.Refund(payment.Amount, DateTime.UtcNow);
                 return payment;
             case PaymentStatus.Failed:
-                payment.Fail(DateTime.UtcNow);
+                payment.Fail("reason", DateTime.UtcNow);
+                return payment;
+            case PaymentStatus.Voided:
+                payment.Void("voided", DateTime.UtcNow);
                 return payment;
             default:
                 throw new ArgumentOutOfRangeException(nameof(target), target, null);

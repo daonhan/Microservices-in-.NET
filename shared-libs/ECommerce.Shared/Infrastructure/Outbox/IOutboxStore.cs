@@ -4,6 +4,10 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ECommerce.Shared.Infrastructure.Outbox;
 
+/// <summary>
+/// Low-level primitive for Outbox state management and execution strategy creation.
+/// For business logic and transactional publishing, use <see cref="IOutboxUnitOfWork"/> instead.
+/// </summary>
 public interface IOutboxStore
 {
     Task AddOutboxEvent<T>(T @event) where T : Event;

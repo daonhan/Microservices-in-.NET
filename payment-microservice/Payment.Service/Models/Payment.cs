@@ -1,6 +1,6 @@
 namespace Payment.Service.Models;
 
-public class Payment
+public class Payment : Entity
 {
     public Guid PaymentId { get; private set; }
     public Guid OrderId { get; private set; }
@@ -35,8 +35,13 @@ public class Payment
         };
     }
 
-    public void Authorize(string providerReference, DateTime occurredAt)
+    public bool Authorize(string providerReference, DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Authorized)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Pending)
         {
             throw new InvalidOperationException(
@@ -46,10 +51,17 @@ public class Payment
         ProviderReference = providerReference;
         Status = PaymentStatus.Authorized;
         UpdatedAt = occurredAt;
+        Raise(new PaymentAuthorizedDomainEvent(PaymentId, OrderId, CustomerId, Amount, Currency));
+        return true;
     }
 
-    public void Fail(DateTime occurredAt)
+    public bool Fail(string reason, DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Failed)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Pending)
         {
             throw new InvalidOperationException(
@@ -58,10 +70,17 @@ public class Payment
 
         Status = PaymentStatus.Failed;
         UpdatedAt = occurredAt;
+        Raise(new PaymentFailedDomainEvent(PaymentId, OrderId, CustomerId, reason));
+        return true;
     }
 
-    public void Capture(DateTime occurredAt)
+    public bool Capture(DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Captured)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Authorized)
         {
             throw new InvalidOperationException(
@@ -70,10 +89,17 @@ public class Payment
 
         Status = PaymentStatus.Captured;
         UpdatedAt = occurredAt;
+        Raise(new PaymentCapturedDomainEvent(PaymentId, OrderId, Amount));
+        return true;
     }
 
-    public void Refund(DateTime occurredAt)
+    public bool Refund(decimal refundAmount, DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Refunded)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Captured)
         {
             throw new InvalidOperationException(
@@ -82,17 +108,26 @@ public class Payment
 
         Status = PaymentStatus.Refunded;
         UpdatedAt = occurredAt;
+        Raise(new PaymentRefundedDomainEvent(PaymentId, OrderId, refundAmount));
+        return true;
     }
 
-    public void Void(DateTime occurredAt)
+    public bool Void(string reason, DateTime occurredAt)
     {
+        if (Status == PaymentStatus.Voided)
+        {
+            return false;
+        }
+
         if (Status != PaymentStatus.Pending && Status != PaymentStatus.Authorized)
         {
             throw new InvalidOperationException(
                 $"Cannot void payment {PaymentId} in status {Status}.");
         }
 
-        Status = PaymentStatus.Failed;
+        Status = PaymentStatus.Voided;
         UpdatedAt = occurredAt;
+        Raise(new PaymentVoidedDomainEvent(PaymentId, OrderId, CustomerId, reason));
+        return true;
     }
 }
