@@ -280,15 +280,6 @@ internal class InventoryContext : DbContext, IInventoryStore
             return new CommitResult(Committed: false, AlreadyProcessed: false, []);
         }
 
-        if (reservations.All(r => r.Status != ReservationStatus.Held))
-        {
-            var already = reservations
-                .Where(r => r.Status == ReservationStatus.Committed)
-                .Select(r => new CommittedLine(r.ProductId, r.WarehouseId, r.Quantity))
-                .ToList();
-            return new CommitResult(Committed: true, AlreadyProcessed: true, already);
-        }
-
         var productIds = reservations.Select(r => r.ProductId).Distinct().ToArray();
 
         var stockItems = await StockItems
@@ -298,39 +289,32 @@ internal class InventoryContext : DbContext, IInventoryStore
         var stockLevels = await StockLevels
             .Where(l => productIds.Contains(l.ProductId))
             .ToListAsync();
-        var stockLevelsByKey = stockLevels.ToDictionary(l => (l.ProductId, l.WarehouseId));
 
         var now = DateTime.UtcNow;
         var committedLines = new List<CommittedLine>();
 
-        foreach (var reservation in reservations)
+        foreach (var group in reservations.GroupBy(r => r.ProductId))
         {
-            if (reservation.Status != ReservationStatus.Held)
+            var item = stockItems[group.Key];
+            var levelsByWarehouse = stockLevels
+                .Where(l => l.ProductId == group.Key)
+                .ToDictionary(l => l.WarehouseId);
+
+            var result = item.Commit(orderId, group.ToList(), levelsByWarehouse, now);
+            foreach (var movement in result.Movements)
             {
-                continue;
+                RecordStockMovement(movement);
+                committedLines.Add(new CommittedLine(movement.ProductId, movement.WarehouseId, movement.Quantity));
             }
+        }
 
-            var item = stockItems[reservation.ProductId];
-            var level = stockLevelsByKey[(reservation.ProductId, reservation.WarehouseId)];
-
-            level.Reserved -= reservation.Quantity;
-            level.OnHand -= reservation.Quantity;
-            item.TotalReserved -= reservation.Quantity;
-            item.TotalOnHand -= reservation.Quantity;
-
-            reservation.Status = ReservationStatus.Committed;
-
-            RecordStockMovement(new StockMovement
-            {
-                ProductId = reservation.ProductId,
-                WarehouseId = reservation.WarehouseId,
-                Type = MovementType.Commit,
-                Quantity = reservation.Quantity,
-                OccurredAt = now,
-                OrderId = orderId
-            });
-
-            committedLines.Add(new CommittedLine(reservation.ProductId, reservation.WarehouseId, reservation.Quantity));
+        if (committedLines.Count == 0)
+        {
+            var already = reservations
+                .Where(r => r.Status == ReservationStatus.Committed)
+                .Select(r => new CommittedLine(r.ProductId, r.WarehouseId, r.Quantity))
+                .ToList();
+            return new CommitResult(Committed: true, AlreadyProcessed: true, already);
         }
 
         await SaveChangesAsync();

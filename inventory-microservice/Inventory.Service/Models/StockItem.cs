@@ -86,4 +86,52 @@ internal class StockItem
             reservation,
             movement);
     }
+
+    /// <summary>
+    /// Commits this order's held reservations: the reserved units leave on-hand stock, so
+    /// <see cref="TotalReserved"/>/<see cref="TotalOnHand"/> and the matching per-warehouse
+    /// <see cref="StockLevel.Reserved"/>/<see cref="StockLevel.OnHand"/> are decremented together.
+    /// Reservations that are not <see cref="ReservationStatus.Held"/> are skipped, so a
+    /// double-commit (nothing left in <c>Held</c>) is an idempotent no-op reported as
+    /// <see cref="CommitOutcome.NothingHeld"/>.
+    /// </summary>
+    public CommitItemResult Commit(
+        Guid orderId,
+        IReadOnlyCollection<StockReservation> orderReservations,
+        IReadOnlyDictionary<int, StockLevel> levelsByWarehouse,
+        DateTime timestamp)
+    {
+        var movements = new List<StockMovement>();
+
+        foreach (var reservation in orderReservations)
+        {
+            if (reservation.Status != ReservationStatus.Held)
+            {
+                continue;
+            }
+
+            var level = levelsByWarehouse[reservation.WarehouseId];
+
+            level.Reserved -= reservation.Quantity;
+            level.OnHand -= reservation.Quantity;
+            TotalReserved -= reservation.Quantity;
+            TotalOnHand -= reservation.Quantity;
+
+            reservation.Status = ReservationStatus.Committed;
+
+            movements.Add(new StockMovement
+            {
+                ProductId = ProductId,
+                WarehouseId = reservation.WarehouseId,
+                Type = MovementType.Commit,
+                Quantity = reservation.Quantity,
+                OccurredAt = timestamp,
+                OrderId = orderId
+            });
+        }
+
+        return new CommitItemResult(
+            movements.Count > 0 ? CommitOutcome.Committed : CommitOutcome.NothingHeld,
+            movements);
+    }
 }
