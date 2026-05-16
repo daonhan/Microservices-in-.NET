@@ -28,16 +28,28 @@ docker compose up sql rabbitmq redis -d                         # infra only
 
 Activate once: `dotnet tool restore && dotnet husky install`. Hook runs `dotnet format --verify-no-changes`, `dotnet build --no-restore`, then Basket tests only — **run other suites manually before pushing cross-service changes**.
 
-Known WSL/virtiofs/Docker sandbox issue: pre-commit may fail at `dotnet build --no-restore` with `MSB3248 No such device` due to root-owned or sandbox-created `bin/obj`. Not a regression. Workaround from a writable host shell:
+### Sandbox policy (WSL / virtiofs / Docker)
 
-```bash
-find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
-dotnet restore && dotnet husky run --group pre-commit
-```
+Known failure: `MSB3248 No such device` on `dotnet build --no-restore` (or on `ECommerce.Shared.Tests` reading a freshly built shared DLL) caused by root-owned or sandbox-created `bin`/`obj`. Not a regression.
 
-Sandbox validation note: `dotnet format --verify-no-changes` and shared-library `dotnet build` can pass clean in Docker sandbox while `ECommerce.Shared.Tests` still fails with `MSB3248 No such device` when reading the freshly built shared DLL. If a sandbox-only automation already used `--no-verify` because of this issue, record the passing commands and require a host workflow to rerun the skipped hook/tests before push or merge.
+**Mandatory order before any commit in sandbox:**
 
-If cleanup is blocked, commit from a host where hooks pass. **Do not bypass hooks.**
+1. Clean + restore + rerun hook:
+   ```bash
+   find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+   dotnet restore && dotnet husky run --group pre-commit
+   ```
+2. If still `MSB3248`, retry once more after `dotnet restore --force`.
+3. If hook still fails: **STOP. Do not commit.** Report blocker to user with the exact failing command + error. User commits from host.
+
+**Hard prohibitions** (no exceptions, no "sandbox-only" escape hatch):
+
+- No `--no-verify`, no `-c core.hooksPath=`, no skipping `dotnet format` / `dotnet build` / tests.
+- No `Hooks-Deferred:` / `Validation-Deferred:` / similar commit-message footer.
+- No "passed clean in sandbox, defer remainder to host" partial commits.
+- No closing the issue / marking task done while validation is deferred.
+
+Rationale: a commit with deferred validation pollutes history, blocks downstream automation, and shifts unfinished work onto the user without their consent. The correct sandbox outcome when hooks cannot pass is **handoff, not commit**.
 
 ## Shared library (`ECommerce.Shared`)
 
