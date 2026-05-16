@@ -1,5 +1,6 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
 using ECommerce.Shared.Infrastructure.DeadLetter;
+using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Builder;
@@ -99,6 +100,7 @@ public static class OpenTelemetryStartupExtensions
                     .AddAspNetCoreInstrumentation()
                     .AddSource(RabbitMqTelemetry.ActivitySourceName)
                     .AddSource(DeadLetterMetrics.ActivitySourceName)
+                    .AddSource(OutboxTelemetry.ActivitySourceName)
                     .AddOtlpExporter(o => o.Endpoint = new Uri(opts.OtlpExporterEndpoint));
 
                 if (opts.UseAzureMonitor)
@@ -123,6 +125,7 @@ public static class OpenTelemetryStartupExtensions
                     .AddAspNetCoreInstrumentation()
                     .AddMeter(serviceName)
                     .AddMeter(DeadLetterMetrics.MeterName)
+                    .AddMeter(OutboxTelemetry.MeterName)
                     .AddPrometheusExporter();
 
                 if (opts.UseAzureMonitor)
@@ -160,6 +163,7 @@ public static class OpenTelemetryStartupExtensions
                     .AddConsoleExporter()
                     .AddAspNetCoreInstrumentation()
                     .AddSource(RabbitMqTelemetry.ActivitySourceName)
+                    .AddSource(OutboxTelemetry.ActivitySourceName)
                     .AddOtlpExporter(options => options.Endpoint =
                         new Uri(openTelemetryOptions.OtlpExporterEndpoint));
 
@@ -184,6 +188,7 @@ public static class OpenTelemetryStartupExtensions
                     .AddConsoleExporter()
                     .AddAspNetCoreInstrumentation()
                     .AddMeter(serviceName)
+                    .AddMeter(OutboxTelemetry.MeterName)
                     .AddPrometheusExporter();
 
                 customMetrics?.Invoke(builder);

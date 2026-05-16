@@ -448,7 +448,7 @@ Program.cs
  azure.identity/1.14.2/lib/net8.0/Azure.Identity.dll
  azure.messaging.servicebus/7.18.2/lib/netstandard2.0/Azure.Messaging.ServiceBus.dll
  azure.monitor.opentelemetry.exporter/1.3.0/lib/net6.0/Azure.Monitor.OpenTelemetry.Exporter.dll
- ecommerce.shared/2.15.0/lib/net10.0/ECommerce.Shared.dll
+ ecommerce.shared/2.16.0/lib/net10.0/ECommerce.Shared.dll
  google.protobuf/3.22.5/lib/net5.0/Google.Protobuf.dll
  grpc.core.api/2.52.0/lib/netstandard2.1/Grpc.Core.Api.dll
  grpc.net.client/2.52.0/lib/net7.0/Grpc.Net.Client.dll
