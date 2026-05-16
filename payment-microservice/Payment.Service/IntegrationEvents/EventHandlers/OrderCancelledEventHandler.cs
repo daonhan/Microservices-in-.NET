@@ -38,6 +38,6 @@ internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
             return Task.CompletedTask;
         });
 
-        _metrics.RecordStatusChange(PaymentStatus.Failed);
+        _metrics.RecordStatusChange(PaymentStatus.Voided);
     }
 }

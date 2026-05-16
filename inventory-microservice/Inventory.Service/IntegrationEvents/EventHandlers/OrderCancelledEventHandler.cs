@@ -9,25 +9,22 @@ namespace Inventory.Service.IntegrationEvents.EventHandlers;
 internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
 {
     private readonly IInventoryStore _inventoryStore;
-    private readonly IOutboxStore _outboxStore;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly MetricFactory _metricFactory;
 
     public OrderCancelledEventHandler(
         IInventoryStore inventoryStore,
-        IOutboxStore outboxStore,
         IOutboxUnitOfWork outboxUnitOfWork,
         MetricFactory metricFactory)
     {
         _inventoryStore = inventoryStore;
-        _outboxStore = outboxStore;
         _outboxUnitOfWork = outboxUnitOfWork;
         _metricFactory = metricFactory;
     }
 
     public async Task Handle(OrderCancelledEvent @event)
     {
-        await _outboxUnitOfWork.ExecuteAsync(_outboxStore.CreateExecutionStrategy(), async () =>
+        await _outboxUnitOfWork.ExecuteAsync(async () =>
         {
             var result = await _inventoryStore.ReleaseReservations(@event.OrderId);
 

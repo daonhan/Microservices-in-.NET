@@ -9,31 +9,34 @@ namespace Inventory.Service.IntegrationEvents.EventHandlers;
 internal class OrderConfirmedEventHandler : IEventHandler<OrderConfirmedEvent>
 {
     private readonly IInventoryStore _inventoryStore;
-    private readonly IOutboxStore _outboxStore;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly MetricFactory _metricFactory;
 
     public OrderConfirmedEventHandler(
         IInventoryStore inventoryStore,
-        IOutboxStore outboxStore,
         IOutboxUnitOfWork outboxUnitOfWork,
         MetricFactory metricFactory)
     {
         _inventoryStore = inventoryStore;
-        _outboxStore = outboxStore;
         _outboxUnitOfWork = outboxUnitOfWork;
         _metricFactory = metricFactory;
     }
 
     public async Task Handle(OrderConfirmedEvent @event)
     {
-        await _outboxUnitOfWork.ExecuteAsync(_outboxStore.CreateExecutionStrategy(), async () =>
+        await _outboxUnitOfWork.ExecuteAsync(async () =>
         {
             var result = await _inventoryStore.CommitReservations(@event.OrderId);
 
-            if (!result.Committed || result.AlreadyProcessed)
+            if (result.AlreadyProcessed)
             {
                 return [];
+            }
+
+            if (!result.Committed)
+            {
+                throw new InvalidOperationException(
+                    $"Commit failed for order {@event.OrderId} — rolling back transaction.");
             }
 
             var published = result.Lines

@@ -56,7 +56,7 @@ internal class StockReservedEventHandler : IEventHandler<StockReservedEvent>
 
         await _store.ExecuteAsync(async () =>
         {
-            await _store.Add(payment);
+            _store.Add(payment);
 
             if (result.Success)
             {

@@ -9,16 +9,13 @@ namespace Shipping.Service.IntegrationEvents.EventHandlers;
 internal class StockCommittedEventHandler : IEventHandler<StockCommittedEvent>
 {
     private readonly IShipmentStore _shipmentStore;
-    private readonly IOutboxStore _outboxStore;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
 
     public StockCommittedEventHandler(
         IShipmentStore shipmentStore,
-        IOutboxStore outboxStore,
         IOutboxUnitOfWork outboxUnitOfWork)
     {
         _shipmentStore = shipmentStore;
-        _outboxStore = outboxStore;
         _outboxUnitOfWork = outboxUnitOfWork;
     }
 
@@ -43,7 +40,7 @@ internal class StockCommittedEventHandler : IEventHandler<StockCommittedEvent>
             .Select(i => new CreateShipmentLine(i.ProductId, i.WarehouseId, i.Quantity))
             .ToList();
 
-        await _outboxUnitOfWork.ExecuteAsync(_outboxStore.CreateExecutionStrategy(), async () =>
+        await _outboxUnitOfWork.ExecuteAsync(async () =>
         {
             var result = await _shipmentStore.CreateShipmentsForOrder(@event.OrderId, customerId, lines);
 

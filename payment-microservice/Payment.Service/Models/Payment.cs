@@ -114,7 +114,7 @@ public class Payment : Entity
 
     public bool Void(string reason, DateTime occurredAt)
     {
-        if (Status == PaymentStatus.Failed)
+        if (Status == PaymentStatus.Voided)
         {
             return false;
         }
@@ -125,9 +125,9 @@ public class Payment : Entity
                 $"Cannot void payment {PaymentId} in status {Status}.");
         }
 
-        Status = PaymentStatus.Failed;
+        Status = PaymentStatus.Voided;
         UpdatedAt = occurredAt;
-        Raise(new PaymentFailedDomainEvent(PaymentId, OrderId, CustomerId, reason));
+        Raise(new PaymentVoidedDomainEvent(PaymentId, OrderId, CustomerId, reason));
         return true;
     }
 }

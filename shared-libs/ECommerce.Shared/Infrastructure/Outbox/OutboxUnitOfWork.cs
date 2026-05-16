@@ -15,17 +15,34 @@ internal sealed class OutboxUnitOfWork : IOutboxUnitOfWork
         _outboxStore = outboxStore;
     }
 
+    /// <inheritdoc />
+    public Task ExecuteAsync(Func<Task<IReadOnlyList<Event>>> work)
+    {
+        ArgumentNullException.ThrowIfNull(work);
+
+        var strategy = _outboxStore.CreateExecutionStrategy();
+        return ExecuteCore(strategy, work);
+    }
+
+    /// <inheritdoc />
     public Task ExecuteAsync(IExecutionStrategy strategy, Func<Task<IReadOnlyList<Event>>> work)
     {
         ArgumentNullException.ThrowIfNull(strategy);
         ArgumentNullException.ThrowIfNull(work);
 
-        return strategy.ExecuteAsync(async () =>
-        {
-            using var activity = OutboxTelemetry.ActivitySource.StartActivity("outbox.uow", ActivityKind.Internal);
-            activity?.SetTag("outbox.operation", "execute");
+        return ExecuteCore(strategy, work);
+    }
 
-            try
+    private async Task ExecuteCore(IExecutionStrategy strategy, Func<Task<IReadOnlyList<Event>>> work)
+    {
+        // Telemetry is recorded outside the execution-strategy delegate so that
+        // retries do not inflate the activity/metric counts.
+        using var activity = OutboxTelemetry.ActivitySource.StartActivity("outbox.uow", ActivityKind.Internal);
+        activity?.SetTag("outbox.operation", "execute");
+
+        try
+        {
+            await strategy.ExecuteAsync(async () =>
             {
                 using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
 
@@ -38,16 +55,24 @@ internal sealed class OutboxUnitOfWork : IOutboxUnitOfWork
                 }
 
                 scope.Complete();
-                RecordOutcome(activity, "committed");
-            }
-            catch (Exception ex)
-            {
-                activity?.SetTag("error.type", ex.GetType().FullName);
-                activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
-                RecordOutcome(activity, "rolled_back");
-                throw;
-            }
-        });
+            });
+
+            RecordOutcome(activity, "committed");
+        }
+        catch (OperationCanceledException)
+        {
+            // Cooperative cancellation is not a failure of the outbox transaction;
+            // tag with a distinct outcome so it does not pollute failure-rate signals.
+            RecordOutcome(activity, "cancelled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            activity?.SetTag("error.type", ex.GetType().FullName);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.GetType().Name);
+            RecordOutcome(activity, "rolled_back");
+            throw;
+        }
     }
 
     private static void RecordOutcome(Activity? activity, string outcome)

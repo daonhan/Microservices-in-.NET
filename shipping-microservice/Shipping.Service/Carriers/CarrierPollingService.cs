@@ -79,7 +79,6 @@ internal sealed partial class CarrierPollingService : BackgroundService
     {
         using var scope = _scopeFactory.CreateScope();
         var shipmentStore = scope.ServiceProvider.GetRequiredService<IShipmentStore>();
-        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
         var outboxUnitOfWork = scope.ServiceProvider.GetRequiredService<IOutboxUnitOfWork>();
         var metrics = scope.ServiceProvider.GetRequiredService<ShippingMetrics>();
         var carriers = scope.ServiceProvider.GetServices<ICarrierGateway>()
@@ -93,7 +92,7 @@ internal sealed partial class CarrierPollingService : BackgroundService
 
         var updated = 0;
 
-        await outboxUnitOfWork.ExecuteAsync(outboxStore.CreateExecutionStrategy(), async () =>
+        await outboxUnitOfWork.ExecuteAsync(async () =>
         {
             var changed = false;
             var events = new List<Event>();

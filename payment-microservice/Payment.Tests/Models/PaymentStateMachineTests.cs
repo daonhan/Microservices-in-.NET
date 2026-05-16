@@ -218,7 +218,7 @@ public class PaymentStateMachineTests
     [Theory]
     [InlineData(PaymentStatus.Pending)]
     [InlineData(PaymentStatus.Authorized)]
-    public void Void_FromPendingOrAuthorized_TransitionsToFailed(PaymentStatus current)
+    public void Void_FromPendingOrAuthorized_TransitionsToVoided(PaymentStatus current)
     {
         var payment = MoveTo(current);
         var occurredAt = DateTime.UtcNow;
@@ -226,18 +226,18 @@ public class PaymentStateMachineTests
         var voided = payment.Void("Order cancelled", occurredAt);
 
         Assert.True(voided);
-        Assert.Equal(PaymentStatus.Failed, payment.Status);
+        Assert.Equal(PaymentStatus.Voided, payment.Status);
         Assert.Equal(occurredAt, payment.UpdatedAt);
 
-        var failed = Assert.Single(payment.DomainEvents.OfType<PaymentFailedDomainEvent>());
-        Assert.Equal(payment.PaymentId, failed.PaymentId);
-        Assert.Equal(payment.OrderId, failed.OrderId);
-        Assert.Equal(payment.CustomerId, failed.CustomerId);
-        Assert.Equal("Order cancelled", failed.Reason);
+        var domainEvent = Assert.Single(payment.DomainEvents.OfType<PaymentVoidedDomainEvent>());
+        Assert.Equal(payment.PaymentId, domainEvent.PaymentId);
+        Assert.Equal(payment.OrderId, domainEvent.OrderId);
+        Assert.Equal(payment.CustomerId, domainEvent.CustomerId);
+        Assert.Equal("Order cancelled", domainEvent.Reason);
     }
 
     [Fact]
-    public void Void_WhenAlreadyFailed_IsNoOp()
+    public void Void_WhenAlreadyVoided_IsNoOp()
     {
         var payment = MoveTo(PaymentStatus.Authorized);
         payment.Void("Order cancelled", DateTime.UtcNow);
@@ -247,7 +247,7 @@ public class PaymentStateMachineTests
         var voided = payment.Void("Order cancelled redelivery", DateTime.UtcNow.AddMinutes(1));
 
         Assert.False(voided);
-        Assert.Equal(PaymentStatus.Failed, payment.Status);
+        Assert.Equal(PaymentStatus.Voided, payment.Status);
         Assert.Equal(updatedAt, payment.UpdatedAt);
         Assert.Empty(payment.DequeueDomainEvents());
     }
@@ -255,6 +255,7 @@ public class PaymentStateMachineTests
     [Theory]
     [InlineData(PaymentStatus.Captured)]
     [InlineData(PaymentStatus.Refunded)]
+    [InlineData(PaymentStatus.Failed)]
     public void Void_FromTerminal_Throws(PaymentStatus current)
     {
         var payment = MoveTo(current);
@@ -282,6 +283,9 @@ public class PaymentStateMachineTests
                 return payment;
             case PaymentStatus.Failed:
                 payment.Fail("reason", DateTime.UtcNow);
+                return payment;
+            case PaymentStatus.Voided:
+                payment.Void("voided", DateTime.UtcNow);
                 return payment;
             default:
                 throw new ArgumentOutOfRangeException(nameof(target), target, null);

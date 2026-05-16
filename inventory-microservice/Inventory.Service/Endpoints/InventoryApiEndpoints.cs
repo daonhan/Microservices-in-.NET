@@ -86,7 +86,6 @@ public static class InventoryApiEndpoints
 
         routeBuilder.MapPost("/{productId:int}/restock", async Task<IResult> (
             [FromServices] IInventoryStore inventoryStore,
-            [FromServices] IOutboxStore outboxStore,
             [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] MetricFactory metricFactory,
             int productId,
@@ -99,7 +98,7 @@ public static class InventoryApiEndpoints
 
             RestockResult? result = null;
 
-            await outboxUnitOfWork.ExecuteAsync(outboxStore.CreateExecutionStrategy(), async () =>
+            await outboxUnitOfWork.ExecuteAsync(async () =>
             {
                 result = await inventoryStore.Restock(productId, request.Quantity);
 
@@ -153,7 +152,6 @@ public static class InventoryApiEndpoints
 
         routeBuilder.MapPut("/{productId:int}/threshold", async Task<IResult> (
             [FromServices] IInventoryStore inventoryStore,
-            [FromServices] IOutboxStore outboxStore,
             [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             int productId,
             SetThresholdRequest request) =>
@@ -165,7 +163,7 @@ public static class InventoryApiEndpoints
 
             SetThresholdResult? result = null;
 
-            await outboxUnitOfWork.ExecuteAsync(outboxStore.CreateExecutionStrategy(), async () =>
+            await outboxUnitOfWork.ExecuteAsync(async () =>
             {
                 result = await inventoryStore.SetThreshold(productId, request.Threshold);
 
@@ -200,7 +198,6 @@ public static class InventoryApiEndpoints
 
         routeBuilder.MapPost("/{productId:int}/reserve", async Task<IResult> (
             [FromServices] IInventoryStore inventoryStore,
-            [FromServices] IOutboxStore outboxStore,
             [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             int productId,
             ReserveRequest request) =>
@@ -217,7 +214,7 @@ public static class InventoryApiEndpoints
 
             ReserveResult? outcome = null;
 
-            await outboxUnitOfWork.ExecuteAsync(outboxStore.CreateExecutionStrategy(), async () =>
+            await outboxUnitOfWork.ExecuteAsync(async () =>
             {
                 outcome = await inventoryStore.Reserve(
                     request.OrderId,

@@ -8,16 +8,26 @@ namespace Payment.Service.Infrastructure.Data.EntityFramework;
 
 internal class PaymentContext : DbContext, IPaymentStore
 {
-    private readonly IOutboxUnitOfWork? _outboxUnitOfWork;
+    private readonly IOutboxUnitOfWork _outboxUnitOfWork;
 
-    public PaymentContext(DbContextOptions<PaymentContext> options)
+    /// <summary>
+    /// Design-time only constructor. Used exclusively by <see cref="PaymentContextDesignTimeFactory"/>
+    /// for EF Core migrations tooling. Runtime code must use the constructor that accepts
+    /// <see cref="IOutboxUnitOfWork"/> so misconfiguration fails fast at startup.
+    /// </summary>
+    internal PaymentContext(DbContextOptions<PaymentContext> options)
         : base(options)
     {
+        // _outboxUnitOfWork is left as default (null) for the design-time path.
+        // The Translate/ExecuteAsync methods are never called during migrations,
+        // so null! is safe here. The runtime constructor below makes it mandatory.
+        _outboxUnitOfWork = null!;
     }
 
     public PaymentContext(DbContextOptions<PaymentContext> options, IOutboxUnitOfWork outboxUnitOfWork)
         : base(options)
     {
+        ArgumentNullException.ThrowIfNull(outboxUnitOfWork);
         _outboxUnitOfWork = outboxUnitOfWork;
     }
 
@@ -30,10 +40,9 @@ internal class PaymentContext : DbContext, IPaymentStore
         modelBuilder.ApplyConfiguration(new OrderCustomerConfiguration());
     }
 
-    public Task Add(Models.Payment payment)
+    public void Add(Models.Payment payment)
     {
         Payments.Add(payment);
-        return Task.CompletedTask;
     }
 
     public async Task<Models.Payment?> GetById(Guid paymentId)
@@ -50,17 +59,15 @@ internal class PaymentContext : DbContext, IPaymentStore
 
     public async Task ExecuteAsync(Func<Task> unitOfWork)
     {
-        if (_outboxUnitOfWork is null)
-        {
-            throw new InvalidOperationException(
-                "PaymentContext was constructed without an IOutboxUnitOfWork; ExecuteAsync requires the runtime constructor.");
-        }
-
         var strategy = Database.CreateExecutionStrategy();
         await _outboxUnitOfWork.ExecuteAsync(strategy, async () =>
         {
             await unitOfWork();
 
+            // Snapshot domain events before SaveChanges so that if the execution
+            // strategy retries, the aggregate still has its events. We capture the
+            // list here and clear the queue only after AcceptAllChanges confirms
+            // the transaction committed successfully.
             var domainEvents = ChangeTracker.Entries<Entity>()
                 .SelectMany(e => e.Entity.DequeueDomainEvents())
                 .ToList();
@@ -104,6 +111,8 @@ internal class PaymentContext : DbContext, IPaymentStore
             e.PaymentId, e.OrderId, e.CustomerId, e.Reason),
         PaymentCapturedDomainEvent e => new PaymentCapturedEvent(e.PaymentId, e.OrderId, e.Amount),
         PaymentRefundedDomainEvent e => new PaymentRefundedEvent(e.PaymentId, e.OrderId, e.Amount),
+        PaymentVoidedDomainEvent e => new PaymentVoidedEvent(
+            e.PaymentId, e.OrderId, e.CustomerId, e.Reason),
         _ => throw new InvalidOperationException(
             $"No integration-event translation registered for domain event {domainEvent.GetType().Name}")
     };

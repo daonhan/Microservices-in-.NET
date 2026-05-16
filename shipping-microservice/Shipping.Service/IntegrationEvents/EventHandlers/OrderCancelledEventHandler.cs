@@ -9,16 +9,13 @@ namespace Shipping.Service.IntegrationEvents.EventHandlers;
 internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
 {
     private readonly IShipmentStore _shipmentStore;
-    private readonly IOutboxStore _outboxStore;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
 
     public OrderCancelledEventHandler(
         IShipmentStore shipmentStore,
-        IOutboxStore outboxStore,
         IOutboxUnitOfWork outboxUnitOfWork)
     {
         _shipmentStore = shipmentStore;
-        _outboxStore = outboxStore;
         _outboxUnitOfWork = outboxUnitOfWork;
     }
 
@@ -30,7 +27,7 @@ internal class OrderCancelledEventHandler : IEventHandler<OrderCancelledEvent>
             return;
         }
 
-        await _outboxUnitOfWork.ExecuteAsync(_outboxStore.CreateExecutionStrategy(), async () =>
+        await _outboxUnitOfWork.ExecuteAsync(async () =>
         {
             var now = DateTime.UtcNow;
             var events = new List<Event>();

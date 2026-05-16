@@ -4,7 +4,7 @@ namespace Payment.Service.Infrastructure.Data;
 
 public interface IPaymentStore
 {
-    Task Add(Models.Payment payment);
+    void Add(Models.Payment payment);
     Task<Models.Payment?> GetById(Guid paymentId);
     Task<Models.Payment?> GetByOrder(Guid orderId);
     Task<int> SaveChangesAsync();
