@@ -11,6 +11,7 @@ Durable decisions that apply across all phases:
 - **API surface (unchanged)**: `InventoryApiEndpoints` routes, request/response shapes.
 - **EF schema (unchanged)**: no migrations; `DbSet` shapes preserved. Aggregate loading reshapes the queries inside `InventoryContext`, not the schema.
 - **Cross-service contract (unchanged)**: the Order service's saga handlers are untouched. Inventory continues to publish `StockReservedEvent` / `StockReservationFailedEvent` from the orchestration layer in the same place as today.
+- **Outbox UoW envelope (unchanged)**: Inventory adopted the shared `IOutboxUnitOfWork.ExecuteAsync(work)` seam in issues #71 and #114. All three lifecycle paths (`OrderCreatedEventHandler`, `OrderConfirmedEventHandler`, `OrderCancelledEventHandler`, and the reserve endpoint in `InventoryApiEndpoints`) already wrap their `IInventoryStore` call in that delegate. This plan does not touch the wrappers; the `IInventoryStore` method *called from inside* the delegate is what shrinks in each phase.
 - **Time injection**: aggregate methods take a timestamp as a parameter. Orchestration calls `DateTime.UtcNow` and passes it down. The aggregate has no clock dependency.
 - **Visibility**: aggregate methods are `internal`, matching the existing convention. Tests use `InternalsVisibleTo`.
 - **Out of scope across all phases**: `Restock`, `SetThreshold`, `CreateBackorder`, `ProvisionStockItem`, the Order provisioning saga, domain events on the aggregate, cross-service contract sharing.
@@ -32,7 +33,7 @@ The Reserve path moves end-to-end onto a rich `StockItem` aggregate. Orchestrati
 - [ ] `StockItem` exposes a Hold method that takes an order identifier, the lines to reserve, and a timestamp, and returns the data the orchestration layer needs to satisfy the existing `ReserveResult` contract (including the `AlreadyProcessed` short-circuit).
 - [ ] `StockItem` enforces the "cannot hold more than `Available`" invariant inside the aggregate, not in the persistence layer.
 - [ ] `StockItem.TotalReserved` and the per-warehouse `StockLevel.Reserved` are mutated together inside the aggregate; orchestration cannot mutate either independently.
-- [ ] `InventoryContext.Reserve` shrinks to thin orchestration: load aggregate, call Hold, persist returned movements, save.
+- [ ] `InventoryContext.Reserve` shrinks to thin orchestration: load aggregate, call Hold, persist returned movements, save. The outer `IOutboxUnitOfWork.ExecuteAsync(...)` wrapper in `OrderCreatedEventHandler` and the reserve endpoint is unchanged.
 - [ ] `IInventoryStore`, `ReserveResult`, `ReservedLine`, `FailedReserveLine`, the EF schema, and the API surface are unchanged.
 - [ ] New unit tests cover the Hold method directly without spinning up a database (hold within available, hold beyond available rejected, duplicate-order short-circuit).
 - [ ] All existing `Inventory.Tests/Api/ReserveApiTests` continue to pass unchanged.
@@ -49,7 +50,7 @@ The Reserve path moves end-to-end onto a rich `StockItem` aggregate. Orchestrati
 
 The Commit path moves onto the aggregate. Orchestration loads the `StockItem` together with its held reservations for the order, calls a Commit method on the aggregate, and persists the returned movements. The aggregate enforces "double-commit is idempotent" and "cannot commit a reservation that is not held" inside the aggregate, replacing the current ad-hoc status checks in `InventoryContext.CommitReservations`. The orchestration layer continues to return the existing `CommitResult` shape with its `AlreadyProcessed` semantics intact.
 
-This phase also delivers the previously missing reserve→commit end-to-end test, exercising the full happy path through the Inventory API and acting as the regression net for the orchestration changes.
+This phase also delivers the previously missing full reserve→commit end-to-end test, driving the reserve endpoint and then dispatching `OrderConfirmedEvent` through the handler, acting as the regression net for the orchestration changes. Note: a commit-from-held variant (`Given_HeldReservation_When_OrderConfirmed_Then_CommitsAndPublishesStockCommitted` in `ReleaseReservationsTests.cs`) landed with the Outbox UoW work, but it seeds the `Held` reservation row directly rather than going through the reserve API — the gap this phase closes is the full pipeline from reserve to commit.
 
 `Release` is untouched in this phase.
 
@@ -58,7 +59,7 @@ This phase also delivers the previously missing reserve→commit end-to-end test
 - [ ] `StockItem` exposes a Commit method that takes an order identifier and a timestamp, and returns the data needed to satisfy the existing `CommitResult` contract (including the `AlreadyProcessed` short-circuit when nothing is in `Held` state).
 - [ ] Commit on an aggregate with no held reservations for the order is idempotent and returns the existing-result shape.
 - [ ] `StockItem.TotalReserved`, `StockItem.TotalOnHand`, the per-warehouse `StockLevel.Reserved`, and `StockLevel.OnHand` are decremented together inside the aggregate.
-- [ ] `InventoryContext.CommitReservations` shrinks to thin orchestration: load aggregate, call Commit, persist returned movements, save.
+- [ ] `InventoryContext.CommitReservations` shrinks to thin orchestration: load aggregate, call Commit, persist returned movements, save. The outer `IOutboxUnitOfWork.ExecuteAsync(...)` wrapper in `OrderConfirmedEventHandler` is unchanged.
 - [ ] `IInventoryStore.CommitReservations`, `CommitResult`, `CommittedLine`, the EF schema, and the API surface are unchanged.
 - [ ] New unit tests cover the Commit method directly: commit a held reservation, double-commit idempotency, commit with no held reservations.
 - [ ] A new end-to-end API test covers the full reserve→commit happy path (closes the gap identified in the PRD).
@@ -83,7 +84,7 @@ This phase also closes the `StockReservation` seam: its public `Status` setter i
 - [ ] Releasing a `Held` reservation decrements only the reserved counters; releasing a `Committed` reservation also restores the on-hand counters. Both rules live on the aggregate, not in orchestration.
 - [ ] Double-release is idempotent and returns the existing `AlreadyProcessed` result shape.
 - [ ] `StockReservation`'s `Status` setter is no longer publicly assignable from outside the aggregate; transitions go through guarded methods.
-- [ ] `InventoryContext.ReleaseReservations` shrinks to thin orchestration: load aggregate, call Release, persist returned movements, save.
+- [ ] `InventoryContext.ReleaseReservations` shrinks to thin orchestration: load aggregate, call Release, persist returned movements, save. The outer `IOutboxUnitOfWork.ExecuteAsync(...)` wrapper in `OrderCancelledEventHandler` is unchanged.
 - [ ] `IInventoryStore.ReleaseReservations`, `ReleaseResult`, `ReleasedLine`, the EF schema, and the API surface are unchanged.
 - [ ] New unit tests cover the Release method directly: release-from-held, release-from-committed (with on-hand restoration), mixed-state release, double-release idempotency.
 - [ ] New unit tests cover `StockReservation` illegal-transition guards.

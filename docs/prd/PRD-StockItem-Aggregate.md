@@ -14,6 +14,8 @@ Pull the stock-reservation lifecycle out of the persistence layer and into the d
 
 `InventoryContext`'s `Reserve`, `CommitReservations`, and `ReleaseReservations` methods stay as the public-facing persistence orchestration but become thin: load the aggregate (item + levels + reservations), call the appropriate aggregate method, persist any returned movements, save changes. The shape and behavior of the existing `IInventoryStore` interface — the contract endpoints depend on, including the `*Result` records and their `AlreadyProcessed` semantics — is preserved. No changes to API contracts. No changes to the EF schema. No changes to the events the Inventory service publishes. From the outside, this refactor is invisible.
 
+Since this PRD was authored, the Inventory service adopted the shared `IOutboxUnitOfWork.ExecuteAsync(work)` seam (issues #71, #114). The Reserve/Commit/Release `IInventoryStore` calls are now invoked from inside the `work` delegate in `OrderCreatedEventHandler`, `OrderConfirmedEventHandler`, `OrderCancelledEventHandler`, and the `InventoryApiEndpoints` reserve endpoint, with the returned integration events enqueued under one ambient transaction. That outer envelope is **not** what this PRD shrinks — it stays as is. The "thin orchestration" described above refers to the inner persistence method on `InventoryContext` that runs inside that delegate.
+
 The win is a domain-level seam where the rules of stock reservation can be read, tested, and changed in one place, and symmetry with how the Order service's `Order` aggregate already works.
 
 ## User Stories
@@ -43,6 +45,7 @@ The win is a domain-level seam where the rules of stock reservation can be read,
 - **`StockReservation` becomes a member of the aggregate**: its `Status` setter is no longer public. Status transitions happen via guarded methods invoked by `StockItem`. Illegal transitions are no-ops or throw — the exact policy is decided during implementation but must be consistent with the existing `AlreadyProcessed` semantics in the `*Result` records.
 - **`StockLevel` becomes a member of the aggregate**: its `Reserved` and `OnHand` fields are mutated only through aggregate methods, not externally.
 - **`InventoryContext.Reserve`, `CommitReservations`, `ReleaseReservations` become thin orchestration**: load the aggregate, call the aggregate method, record returned movements, save. Each method shrinks from ~70 lines to a small persistence orchestrator. They continue to return the existing `*Result` records with the existing `AlreadyProcessed` semantics — that contract is part of the seam between Inventory and the Order saga and is preserved unchanged.
+- **Outer Outbox UoW envelope is preserved unchanged**. The `IOutboxUnitOfWork.ExecuteAsync(work)` wrappers in `OrderCreatedEventHandler`, `OrderConfirmedEventHandler`, `OrderCancelledEventHandler`, and the reserve endpoint already own the transaction scope and outbox enqueue; the inner `IInventoryStore` call (still containing `SaveChangesAsync`) is what shrinks. No changes to the `IOutboxUnitOfWork` contract or how it is wired in Inventory's composition root.
 - **`IInventoryStore` interface is unchanged**. So are all the `*Result` and `*Line` records. So is the EF `DbSet` shape and schema. This is an internal refactor.
 - **Time is injected into aggregate methods explicitly**, not read via `DateTime.UtcNow` inside the aggregate, so that aggregate tests can pin time deterministically. The orchestration layer continues to call `DateTime.UtcNow` and pass it down.
 - **`Restock`, `SetThreshold`, `CreateBackorder`, `ProvisionStockItem`, and the various read methods are out of scope**. They do not participate in the reservation lifecycle.
@@ -58,11 +61,12 @@ Modules to test:
 
 - **`StockItem` aggregate** — new unit tests covering: hold within available, hold beyond available is rejected, commit a held reservation, commit when nothing is held is a no-op or rejected per the chosen policy, release a held reservation, release a committed reservation (with the asymmetric on-hand restoration), double-commit is idempotent, double-release is idempotent, mixed-state release where some reservations are held and some are committed.
 - **`StockReservation`** — small unit tests covering illegal status transitions.
-- **End-to-end reserve→commit happy path** — a new integration test through the existing Inventory API surface. Today the API tests cover reserve, reserve-with-insufficient-stock, and release; there is no test covering the full reserve-then-commit flow. This test closes that gap and acts as the regression net for the refactor.
+- **End-to-end reserve→commit happy path** — a new integration test through the existing Inventory API surface. Today the API tests cover reserve, reserve-with-insufficient-stock, and release; one commit-from-held end-to-end test landed alongside the Outbox UoW work (`Given_HeldReservation_When_OrderConfirmed_Then_CommitsAndPublishesStockCommitted` in `Inventory.Tests/Api/ReleaseReservationsTests.cs`), but it seeds a `Held` reservation row directly rather than going through the reserve API. The new test should drive the reserve endpoint, then dispatch `OrderConfirmedEvent`, asserting the full pipeline and acting as the regression net for the refactor.
 
 Prior art:
 
 - `Order.Tests/Domain/OrderTests.cs` — the rich-aggregate unit-test pattern that this refactor brings to Inventory. The new `StockItem` tests should look like these.
+- `Payment.Tests/Models/PaymentStateMachineTests.cs` and `Shipping.Tests/...` — the same pattern, now also adopted in Payment (`Payment.Authorize/Fail/Capture/Refund/Void` raising `IDomainEvent`s through an `Entity` base) and Shipping. After this refactor Inventory will be the fourth service following the convention; today it is the only outlier.
 - `Inventory.Tests/Api/ReserveApiTests.cs` and `Inventory.Tests/Api/ReleaseReservationsTests.cs` — the existing API-level regression net. These continue to pass unchanged, by design. The new reserve→commit end-to-end test follows their shape.
 
 Tests we are deliberately NOT writing:
@@ -76,7 +80,7 @@ Tests we are deliberately NOT writing:
 - Restock and backorder fulfillment logic — they have their own concerns and do not participate in the reservation lifecycle.
 - Any change to the Inventory API surface, the events Inventory publishes, the `IInventoryStore` interface, or the EF schema.
 - Any change to the Order service. The `IInventoryStore` contract and the `*Result` payloads it returns are preserved precisely so that the Order saga handlers stay untouched.
-- Domain events on the Inventory aggregate. Today the Inventory service does not raise domain events from `StockItem`; this refactor does not introduce that pattern.
+- Domain events on the Inventory aggregate. Order, Payment, and Shipping each raise `IDomainEvent`s from their aggregates and dequeue them in handlers/endpoints to translate into integration events. Inventory does not yet follow that pattern, and this refactor deliberately does not introduce it — the orchestration layer continues to translate `*Result` records into the existing integration events (`StockReservedEvent`, `StockReservationFailedEvent`, `StockCommittedEvent`, `StockReleasedEvent`). Adopting domain events on `StockItem` is a follow-up worth considering once the aggregate exists.
 - Cross-service contract sharing of integration events (a separate candidate, not chosen here).
 
 ## Further Notes
@@ -84,5 +88,7 @@ Tests we are deliberately NOT writing:
 The refactor is informed by the architectural depth-vs-shallowness review of the Inventory service. The current `InventoryContext` methods for the reservation lifecycle are the canonical example in this repo of a shallow persistence module hiding a deep state machine — the deletion test concentrates the complexity onto `StockItem`, where it belongs, rather than scattering it across N callers.
 
 After this PRD is delivered, the natural follow-up is the Order provisioning saga (originally candidate #1 from the architecture review). The two refactors are designed to compose: with `StockItem` owning its lifecycle here, the saga will be free to reason about the Order side without reaching into Inventory's persistence shape.
+
+Between the original authoring of this PRD and now, the Outbox unit-of-work seam (issues #71 and #114) shipped across Inventory, Payment, and Shipping. That work moved the transaction + outbox concerns out of the persistence methods and into a shared `IOutboxUnitOfWork.ExecuteAsync(...)` wrapper. The state-machine logic on `InventoryContext.Reserve/CommitReservations/ReleaseReservations` was deliberately left in place because it is exactly what this PRD targets. The two refactors compose: the Outbox UoW seam owns the outer transaction; the `StockItem` aggregate (this PRD) will own the inner state machine.
 
 There is no conflict with any existing ADR (the repository currently has no `docs/adr/` directory). If a future ADR formalizes "rich aggregates over anemic models" as a project-wide rule, this refactor is consistent with it; if a future ADR pushes the opposite direction, this refactor would be the kind of change it would govern, and that decision can be recorded then.
