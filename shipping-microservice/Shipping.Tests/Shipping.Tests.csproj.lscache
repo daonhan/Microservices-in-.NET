@@ -69,6 +69,7 @@ Authentication/TestAuthHandler.cs
 Carriers/
  CarrierGatewayContractTests.cs
  CarrierPollingServiceTests.cs
+ CarrierStatusApplierTests.cs
  RateShoppingServiceTests.cs
 Domain/
  QaSeedFixturesTests.cs

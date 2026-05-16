@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using System.Text.Json;
-using System.Transactions;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
@@ -401,6 +400,7 @@ public static class ShippingApiEndpoints
         routeBuilder.MapPost("/webhooks/carrier/{carrierKey}", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
             [FromServices] IOutboxStore outboxStore,
+            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
             [FromServices] IEnumerable<ICarrierGateway> carriers,
             [FromServices] IOptions<CarrierWebhookOptions> options,
             [FromServices] ShippingMetrics metrics,
@@ -445,24 +445,21 @@ public static class ShippingApiEndpoints
 
             var now = DateTime.UtcNow;
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+            await outboxUnitOfWork.ExecuteAsync(outboxStore.CreateExecutionStrategy(), async () =>
             {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
-                var applied = await CarrierStatusApplier.ApplyAsync(
+                var events = await CarrierStatusApplier.ApplyAsync(
                     shipment,
                     update.Status,
                     ShipmentStatusSource.CarrierWebhook,
                     now,
-                    outboxStore,
                     metrics);
 
-                if (applied)
+                if (events.Count > 0)
                 {
                     await shipmentStore.SaveChangesAsync();
                 }
 
-                scope.Complete();
+                return events;
             });
 
             return TypedResults.Ok(new

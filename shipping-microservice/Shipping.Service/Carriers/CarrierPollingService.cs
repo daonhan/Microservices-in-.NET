@@ -1,4 +1,4 @@
-using System.Transactions;
+using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -80,6 +80,7 @@ internal sealed partial class CarrierPollingService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var shipmentStore = scope.ServiceProvider.GetRequiredService<IShipmentStore>();
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var outboxUnitOfWork = scope.ServiceProvider.GetRequiredService<IOutboxUnitOfWork>();
         var metrics = scope.ServiceProvider.GetRequiredService<ShippingMetrics>();
         var carriers = scope.ServiceProvider.GetServices<ICarrierGateway>()
             .ToDictionary(c => c.CarrierKey, StringComparer.OrdinalIgnoreCase);
@@ -92,11 +93,10 @@ internal sealed partial class CarrierPollingService : BackgroundService
 
         var updated = 0;
 
-        await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
+        await outboxUnitOfWork.ExecuteAsync(outboxStore.CreateExecutionStrategy(), async () =>
         {
-            using var txScope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
             var changed = false;
+            var events = new List<Event>();
 
             foreach (var shipment in active)
             {
@@ -126,18 +126,18 @@ internal sealed partial class CarrierPollingService : BackgroundService
                     continue;
                 }
 
-                var applied = await CarrierStatusApplier.ApplyAsync(
+                var shipmentEvents = await CarrierStatusApplier.ApplyAsync(
                     shipment,
                     status,
                     ShipmentStatusSource.CarrierPoll,
                     _timeProvider.GetUtcNow().UtcDateTime,
-                    outboxStore,
                     metrics);
 
-                if (applied)
+                if (shipmentEvents.Count > 0)
                 {
                     changed = true;
                     updated++;
+                    events.AddRange(shipmentEvents);
                 }
             }
 
@@ -146,7 +146,7 @@ internal sealed partial class CarrierPollingService : BackgroundService
                 await shipmentStore.SaveChangesAsync();
             }
 
-            txScope.Complete();
+            return events;
         });
 
         return updated;
