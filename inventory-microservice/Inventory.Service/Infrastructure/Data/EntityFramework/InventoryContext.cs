@@ -192,18 +192,14 @@ internal class InventoryContext : DbContext, IInventoryStore
 
     public async Task<ReserveResult> Reserve(Guid orderId, IReadOnlyList<ReserveLine> lines)
     {
-        var existing = await StockReservations
+        if (lines.Count == 0)
+        {
+            return new ReserveResult(Reserved: false, AlreadyProcessed: false, [], []);
+        }
+
+        var existingReservations = await StockReservations
             .Where(r => r.OrderId == orderId)
             .ToListAsync();
-
-        if (existing.Count > 0)
-        {
-            var already = existing
-                .Select(r => new ReservedLine(r.ProductId, r.WarehouseId, r.Quantity))
-                .ToList();
-
-            return new ReserveResult(Reserved: true, AlreadyProcessed: true, already, []);
-        }
 
         var defaultWarehouse = await Warehouses.FirstAsync(w => w.Code == "DEFAULT");
 
@@ -220,6 +216,7 @@ internal class InventoryContext : DbContext, IInventoryStore
         var now = DateTime.UtcNow;
         var failedLines = new List<FailedReserveLine>();
         var holds = new List<HoldResult>(lines.Count);
+        bool alreadyProcessed = false;
 
         foreach (var line in lines)
         {
@@ -230,7 +227,13 @@ internal class InventoryContext : DbContext, IInventoryStore
                 continue;
             }
 
-            var hold = item.Hold(orderId, defaultWarehouse.Id, line.Quantity, level, [], now);
+            var hold = item.Hold(orderId, defaultWarehouse.Id, line.Quantity, level, existingReservations, now);
+            if (hold.Outcome == HoldOutcome.AlreadyHeld)
+            {
+                alreadyProcessed = true;
+                continue;
+            }
+
             if (hold.Outcome == HoldOutcome.InsufficientStock)
             {
                 failedLines.Add(new FailedReserveLine(line.ProductId, line.Quantity, hold.Available));
@@ -238,6 +241,14 @@ internal class InventoryContext : DbContext, IInventoryStore
             }
 
             holds.Add(hold);
+        }
+
+        if (alreadyProcessed)
+        {
+            var already = existingReservations
+                .Select(r => new ReservedLine(r.ProductId, r.WarehouseId, r.Quantity))
+                .ToList();
+            return new ReserveResult(Reserved: true, AlreadyProcessed: true, already, []);
         }
 
         if (failedLines.Count > 0)
