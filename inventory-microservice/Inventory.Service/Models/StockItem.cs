@@ -117,7 +117,7 @@ internal class StockItem
             TotalReserved -= reservation.Quantity;
             TotalOnHand -= reservation.Quantity;
 
-            reservation.Status = ReservationStatus.Committed;
+            reservation.Commit();
 
             movements.Add(new StockMovement
             {
@@ -132,6 +132,62 @@ internal class StockItem
 
         return new CommitItemResult(
             movements.Count > 0 ? CommitOutcome.Committed : CommitOutcome.NothingHeld,
+            movements);
+    }
+
+    /// <summary>
+    /// Releases this order's reservations. Releasing a <see cref="ReservationStatus.Held"/>
+    /// reservation only returns the reserved units (<see cref="TotalReserved"/> and the
+    /// per-warehouse <see cref="StockLevel.Reserved"/> are decremented together); releasing a
+    /// <see cref="ReservationStatus.Committed"/> reservation also restores on-hand stock
+    /// (<see cref="TotalOnHand"/> and <see cref="StockLevel.OnHand"/> are incremented together).
+    /// Mixed held/committed orders are handled in one call. Already-released reservations are
+    /// skipped, so a double-release is an idempotent no-op reported as
+    /// <see cref="ReleaseOutcome.NothingToRelease"/>.
+    /// </summary>
+    public ReleaseItemResult Release(
+        Guid orderId,
+        IReadOnlyCollection<StockReservation> orderReservations,
+        IReadOnlyDictionary<int, StockLevel> levelsByWarehouse,
+        DateTime timestamp)
+    {
+        var movements = new List<StockMovement>();
+
+        foreach (var reservation in orderReservations)
+        {
+            if (reservation.Status == ReservationStatus.Released)
+            {
+                continue;
+            }
+
+            var level = levelsByWarehouse[reservation.WarehouseId];
+
+            if (reservation.Status == ReservationStatus.Held)
+            {
+                level.Reserved -= reservation.Quantity;
+                TotalReserved -= reservation.Quantity;
+            }
+            else if (reservation.Status == ReservationStatus.Committed)
+            {
+                level.OnHand += reservation.Quantity;
+                TotalOnHand += reservation.Quantity;
+            }
+
+            reservation.Release();
+
+            movements.Add(new StockMovement
+            {
+                ProductId = ProductId,
+                WarehouseId = reservation.WarehouseId,
+                Type = MovementType.Release,
+                Quantity = reservation.Quantity,
+                OccurredAt = timestamp,
+                OrderId = orderId
+            });
+        }
+
+        return new ReleaseItemResult(
+            movements.Count > 0 ? ReleaseOutcome.Released : ReleaseOutcome.NothingToRelease,
             movements);
     }
 }

@@ -374,45 +374,23 @@ internal class InventoryContext : DbContext, IInventoryStore
         var stockLevels = await StockLevels
             .Where(l => productIds.Contains(l.ProductId))
             .ToListAsync();
-        var stockLevelsByKey = stockLevels.ToDictionary(l => (l.ProductId, l.WarehouseId));
 
         var now = DateTime.UtcNow;
         var releasedLines = new List<ReleasedLine>();
 
-        foreach (var reservation in reservations)
+        foreach (var group in reservations.GroupBy(r => r.ProductId))
         {
-            if (reservation.Status == ReservationStatus.Released)
+            var item = stockItems[group.Key];
+            var levelsByWarehouse = stockLevels
+                .Where(l => l.ProductId == group.Key)
+                .ToDictionary(l => l.WarehouseId);
+
+            var result = item.Release(orderId, group.ToList(), levelsByWarehouse, now);
+            foreach (var movement in result.Movements)
             {
-                continue;
+                RecordStockMovement(movement);
+                releasedLines.Add(new ReleasedLine(movement.ProductId, movement.WarehouseId, movement.Quantity));
             }
-
-            var item = stockItems[reservation.ProductId];
-            var level = stockLevelsByKey[(reservation.ProductId, reservation.WarehouseId)];
-
-            if (reservation.Status == ReservationStatus.Held)
-            {
-                level.Reserved -= reservation.Quantity;
-                item.TotalReserved -= reservation.Quantity;
-            }
-            else if (reservation.Status == ReservationStatus.Committed)
-            {
-                level.OnHand += reservation.Quantity;
-                item.TotalOnHand += reservation.Quantity;
-            }
-
-            reservation.Status = ReservationStatus.Released;
-
-            RecordStockMovement(new StockMovement
-            {
-                ProductId = reservation.ProductId,
-                WarehouseId = reservation.WarehouseId,
-                Type = MovementType.Release,
-                Quantity = reservation.Quantity,
-                OccurredAt = now,
-                OrderId = orderId
-            });
-
-            releasedLines.Add(new ReleasedLine(reservation.ProductId, reservation.WarehouseId, reservation.Quantity));
         }
 
         await SaveChangesAsync();

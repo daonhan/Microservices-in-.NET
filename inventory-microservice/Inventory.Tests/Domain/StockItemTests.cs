@@ -191,4 +191,128 @@ public class StockItemTests
         Assert.Equal(5, item.TotalOnHand);
         Assert.Equal(0, item.TotalReserved);
     }
+
+    [Fact]
+    public void Release_HeldReservation_ReturnsReservedOnly()
+    {
+        var item = new StockItem { ProductId = 1, TotalOnHand = 10, TotalReserved = 4 };
+        var level = new StockLevel { ProductId = 1, WarehouseId = 7, OnHand = 10, Reserved = 4 };
+        var orderId = Guid.NewGuid();
+        var reservation = new StockReservation
+        {
+            OrderId = orderId,
+            ProductId = 1,
+            WarehouseId = 7,
+            Quantity = 4,
+            Status = ReservationStatus.Held,
+        };
+        var now = new DateTime(2026, 5, 16, 12, 0, 0, DateTimeKind.Utc);
+
+        var result = item.Release(orderId, [reservation], new Dictionary<int, StockLevel> { [7] = level }, now);
+
+        Assert.Equal(ReleaseOutcome.Released, result.Outcome);
+        Assert.Equal(10, item.TotalOnHand);
+        Assert.Equal(0, item.TotalReserved);
+        Assert.Equal(10, level.OnHand);
+        Assert.Equal(0, level.Reserved);
+        Assert.Equal(ReservationStatus.Released, reservation.Status);
+
+        var movement = Assert.Single(result.Movements);
+        Assert.Equal(MovementType.Release, movement.Type);
+        Assert.Equal(1, movement.ProductId);
+        Assert.Equal(7, movement.WarehouseId);
+        Assert.Equal(4, movement.Quantity);
+        Assert.Equal(orderId, movement.OrderId);
+        Assert.Equal(now, movement.OccurredAt);
+    }
+
+    [Fact]
+    public void Release_CommittedReservation_RestoresOnHand()
+    {
+        var item = new StockItem { ProductId = 1, TotalOnHand = 6, TotalReserved = 0 };
+        var level = new StockLevel { ProductId = 1, WarehouseId = 7, OnHand = 6, Reserved = 0 };
+        var orderId = Guid.NewGuid();
+        var reservation = new StockReservation
+        {
+            OrderId = orderId,
+            ProductId = 1,
+            WarehouseId = 7,
+            Quantity = 4,
+            Status = ReservationStatus.Committed,
+        };
+
+        var result = item.Release(orderId, [reservation], new Dictionary<int, StockLevel> { [7] = level }, DateTime.UtcNow);
+
+        Assert.Equal(ReleaseOutcome.Released, result.Outcome);
+        Assert.Equal(10, item.TotalOnHand);
+        Assert.Equal(0, item.TotalReserved);
+        Assert.Equal(10, level.OnHand);
+        Assert.Equal(0, level.Reserved);
+        Assert.Equal(ReservationStatus.Released, reservation.Status);
+        Assert.Single(result.Movements);
+    }
+
+    [Fact]
+    public void Release_MixedHeldAndCommitted_AppliesEachRule()
+    {
+        var item = new StockItem { ProductId = 1, TotalOnHand = 12, TotalReserved = 3 };
+        var heldLevel = new StockLevel { ProductId = 1, WarehouseId = 7, OnHand = 7, Reserved = 3 };
+        var committedLevel = new StockLevel { ProductId = 1, WarehouseId = 8, OnHand = 5, Reserved = 0 };
+        var orderId = Guid.NewGuid();
+        var held = new StockReservation
+        {
+            OrderId = orderId,
+            ProductId = 1,
+            WarehouseId = 7,
+            Quantity = 3,
+            Status = ReservationStatus.Held,
+        };
+        var committed = new StockReservation
+        {
+            OrderId = orderId,
+            ProductId = 1,
+            WarehouseId = 8,
+            Quantity = 4,
+            Status = ReservationStatus.Committed,
+        };
+        var levels = new Dictionary<int, StockLevel> { [7] = heldLevel, [8] = committedLevel };
+
+        var result = item.Release(orderId, [held, committed], levels, DateTime.UtcNow);
+
+        Assert.Equal(ReleaseOutcome.Released, result.Outcome);
+        Assert.Equal(0, item.TotalReserved);
+        Assert.Equal(16, item.TotalOnHand);
+        Assert.Equal(0, heldLevel.Reserved);
+        Assert.Equal(7, heldLevel.OnHand);
+        Assert.Equal(9, committedLevel.OnHand);
+        Assert.Equal(ReservationStatus.Released, held.Status);
+        Assert.Equal(ReservationStatus.Released, committed.Status);
+        Assert.Equal(2, result.Movements.Count);
+    }
+
+    [Fact]
+    public void Release_WhenAlreadyReleased_IsIdempotentNoOp()
+    {
+        var item = new StockItem { ProductId = 1, TotalOnHand = 5, TotalReserved = 0 };
+        var level = new StockLevel { ProductId = 1, WarehouseId = 7, OnHand = 5, Reserved = 0 };
+        var orderId = Guid.NewGuid();
+        var reservation = new StockReservation
+        {
+            OrderId = orderId,
+            ProductId = 1,
+            WarehouseId = 7,
+            Quantity = 2,
+            Status = ReservationStatus.Released,
+        };
+
+        var result = item.Release(orderId, [reservation], new Dictionary<int, StockLevel> { [7] = level }, DateTime.UtcNow);
+
+        Assert.Equal(ReleaseOutcome.NothingToRelease, result.Outcome);
+        Assert.Empty(result.Movements);
+        Assert.Equal(5, item.TotalOnHand);
+        Assert.Equal(0, item.TotalReserved);
+        Assert.Equal(5, level.OnHand);
+        Assert.Equal(0, level.Reserved);
+        Assert.Equal(ReservationStatus.Released, reservation.Status);
+    }
 }
