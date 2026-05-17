@@ -3,6 +3,7 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.Outbox;
+using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
@@ -24,7 +25,8 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
     .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
     .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>()
-    .AddEventHandler<StockCommittedEvent, StockCommittedEventHandler>();
+    .AddEventHandler<StockCommittedEvent, StockCommittedEventHandler>()
+    .AddEventHandler<CreateShipmentCommand, CreateShipmentCommandHandler>();
 
 builder.AddPlatformObservability("Shipping",
     customTracing: t => t.WithSqlInstrumentation());

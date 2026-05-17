@@ -4,5 +4,14 @@ internal enum OrderSagaStep
 {
     Started,
     StockReserving,
-    StockReserved
+    StockReserved,
+    PaymentAuthorizing,
+    PaymentAuthorized,
+    OrderConfirming,
+    OrderConfirmed,
+    StockCommitting,
+    StockCommitted,
+    ShipmentCreating,
+    ShipmentCreated,
+    Completed
 }

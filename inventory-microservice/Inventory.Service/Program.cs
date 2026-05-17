@@ -25,6 +25,7 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>()
     .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
     .AddEventHandler<ReserveStockCommand, ReserveStockCommandHandler>()
+    .AddEventHandler<CommitStockCommand, CommitStockCommandHandler>()
     .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
     .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>();
 

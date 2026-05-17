@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
@@ -81,7 +82,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
     }
 
     [Fact]
-    public async Task Given_StockReservingSaga_When_StockReservedReplyArrives_Then_SagaAdvancesToStockReserved()
+    public async Task Given_StockReservingSaga_When_StockReservedReplyArrives_Then_SagaAdvancesToPaymentAuthorizing()
     {
         var orderId = Guid.NewGuid();
         var orderCreated = CreateOrderCreated(orderId);
@@ -112,13 +113,75 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             .Include(s => s.OrderSagaState)
             .Include(s => s.Transitions)
             .SingleAsync(s => s.SagaId == sagaId);
-        Assert.Equal(OrderSagaStep.StockReserved.ToString(), saga.CurrentStep);
-        Assert.Equal(nameof(StockReservedEvent), saga.OrderSagaState!.LastStepResult);
+        Assert.Equal(OrderSagaStep.PaymentAuthorizing.ToString(), saga.CurrentStep);
+        Assert.Equal(nameof(AuthorizePaymentCommand), saga.OrderSagaState!.LastStepResult);
         Assert.Equal(2, saga.Transitions.Count);
         Assert.Contains(saga.Transitions, t =>
             t.FromStep == OrderSagaStep.StockReserving.ToString()
-            && t.ToStep == OrderSagaStep.StockReserved.ToString()
+            && t.ToStep == OrderSagaStep.PaymentAuthorizing.ToString()
             && t.TriggerMessageId == stockReserved.Id);
+    }
+
+    [Fact]
+    public async Task Given_OpenSaga_When_HappyPathRepliesArrive_Then_SagaReachesCompleted()
+    {
+        var orderId = Guid.NewGuid();
+        var orderCreated = CreateOrderCreated(orderId);
+
+        var reserveCommandId = await OpenSaga(orderCreated);
+        var sagaId = await GetSagaIdAsync(orderId);
+
+        var stockReserved = new StockReservedEvent(
+            orderId, [new ReservedItem(101, 1, 2)], 25m, "USD")
+        {
+            CausationId = reserveCommandId,
+            SagaId = sagaId,
+        };
+        await DispatchAsync<StockReservedEventHandler, StockReservedEvent>(stockReserved);
+
+        var authorizeCommandId = await GetLatestCommandIdAsync(nameof(AuthorizePaymentCommand));
+        var paymentAuthorized = new PaymentAuthorizedEvent(
+            Guid.NewGuid(), orderId, "customer-1", 25m, "USD")
+        {
+            CausationId = authorizeCommandId,
+            SagaId = sagaId,
+        };
+        await DispatchAsync<PaymentAuthorizedEventHandler, PaymentAuthorizedEvent>(paymentAuthorized);
+
+        var confirmCommandId = await GetLatestCommandIdAsync(nameof(ConfirmOrderCommand));
+        var orderConfirmed = new OrderConfirmedEvent(orderId, "customer-1")
+        {
+            CausationId = confirmCommandId,
+            SagaId = sagaId,
+        };
+        await DispatchAsync<OrderConfirmedEventHandler, OrderConfirmedEvent>(orderConfirmed);
+
+        var commitCommandId = await GetLatestCommandIdAsync(nameof(CommitStockCommand));
+        var stockCommitted = new StockCommittedEvent(orderId, [new CommittedItem(101, 1, 2)])
+        {
+            CausationId = commitCommandId,
+            SagaId = sagaId,
+        };
+        await DispatchAsync<StockCommittedEventHandler, StockCommittedEvent>(stockCommitted);
+
+        var createShipmentCommandId = await GetLatestCommandIdAsync(nameof(CreateShipmentCommand));
+        var shipmentCreated = new ShipmentCreatedEvent(
+            Guid.NewGuid(), orderId, "customer-1", 1, [new ShipmentLineItem(101, 2)])
+        {
+            CausationId = createShipmentCommandId,
+            SagaId = sagaId,
+        };
+        await DispatchAsync<ShipmentCreatedEventHandler, ShipmentCreatedEvent>(shipmentCreated);
+
+        using var scope = _factory.Services.CreateScope();
+        var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
+        sagaContext.ChangeTracker.Clear();
+        var saga = await sagaContext.SagaInstances
+            .Include(s => s.Transitions)
+            .SingleAsync(s => s.SagaId == sagaId);
+        Assert.Equal(SagaStatus.Completed, saga.Status);
+        Assert.Equal(OrderSagaStep.Completed.ToString(), saga.CurrentStep);
+        Assert.Equal(6, saga.Transitions.Count);
     }
 
     private async Task Handle(OrderCreatedEvent orderCreated, SagaOrchestratorOptions options)
@@ -176,6 +239,34 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
         return outboxEvents.Single(e =>
             e.EventType.Contains(nameof(ReserveStockCommand), StringComparison.Ordinal)
             && e.Data.Contains(orderCreated.OrderId.ToString(), StringComparison.Ordinal)).Id;
+    }
+
+    private async Task<Guid> GetSagaIdAsync(Guid orderId)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
+        return await sagaContext.OrderSagaStates
+            .Where(s => s.OrderId == orderId)
+            .Select(s => s.SagaId)
+            .SingleAsync();
+    }
+
+    private async Task<Guid> GetLatestCommandIdAsync(string commandTypeName)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
+        return outboxEvents.Last(e =>
+            e.EventType.Contains(commandTypeName, StringComparison.Ordinal)).Id;
+    }
+
+    private async Task DispatchAsync<THandler, TEvent>(TEvent @event)
+        where THandler : IEventHandler<TEvent>
+        where TEvent : ECommerce.Shared.Infrastructure.EventBus.Event
+    {
+        using var scope = _factory.Services.CreateScope();
+        var handler = ActivatorUtilities.CreateInstance<THandler>(scope.ServiceProvider);
+        await handler.Handle(@event);
     }
 
     private static OrderCreatedEvent CreateOrderCreated(Guid orderId) =>

@@ -33,7 +33,11 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
     .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
     .AddEventHandler<StockReservedEvent, StockReservedEventHandler>()
-    .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>();
+    .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>()
+    .AddEventHandler<PaymentAuthorizedEvent, PaymentAuthorizedEventHandler>()
+    .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
+    .AddEventHandler<StockCommittedEvent, StockCommittedEventHandler>()
+    .AddEventHandler<ShipmentCreatedEvent, ShipmentCreatedEventHandler>();
 
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation());
