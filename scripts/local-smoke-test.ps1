@@ -10,6 +10,9 @@
                    to trigger InMemoryPaymentGateway decline), assert the order ends Cancelled.
       - stock-out: login as customer-cancel, place an order against product-zero-stock,
                    assert the order ends Cancelled.
+      - saga-first-transition:
+                   with SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100
+                   on the saga container, place an order and assert Saga DB reaches StockReserved.
       - admin:     login as admin, hit the inventory low-stock and restock-target fixtures.
       - all:       run every scenario in order. Default.
 
@@ -28,7 +31,7 @@
     Gateway base URL. Defaults to http://localhost:8004.
 
 .PARAMETER Scenario
-    Scenario name. One of: happy, decline, stock-out, admin, all.
+    Scenario name. One of: happy, decline, stock-out, saga-first-transition, admin, all.
 
 .PARAMETER PollSeconds
     How long to wait for asynchronous saga state changes. Defaults to 30.
@@ -36,9 +39,10 @@
 [CmdletBinding()]
 param(
     [string]$Base = 'http://localhost:8004',
-    [ValidateSet('happy', 'decline', 'stock-out', 'admin', 'all')]
+    [ValidateSet('happy', 'decline', 'stock-out', 'saga-first-transition', 'admin', 'all')]
     [string]$Scenario = 'all',
-    [int]$PollSeconds = 30
+    [int]$PollSeconds = 30,
+    [string]$SqlContainer = 'sql'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -155,6 +159,60 @@ function Invoke-ShipmentTransition([hashtable]$Headers, [string]$ShipmentId, [st
     Invoke-WebRequest @params | Out-Null
 }
 
+function Invoke-SagaSqlScalar([string]$Query) {
+    $password = 'micR0S3rvice$'
+
+    if (Get-Command 'sqlcmd' -ErrorAction SilentlyContinue) {
+        $output = & sqlcmd -S 'localhost,1433' -U 'sa' -P $password -C -h -1 -W -Q $Query
+        if ($LASTEXITCODE -ne 0) {
+            throw "sqlcmd failed with exit code $LASTEXITCODE"
+        }
+
+        $rows = @($output) | ForEach-Object { "$_".Trim() } | Where-Object { $_ }
+        return ($rows | Select-Object -First 1)
+    }
+
+    if (-not (Get-Command 'docker' -ErrorAction SilentlyContinue)) {
+        throw 'Neither sqlcmd nor docker is available to query the Saga database.'
+    }
+
+    $paths = @('/opt/mssql-tools18/bin/sqlcmd', '/opt/mssql-tools/bin/sqlcmd')
+    foreach ($path in $paths) {
+        $output = & docker exec $SqlContainer $path -S 'localhost' -U 'sa' -P $password -C -h -1 -W -Q $Query 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $rows = @($output) | ForEach-Object { "$_".Trim() } | Where-Object { $_ }
+            return ($rows | Select-Object -First 1)
+        }
+    }
+
+    throw "Could not run sqlcmd in container '$SqlContainer'."
+}
+
+function Wait-SagaStep([string]$OrderId, [string]$Expected, [int]$TimeoutSec) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    $last = $null
+    $query = @"
+SET NOCOUNT ON;
+SELECT TOP 1 si.CurrentStep
+FROM Saga.dbo.SagaInstances si
+JOIN Saga.dbo.OrderSagaStates os ON os.SagaId = si.SagaId
+WHERE os.OrderId = '$OrderId'
+ORDER BY si.CreatedAt DESC;
+"@
+
+    do {
+        try {
+            $last = Invoke-SagaSqlScalar $query
+            if ($last -eq $Expected) { return }
+        } catch {
+            $last = "lookup-error: $($_.Exception.Message)"
+        }
+        Start-Sleep -Milliseconds 750
+    } while ((Get-Date) -lt $deadline)
+
+    throw "saga for order $OrderId did not reach step '$Expected' within ${TimeoutSec}s (last: '$last')"
+}
+
 function Invoke-Happy {
     Write-Step 'happy' 'login customer-happy'
     $cToken = Invoke-Login $Qa.CustomerHappyEmail $Qa.CustomerPassword
@@ -235,6 +293,20 @@ function Invoke-StockOut {
     Write-Host "[stock-out] OK" -ForegroundColor Green
 }
 
+function Invoke-SagaFirstTransition {
+    Write-Step 'saga' 'requires saga container env SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100'
+    Write-Step 'saga' 'login customer-happy'
+    $h = Get-AuthHeaders (Invoke-Login $Qa.CustomerHappyEmail $Qa.CustomerPassword)
+
+    Write-Step 'saga' "POST /order/$($Qa.CustomerHappyId) for orchestrated first transition"
+    $orderId = Invoke-PlaceOrder $h $Qa.CustomerHappyId $Qa.ProductHappyId 1
+
+    Write-Step 'saga' "orderId=$orderId; polling Saga DB until StockReserved"
+    Wait-SagaStep $orderId 'StockReserved' $PollSeconds
+
+    Write-Host "[saga-first-transition] OK" -ForegroundColor Green
+}
+
 function Invoke-Decline {
     Write-Step 'decline' 'login customer-decline'
     $h = Get-AuthHeaders (Invoke-Login $Qa.CustomerDeclineEmail $Qa.CustomerPassword)
@@ -283,6 +355,7 @@ switch ($Scenario) {
     'happy'     { Invoke-Happy }
     'decline'   { Invoke-Decline }
     'stock-out' { Invoke-StockOut }
+    'saga-first-transition' { Invoke-SagaFirstTransition }
     'admin'     { Invoke-Admin }
     'all' {
         Invoke-Happy
