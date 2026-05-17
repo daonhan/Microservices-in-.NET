@@ -48,6 +48,12 @@ internal class SagaContext : DbContext
             builder.Property(s => s.LastStepResult)
                 .HasMaxLength(128);
 
+            builder.Property(s => s.CompensationOrigin)
+                .HasMaxLength(64);
+
+            builder.Property(s => s.Amount)
+                .HasPrecision(18, 2);
+
             builder.HasIndex(s => s.OrderId)
                 .IsUnique();
 

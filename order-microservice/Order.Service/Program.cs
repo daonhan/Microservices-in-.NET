@@ -43,7 +43,8 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<PaymentFailedEvent, PaymentFailedEventHandler>()
     .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>()
     .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>()
-    .AddEventHandler<ConfirmOrderCommand, ConfirmOrderCommandHandler>();
+    .AddEventHandler<ConfirmOrderCommand, ConfirmOrderCommandHandler>()
+    .AddEventHandler<CancelOrderCommand, CancelOrderCommandHandler>();
 
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation(),

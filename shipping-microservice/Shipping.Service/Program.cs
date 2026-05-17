@@ -26,7 +26,8 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
     .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>()
     .AddEventHandler<StockCommittedEvent, StockCommittedEventHandler>()
-    .AddEventHandler<CreateShipmentCommand, CreateShipmentCommandHandler>();
+    .AddEventHandler<CreateShipmentCommand, CreateShipmentCommandHandler>()
+    .AddEventHandler<CancelShipmentCommand, CancelShipmentCommandHandler>();
 
 builder.AddPlatformObservability("Shipping",
     customTracing: t => t.WithSqlInstrumentation());

@@ -41,12 +41,15 @@ internal sealed class OrderSagaReplyProcessor
             }
 
             var currentStep = Enum.Parse<OrderSagaStep>(saga.CurrentStep);
+            var compensationOrigin = ParseStep(saga.OrderSagaState.CompensationOrigin);
             var snapshot = new OrderSagaStateSnapshot(
                 saga.SagaId,
                 saga.OrderSagaState.OrderId,
                 currentStep,
                 saga.Status,
-                saga.OrderSagaState.LastStepResult);
+                saga.OrderSagaState.LastStepResult,
+                saga.OrderSagaState.Amount,
+                compensationOrigin);
             var result = OrderSagaStateMachine.Transition(snapshot, @event);
             if (!result.Changed)
             {
@@ -58,6 +61,8 @@ internal sealed class OrderSagaReplyProcessor
             saga.Status = result.State.Status;
             saga.UpdatedAt = now;
             saga.OrderSagaState.LastStepResult = result.State.LastStepResult;
+            saga.OrderSagaState.Amount = result.State.Amount;
+            saga.OrderSagaState.CompensationOrigin = result.State.CompensationOrigin?.ToString();
             saga.Transitions.Add(new SagaTransition
             {
                 SagaId = saga.SagaId,
@@ -66,7 +71,7 @@ internal sealed class OrderSagaReplyProcessor
                 Timestamp = now,
                 TriggerMessageId = @event.Id,
                 TriggerKind = SagaTriggerKind.Event,
-                Error = @event is StockReservationFailedEvent ? "Stock reservation failed." : null
+                Error = ExtractError(@event)
             });
 
             await _sagaContext.SaveChangesAsync();
@@ -74,4 +79,15 @@ internal sealed class OrderSagaReplyProcessor
             return result.Commands;
         });
     }
+
+    private static OrderSagaStep? ParseStep(string? value) =>
+        Enum.TryParse<OrderSagaStep>(value, out var parsed) ? parsed : null;
+
+    private static string? ExtractError(Event @event) => @event switch
+    {
+        StockReservationFailedEvent => "Stock reservation failed.",
+        PaymentFailedEvent failed => $"Payment failed: {failed.Reason}",
+        ShipmentFailedEvent failed => $"Shipment failed: {failed.Reason}",
+        _ => null
+    };
 }

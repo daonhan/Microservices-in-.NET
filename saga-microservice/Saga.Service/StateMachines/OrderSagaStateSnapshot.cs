@@ -7,4 +7,6 @@ internal sealed record OrderSagaStateSnapshot(
     Guid OrderId,
     OrderSagaStep CurrentStep,
     SagaStatus Status,
-    string? LastStepResult = null);
+    string? LastStepResult = null,
+    decimal? Amount = null,
+    OrderSagaStep? CompensationOrigin = null);

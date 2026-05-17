@@ -13,5 +13,11 @@ internal enum OrderSagaStep
     StockCommitted,
     ShipmentCreating,
     ShipmentCreated,
-    Completed
+    Completed,
+    VoidingPayment,
+    ReleasingStock,
+    RefundingPayment,
+    CancellingShipment,
+    CancellingOrder,
+    Compensated
 }

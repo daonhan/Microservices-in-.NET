@@ -15,11 +15,55 @@ internal static class OrderSagaStateMachine
             StockReservedEvent stockReserved => OnStockReserved(state, stockReserved),
             StockReservationFailedEvent reservationFailed => OnStockReservationFailed(state, reservationFailed),
             PaymentAuthorizedEvent paymentAuthorized => OnPaymentAuthorized(state, paymentAuthorized),
+            PaymentFailedEvent paymentFailed => OnPaymentFailed(state, paymentFailed),
             OrderConfirmedEvent orderConfirmed => OnOrderConfirmed(state, orderConfirmed),
             StockCommittedEvent stockCommitted => OnStockCommitted(state, stockCommitted),
             ShipmentCreatedEvent shipmentCreated => OnShipmentCreated(state, shipmentCreated),
+            ShipmentFailedEvent shipmentFailed => OnShipmentFailed(state, shipmentFailed),
+            StockReleasedEvent stockReleased => OnCompensationReply(state, stockReleased, OrderSagaStep.ReleasingStock),
+            PaymentVoidedEvent paymentVoided => OnCompensationReply(state, paymentVoided, OrderSagaStep.VoidingPayment),
+            PaymentRefundedEvent paymentRefunded => OnCompensationReply(state, paymentRefunded, OrderSagaStep.RefundingPayment),
+            OrderCancelledEvent orderCancelled => OnCompensationReply(state, orderCancelled, OrderSagaStep.CancellingOrder),
+            ShipmentCancelledEvent shipmentCancelled => OnCompensationReply(state, shipmentCancelled, OrderSagaStep.CancellingShipment),
             _ => NoChange(state)
         };
+    }
+
+    // Begin compensation for the given last-completed step. Caller maps origin
+    // from the saga's current step (failure events) or supplies it directly
+    // (operator-driven abort, reaper escalation).
+    public static OrderSagaTransitionResult BeginCompensation(
+        OrderSagaStateSnapshot state,
+        OrderSagaStep origin,
+        Event trigger)
+    {
+        if (state.Status != SagaStatus.Running)
+        {
+            return NoChange(state);
+        }
+
+        var sequence = GetCompensationSequence(origin);
+        if (sequence.Count == 0)
+        {
+            var failed = state with
+            {
+                Status = SagaStatus.Failed,
+                LastStepResult = trigger.GetType().Name
+            };
+            return new OrderSagaTransitionResult(failed, [], Changed: true);
+        }
+
+        var firstStep = sequence[0];
+        var command = BuildCompensationCommand(firstStep, state, trigger.Id);
+        var next = state with
+        {
+            Status = SagaStatus.Compensating,
+            CurrentStep = firstStep,
+            CompensationOrigin = origin,
+            LastStepResult = command.GetType().Name
+        };
+
+        return new OrderSagaTransitionResult(next, [command], Changed: true);
     }
 
     private static OrderSagaTransitionResult OnOrderCreated(
@@ -75,7 +119,8 @@ internal static class OrderSagaStateMachine
         var next = state with
         {
             CurrentStep = OrderSagaStep.PaymentAuthorizing,
-            LastStepResult = nameof(AuthorizePaymentCommand)
+            LastStepResult = nameof(AuthorizePaymentCommand),
+            Amount = @event.Amount
         };
 
         return new OrderSagaTransitionResult(next, [command], Changed: true);
@@ -193,6 +238,130 @@ internal static class OrderSagaStateMachine
         return new OrderSagaTransitionResult(next, [], Changed: true);
     }
 
+    private static OrderSagaTransitionResult OnPaymentFailed(
+        OrderSagaStateSnapshot state,
+        PaymentFailedEvent @event)
+    {
+        if (!IsExpectedReply(state, OrderSagaStep.PaymentAuthorizing, @event.OrderId, @event.SagaId))
+        {
+            return NoChange(state);
+        }
+
+        return BeginCompensation(state, OrderSagaStep.StockReserved, @event);
+    }
+
+    private static OrderSagaTransitionResult OnShipmentFailed(
+        OrderSagaStateSnapshot state,
+        ShipmentFailedEvent @event)
+    {
+        if (!IsExpectedReply(state, OrderSagaStep.ShipmentCreating, @event.OrderId, @event.SagaId))
+        {
+            return NoChange(state);
+        }
+
+        return BeginCompensation(state, OrderSagaStep.StockCommitted, @event);
+    }
+
+    // Compensation replies advance through the sequence keyed by CompensationOrigin.
+    // If the saga is past `expectedStep`, the reply is dropped (at-least-once redelivery).
+    // If a reply arrives without a known sequence, the saga parks in Failed.
+    private static OrderSagaTransitionResult OnCompensationReply(
+        OrderSagaStateSnapshot state,
+        Event trigger,
+        OrderSagaStep expectedStep)
+    {
+        if (state.Status != SagaStatus.Compensating || state.CurrentStep != expectedStep)
+        {
+            return NoChange(state);
+        }
+
+        if (state.CompensationOrigin is not { } origin)
+        {
+            var failed = state with
+            {
+                Status = SagaStatus.Failed,
+                LastStepResult = trigger.GetType().Name
+            };
+            return new OrderSagaTransitionResult(failed, [], Changed: true);
+        }
+
+        var sequence = GetCompensationSequence(origin);
+        var index = IndexOf(sequence, expectedStep);
+        if (index < 0)
+        {
+            return NoChange(state);
+        }
+
+        if (index + 1 >= sequence.Count)
+        {
+            var completed = state with
+            {
+                CurrentStep = OrderSagaStep.Compensated,
+                Status = SagaStatus.Compensated,
+                LastStepResult = trigger.GetType().Name
+            };
+            return new OrderSagaTransitionResult(completed, [], Changed: true);
+        }
+
+        var nextStep = sequence[index + 1];
+        var command = BuildCompensationCommand(nextStep, state, trigger.Id);
+        var next = state with
+        {
+            CurrentStep = nextStep,
+            LastStepResult = command.GetType().Name
+        };
+
+        return new OrderSagaTransitionResult(next, [command], Changed: true);
+    }
+
+    private static IReadOnlyList<OrderSagaStep> GetCompensationSequence(OrderSagaStep origin) =>
+        origin switch
+        {
+            OrderSagaStep.StockReserved =>
+            [
+                OrderSagaStep.ReleasingStock
+            ],
+            OrderSagaStep.PaymentAuthorized =>
+            [
+                OrderSagaStep.VoidingPayment,
+                OrderSagaStep.ReleasingStock
+            ],
+            OrderSagaStep.OrderConfirmed =>
+            [
+                OrderSagaStep.VoidingPayment,
+                OrderSagaStep.ReleasingStock,
+                OrderSagaStep.CancellingOrder
+            ],
+            OrderSagaStep.StockCommitted =>
+            [
+                OrderSagaStep.RefundingPayment,
+                OrderSagaStep.CancellingOrder
+            ],
+            OrderSagaStep.ShipmentCreated =>
+            [
+                OrderSagaStep.CancellingShipment,
+                OrderSagaStep.RefundingPayment,
+                OrderSagaStep.CancellingOrder
+            ],
+            _ => []
+        };
+
+    private static Command BuildCompensationCommand(
+        OrderSagaStep step,
+        OrderSagaStateSnapshot state,
+        Guid causationId)
+    {
+        return step switch
+        {
+            OrderSagaStep.ReleasingStock => new ReleaseStockCommand(state.OrderId, causationId, state.SagaId),
+            OrderSagaStep.VoidingPayment => new VoidPaymentCommand(state.OrderId, "Saga compensation.", causationId, state.SagaId),
+            OrderSagaStep.RefundingPayment => new RefundPaymentCommand(state.OrderId, state.Amount ?? 0m, causationId, state.SagaId),
+            OrderSagaStep.CancellingOrder => new CancelOrderCommand(state.OrderId, causationId, state.SagaId),
+            OrderSagaStep.CancellingShipment => new CancelShipmentCommand(state.OrderId, "Saga compensation.", causationId, state.SagaId),
+            _ => throw new InvalidOperationException($"No compensation command for step {step}.")
+        };
+    }
+
     // A reply is acted on only when it matches the in-flight step for this saga.
     // Once the step has advanced, a redelivered reply (same SagaId/CausationId)
     // fails this guard and is a no-op, giving at-least-once idempotency.
@@ -208,4 +377,16 @@ internal static class OrderSagaStateMachine
 
     private static OrderSagaTransitionResult NoChange(OrderSagaStateSnapshot state) =>
         new(state, [], Changed: false);
+
+    private static int IndexOf(IReadOnlyList<OrderSagaStep> sequence, OrderSagaStep step)
+    {
+        for (var i = 0; i < sequence.Count; i++)
+        {
+            if (sequence[i] == step)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
 }

@@ -12,6 +12,10 @@ internal sealed class OrderSagaState
 
     public Guid? ShipmentId { get; set; }
 
+    public decimal? Amount { get; set; }
+
+    public string? CompensationOrigin { get; set; }
+
     public string? LastStepResult { get; set; }
 
     public SagaInstance SagaInstance { get; set; } = null!;

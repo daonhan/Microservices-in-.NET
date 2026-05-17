@@ -31,7 +31,9 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>()
     .AddEventHandler<ShipmentDispatchedEvent, ShipmentDispatchedEventHandler>()
     .AddEventHandler<AuthorizePaymentCommand, AuthorizePaymentCommandHandler>()
-    .AddEventHandler<CapturePaymentCommand, CapturePaymentCommandHandler>();
+    .AddEventHandler<CapturePaymentCommand, CapturePaymentCommandHandler>()
+    .AddEventHandler<VoidPaymentCommand, VoidPaymentCommandHandler>()
+    .AddEventHandler<RefundPaymentCommand, RefundPaymentCommandHandler>();
 
 builder.AddPlatformObservability("Payment",
     customTracing: t => t.WithSqlInstrumentation());
