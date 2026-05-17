@@ -191,7 +191,7 @@ The UI is gated to Development and Staging environments. Production gateway bina
 - **Observability** — `AddPlatformObservability()` wires OpenTelemetry traces (OTLP → Jaeger), metrics (Prometheus scrape), and logs (OTLP → Loki), plus `MetricFactory` for custom counters/histograms, broker span context propagation, and the DLQ `ActivitySource` / `Meter` (including `dlq_messages_total`, `dlq_replays_total`, `dlq_discards_total` tagged by provider)
 - **Health Checks** — `AddPlatformHealthChecks()` with SQL Server / RabbitMQ / Redis probes, exposed via `MapPlatformHealthChecks()`
 
-Current published version: **`ECommerce.Shared` 2.14.0** (see `shared-libs/ECommerce.Shared/ECommerce.Shared.csproj`).
+Current published version: **`ECommerce.Shared` 2.18.0** (see `shared-libs/ECommerce.Shared/ECommerce.Shared.csproj`).
 
 ### Build and Publish
 
