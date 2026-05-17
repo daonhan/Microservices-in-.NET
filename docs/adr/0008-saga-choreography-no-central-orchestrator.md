@@ -1,6 +1,6 @@
 # ADR-0008 — Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping
 
-- **Status**: Accepted
+- **Status**: Superseded by ADR-0010
 - **Date**: 2026-05-06
 
 ## Context
