@@ -1,4 +1,6 @@
+using System.Net.Http.Json;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
+using Inventory.Service.ApiModels;
 using Inventory.Service.IntegrationEvents;
 using Inventory.Service.IntegrationEvents.EventHandlers;
 using Inventory.Service.Models;
@@ -127,6 +129,60 @@ public class ReleaseReservationsTests : IntegrationTestBase
         Assert.Equal(productId, itemPublished.ProductId);
         Assert.Equal(1, itemPublished.WarehouseId);
         Assert.Equal(4, itemPublished.Quantity);
+    }
+
+    [Fact]
+    public async Task Given_ReservedThroughApi_When_OrderConfirmed_Then_CommitsAndPublishesStockCommitted()
+    {
+        const int productId = 606;
+        var orderId = Guid.NewGuid();
+
+        InventoryContext.StockItems.Add(new StockItem
+        {
+            ProductId = productId,
+            TotalOnHand = 10,
+            TotalReserved = 0,
+        });
+        InventoryContext.StockLevels.Add(new StockLevel
+        {
+            ProductId = productId,
+            WarehouseId = 1,
+            OnHand = 10,
+            Reserved = 0,
+        });
+        await InventoryContext.SaveChangesAsync();
+
+        Subscribe<StockCommittedEvent>();
+
+        var client = CreateAuthenticatedClient();
+        var reserve = await client.PostAsJsonAsync(
+            $"/{productId}/reserve", new ReserveRequest(orderId, 3));
+        reserve.EnsureSuccessStatusCode();
+
+        await DispatchConfirmAsync(new OrderConfirmedEvent(orderId, "c-1"));
+
+        InventoryContext.ChangeTracker.Clear();
+
+        var reservation = InventoryContext.StockReservations.Single(r => r.OrderId == orderId);
+        Assert.Equal(ReservationStatus.Committed, reservation.Status);
+
+        var item = InventoryContext.StockItems.Single(s => s.ProductId == productId);
+        Assert.Equal(7, item.TotalOnHand);
+        Assert.Equal(0, item.TotalReserved);
+        Assert.Equal(7, item.Available);
+
+        Assert.Contains(InventoryContext.StockMovements,
+            m => m.OrderId == orderId && m.Type == MovementType.Commit);
+
+        SpinWait.SpinUntil(
+            () => ReceivedEvents.ToArray().OfType<StockCommittedEvent>().Any(e => e.OrderId == orderId),
+            TimeSpan.FromSeconds(5));
+        var published = Assert.Single(ReceivedEvents.ToArray().OfType<StockCommittedEvent>(), e => e.OrderId == orderId);
+        Assert.Equal(orderId, published.OrderId);
+        var itemPublished = Assert.Single(published.Items);
+        Assert.Equal(productId, itemPublished.ProductId);
+        Assert.Equal(1, itemPublished.WarehouseId);
+        Assert.Equal(3, itemPublished.Quantity);
     }
 
     [Fact]
