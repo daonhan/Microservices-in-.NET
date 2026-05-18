@@ -43,7 +43,8 @@ public class SagaReaperServiceTests : IClassFixture<SagaWebApplicationFactory>
                 new OrderSagaTimeoutScheduler(Options.Create(new OrderSagaTimeoutOptions
                 {
                     StockReservingTimeout = timeout
-                })));
+                })),
+                NullLogger<OrderCreatedEventHandler>.Instance);
 
             await handler.Handle(orderCreated);
         }

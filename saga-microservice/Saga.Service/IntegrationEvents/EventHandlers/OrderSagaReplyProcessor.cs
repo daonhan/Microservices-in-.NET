@@ -4,27 +4,31 @@ using Microsoft.EntityFrameworkCore;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.Models;
+using Saga.Service.Observability;
 using Saga.Service.StateMachines;
 
 namespace Saga.Service.IntegrationEvents.EventHandlers;
 
-internal sealed class OrderSagaReplyProcessor
+internal sealed partial class OrderSagaReplyProcessor
 {
     private readonly SagaContext _sagaContext;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly TimeProvider _timeProvider;
     private readonly OrderSagaTimeoutScheduler _timeoutScheduler;
+    private readonly ILogger<OrderSagaReplyProcessor> _logger;
 
     public OrderSagaReplyProcessor(
         SagaContext sagaContext,
         IOutboxUnitOfWork outboxUnitOfWork,
         TimeProvider timeProvider,
-        OrderSagaTimeoutScheduler timeoutScheduler)
+        OrderSagaTimeoutScheduler timeoutScheduler,
+        ILogger<OrderSagaReplyProcessor> logger)
     {
         _sagaContext = sagaContext;
         _outboxUnitOfWork = outboxUnitOfWork;
         _timeProvider = timeProvider;
         _timeoutScheduler = timeoutScheduler;
+        _logger = logger;
     }
 
     public async Task Handle(Event @event)
@@ -61,6 +65,14 @@ internal sealed class OrderSagaReplyProcessor
             }
 
             var now = _timeProvider.GetUtcNow().UtcDateTime;
+            var previousStatus = saga.Status;
+            var stepSeconds = Math.Max(0d, (now - saga.UpdatedAt).TotalSeconds);
+            using var activity = SagaTelemetry.StartTransition(
+                saga.SagaId,
+                saga.SagaType,
+                currentStep.ToString(),
+                result.State.CurrentStep.ToString());
+
             saga.CurrentStep = result.State.CurrentStep.ToString();
             saga.Status = result.State.Status;
             saga.UpdatedAt = now;
@@ -82,9 +94,64 @@ internal sealed class OrderSagaReplyProcessor
 
             await _sagaContext.SaveChangesAsync();
 
+            RecordTransitionTelemetry(saga, previousStatus, currentStep, stepSeconds, @event);
+
             return result.Commands;
         });
     }
+
+    private void RecordTransitionTelemetry(
+        SagaInstance saga,
+        SagaStatus previousStatus,
+        OrderSagaStep fromStep,
+        double stepSeconds,
+        Event @event)
+    {
+        var type = new KeyValuePair<string, object?>("type", saga.SagaType);
+
+        SagaTelemetry.StepDuration.Record(
+            stepSeconds,
+            type,
+            new KeyValuePair<string, object?>("step", fromStep.ToString()));
+
+        if (previousStatus == SagaStatus.Running && saga.Status == SagaStatus.Compensating)
+        {
+            SagaTelemetry.Compensation.Add(1, type);
+        }
+
+        if (saga.Status == SagaStatus.Completed)
+        {
+            SagaTelemetry.Completed.Add(1, type);
+        }
+        else if (saga.Status == SagaStatus.Failed)
+        {
+            SagaTelemetry.Failed.Add(
+                1,
+                type,
+                new KeyValuePair<string, object?>(
+                    "reason",
+                    ExtractError(@event) ?? saga.OrderSagaState?.LastStepResult ?? "Unknown"));
+        }
+
+        LogSagaTransition(
+            _logger,
+            saga.SagaId,
+            saga.SagaType,
+            saga.CurrentStep,
+            @event.Id,
+            @event.CausationId);
+    }
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Saga {SagaId} ({SagaType}) transitioned to step {Step} (MessageId {MessageId}, CausationId {CausationId})")]
+    private static partial void LogSagaTransition(
+        ILogger logger,
+        Guid sagaId,
+        string sagaType,
+        string step,
+        Guid messageId,
+        Guid? causationId);
 
     private static OrderSagaStep? ParseStep(string? value) =>
         Enum.TryParse<OrderSagaStep>(value, out var parsed) ? parsed : null;

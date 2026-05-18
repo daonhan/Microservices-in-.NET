@@ -160,6 +160,9 @@ internal sealed partial class SagaReaperService : BackgroundService
             Error = "Saga step exceeded max retries; compensation started."
         });
 
+        SagaTelemetry.Compensation.Add(1,
+            new KeyValuePair<string, object?>("type", saga.SagaType));
+
         LogSagaCompensating(_logger, saga.SagaId, saga.SagaType, currentStep.ToString(), origin.ToString());
 
         return result.Commands;
@@ -183,6 +186,10 @@ internal sealed partial class SagaReaperService : BackgroundService
             TriggerKind = SagaTriggerKind.Timeout,
             Error = error
         });
+
+        SagaTelemetry.Failed.Add(1,
+            new KeyValuePair<string, object?>("type", saga.SagaType),
+            new KeyValuePair<string, object?>("reason", error));
 
         LogSagaTimeoutFailure(_logger, saga.SagaId, saga.SagaType, fromStep, error);
     }

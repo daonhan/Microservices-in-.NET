@@ -5,11 +5,12 @@ using Microsoft.Extensions.Options;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.Models;
+using Saga.Service.Observability;
 using Saga.Service.StateMachines;
 
 namespace Saga.Service.IntegrationEvents.EventHandlers;
 
-internal sealed class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
+internal sealed partial class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
 {
     private const string SagaType = "Order";
 
@@ -18,19 +19,22 @@ internal sealed class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent
     private readonly SagaOrchestratorOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly OrderSagaTimeoutScheduler _timeoutScheduler;
+    private readonly ILogger<OrderCreatedEventHandler> _logger;
 
     public OrderCreatedEventHandler(
         SagaContext sagaContext,
         IOutboxUnitOfWork outboxUnitOfWork,
         IOptions<SagaOrchestratorOptions> options,
         TimeProvider timeProvider,
-        OrderSagaTimeoutScheduler timeoutScheduler)
+        OrderSagaTimeoutScheduler timeoutScheduler,
+        ILogger<OrderCreatedEventHandler> logger)
     {
         _sagaContext = sagaContext;
         _outboxUnitOfWork = outboxUnitOfWork;
         _options = options.Value;
         _timeProvider = timeProvider;
         _timeoutScheduler = timeoutScheduler;
+        _logger = logger;
     }
 
     public async Task Handle(OrderCreatedEvent @event)
@@ -60,6 +64,11 @@ internal sealed class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent
             }
 
             var now = _timeProvider.GetUtcNow().UtcDateTime;
+            using var activity = SagaTelemetry.StartTransition(
+                sagaId,
+                SagaType,
+                OrderSagaStep.Started.ToString(),
+                result.State.CurrentStep.ToString());
             var saga = new SagaInstance
             {
                 SagaId = sagaId,
@@ -95,9 +104,29 @@ internal sealed class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent
             _sagaContext.SagaInstances.Add(saga);
             await _sagaContext.SaveChangesAsync();
 
+            SagaTelemetry.Started.Add(1, new KeyValuePair<string, object?>("type", SagaType));
+            LogSagaStarted(
+                _logger,
+                sagaId,
+                SagaType,
+                result.State.CurrentStep,
+                @event.Id,
+                @event.CausationId);
+
             return result.Commands;
         });
     }
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Saga {SagaId} ({SagaType}) opened at step {Step} (MessageId {MessageId}, CausationId {CausationId})")]
+    private static partial void LogSagaStarted(
+        ILogger logger,
+        Guid sagaId,
+        string sagaType,
+        OrderSagaStep step,
+        Guid messageId,
+        Guid? causationId);
 
     private bool ShouldOrchestrate(Guid orderId)
     {

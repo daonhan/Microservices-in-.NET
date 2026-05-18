@@ -7,6 +7,7 @@ using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 using Saga.Service.Endpoints;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
@@ -55,7 +56,7 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<ShipmentCancelledEvent, ShipmentCancelledEventHandler>();
 
 builder.AddPlatformObservability(serviceName,
-    customTracing: t => t.WithSqlInstrumentation(),
+    customTracing: t => t.WithSqlInstrumentation().AddSource(SagaTelemetry.ActivitySourceName),
     customMetrics: m => m.AddMeter(SagaTelemetry.MeterName));
 
 builder.Services.AddPlatformHealthChecks()
