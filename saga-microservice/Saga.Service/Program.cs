@@ -80,6 +80,7 @@ if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 app.UsePlatformOpenApi();
 
 app.RegisterInternalOutboxEndpoints();
+app.RegisterOperatorSagaEndpoints();
 
 app.UseHttpsRedirection();
 

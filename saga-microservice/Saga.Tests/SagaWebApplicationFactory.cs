@@ -1,5 +1,6 @@
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
+using Saga.Tests.Authentication;
 
 namespace Saga.Tests;
 
@@ -37,6 +39,7 @@ public class SagaWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
             RemoveHostedService<RabbitMqHostedService>(services);
             RemoveHostedService<SagaReaperService>(services);
             ApplyMigrations(services);
+            ConfigureTestAuthentication(services);
         });
     }
 
@@ -52,6 +55,19 @@ public class SagaWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         {
             services.Remove(descriptor);
         }
+    }
+
+    private static void ConfigureTestAuthentication(IServiceCollection services)
+    {
+        services.Configure<AuthenticationOptions>(options =>
+        {
+            options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+            options.DefaultChallengeScheme = TestAuthHandler.SchemeName;
+        });
+
+        services.AddAuthentication()
+            .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                TestAuthHandler.SchemeName, _ => { });
     }
 
     private void ApplyMigrations(IServiceCollection services)

@@ -78,6 +78,17 @@ internal static class OrderSagaStateMachine
         return new OrderSagaTransitionResult(next, [command], Changed: true);
     }
 
+    public static OrderSagaStep GetLastCompletedStep(OrderSagaStep currentStep) =>
+        currentStep switch
+        {
+            OrderSagaStep.StockReserving => OrderSagaStep.Started,
+            OrderSagaStep.PaymentAuthorizing => OrderSagaStep.StockReserved,
+            OrderSagaStep.OrderConfirming => OrderSagaStep.PaymentAuthorized,
+            OrderSagaStep.StockCommitting => OrderSagaStep.OrderConfirmed,
+            OrderSagaStep.ShipmentCreating => OrderSagaStep.StockCommitted,
+            _ => currentStep
+        };
+
     private static OrderSagaTransitionResult OnOrderCreated(
         OrderSagaStateSnapshot state,
         OrderCreatedEvent @event)

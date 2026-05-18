@@ -125,7 +125,7 @@ internal sealed partial class SagaReaperService : BackgroundService
             CorrelationId = saga.CorrelationId,
             SagaId = saga.SagaId
         };
-        var origin = GetLastCompletedStep(currentStep);
+        var origin = OrderSagaStateMachine.GetLastCompletedStep(currentStep);
         var snapshot = new OrderSagaStateSnapshot(
             saga.SagaId,
             saga.OrderSagaState!.OrderId,
@@ -193,17 +193,6 @@ internal sealed partial class SagaReaperService : BackgroundService
 
         LogSagaTimeoutFailure(_logger, saga.SagaId, saga.SagaType, fromStep, error);
     }
-
-    private static OrderSagaStep GetLastCompletedStep(OrderSagaStep currentStep) =>
-        currentStep switch
-        {
-            OrderSagaStep.StockReserving => OrderSagaStep.Started,
-            OrderSagaStep.PaymentAuthorizing => OrderSagaStep.StockReserved,
-            OrderSagaStep.OrderConfirming => OrderSagaStep.PaymentAuthorized,
-            OrderSagaStep.StockCommitting => OrderSagaStep.OrderConfirmed,
-            OrderSagaStep.ShipmentCreating => OrderSagaStep.StockCommitted,
-            _ => currentStep
-        };
 
     private static OrderSagaStep? ParseStep(string? value) =>
         Enum.TryParse<OrderSagaStep>(value, out var parsed) ? parsed : null;

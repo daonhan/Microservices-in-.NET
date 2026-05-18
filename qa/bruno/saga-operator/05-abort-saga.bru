@@ -1,0 +1,23 @@
+meta {
+  name: 05-abort-saga
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{sagaBaseUrl}}/operator/api/sagas/{{operatorSagaId}}/abort
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{serviceToken}}
+}
+
+tests {
+  test("starts saga compensation", function () {
+    expect(res.status).to.equal(202);
+    expect(res.body.sagaId).to.equal(bru.getVar("operatorSagaId"));
+    expect(res.body.status).to.equal("Compensating");
+  });
+}

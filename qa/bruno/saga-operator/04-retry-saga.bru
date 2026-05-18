@@ -1,0 +1,23 @@
+meta {
+  name: 04-retry-saga
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{sagaBaseUrl}}/operator/api/sagas/{{operatorSagaId}}/retry
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{serviceToken}}
+}
+
+tests {
+  test("requeues the in-flight saga command", function () {
+    expect(res.status).to.equal(202);
+    expect(res.body.sagaId).to.equal(bru.getVar("operatorSagaId"));
+    expect(res.body.currentStep).to.be.a("string").and.not.be.empty;
+  });
+}
