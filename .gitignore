@@ -9,7 +9,6 @@ local-nuget-packages/
 
 # Local tools
 ralph/
-.claude/
 .codex/
 Infrastructure - Deployment/kube/
 Infrastructure - Deployment/azure-pipelines.yml
@@ -20,3 +19,25 @@ Infrastructure - Deployment/OVERVIEW.md
 Infrastructure - Deployment/SYSTEM_DESIGN.md
 Infrastructure - Deployment/TECH_STACK.md
 Infrastructure - Deployment/ARCHITECTURE.md
+
+# Claude Code local state
+.claude/*
+!.claude/scripts/
+.claude/scripts/*
+!.claude/scripts/qmd-init.sh
+!.claude/scripts/qmd_memory.py
+!.claude/scripts/session-end.sh
+.claude/scripts/__pycache__/
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/load-session-context/
+.claude/skills/load-session-context/*
+!.claude/skills/load-session-context/SKILL.md
+!.claude/tests/
+.claude/tests/*
+!.claude/tests/test_qmd_memory.py
+!.claude/agent-memory/
+.claude/agent-memory/*
+.claude/agent-memory/sessions/
+.claude/agent-memory/qmd-index.log
+.claude/settings.local.json
