@@ -13,6 +13,14 @@
       - saga-first-transition:
                    with SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100
                    on the saga container, place an order and assert Saga DB reaches StockReserved.
+      - saga-happy-orchestrated:
+                   with SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100, place
+                   a happy-path order and assert Saga DB reaches CurrentStep=Completed,
+                   Status=Completed. Cutover signal for orchestrated happy path.
+      - saga-decline-orchestrated:
+                   with SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100, place
+                   a payment-decline order and assert Saga DB reaches Status=Compensated. Cutover
+                   signal for orchestrated failure compensation.
       - admin:     login as admin, hit the inventory low-stock and restock-target fixtures.
       - all:       run every scenario in order. Default.
 
@@ -39,7 +47,7 @@
 [CmdletBinding()]
 param(
     [string]$Base = 'http://localhost:8004',
-    [ValidateSet('happy', 'decline', 'stock-out', 'saga-first-transition', 'admin', 'all')]
+    [ValidateSet('happy', 'decline', 'stock-out', 'saga-first-transition', 'saga-happy-orchestrated', 'saga-decline-orchestrated', 'admin', 'all')]
     [string]$Scenario = 'all',
     [int]$PollSeconds = 30,
     [string]$SqlContainer = 'sql'
@@ -213,6 +221,31 @@ ORDER BY si.CreatedAt DESC;
     throw "saga for order $OrderId did not reach step '$Expected' within ${TimeoutSec}s (last: '$last')"
 }
 
+function Wait-SagaStatus([string]$OrderId, [string]$Expected, [int]$TimeoutSec) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    $last = $null
+    $query = @"
+SET NOCOUNT ON;
+SELECT TOP 1 si.Status
+FROM Saga.dbo.SagaInstances si
+JOIN Saga.dbo.OrderSagaStates os ON os.SagaId = si.SagaId
+WHERE os.OrderId = '$OrderId'
+ORDER BY si.CreatedAt DESC;
+"@
+
+    do {
+        try {
+            $last = Invoke-SagaSqlScalar $query
+            if ($last -eq $Expected) { return }
+        } catch {
+            $last = "lookup-error: $($_.Exception.Message)"
+        }
+        Start-Sleep -Milliseconds 750
+    } while ((Get-Date) -lt $deadline)
+
+    throw "saga for order $OrderId did not reach status '$Expected' within ${TimeoutSec}s (last: '$last')"
+}
+
 function Invoke-Happy {
     Write-Step 'happy' 'login customer-happy'
     $cToken = Invoke-Login $Qa.CustomerHappyEmail $Qa.CustomerPassword
@@ -307,6 +340,47 @@ function Invoke-SagaFirstTransition {
     Write-Host "[saga-first-transition] OK" -ForegroundColor Green
 }
 
+function Invoke-SagaHappyOrchestrated {
+    Write-Step 'saga-happy' 'requires SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100'
+    Write-Step 'saga-happy' 'login customer-happy'
+    $cH = Get-AuthHeaders (Invoke-Login $Qa.CustomerHappyEmail $Qa.CustomerPassword)
+
+    Write-Step 'saga-happy' "POST /order/$($Qa.CustomerHappyId)"
+    $orderId = Invoke-PlaceOrder $cH $Qa.CustomerHappyId $Qa.ProductHappyId 1
+
+    Write-Step 'saga-happy' 'login admin for shipment transitions'
+    $aH = Get-AuthHeaders (Invoke-Login $Qa.AdminEmail $Qa.AdminPassword)
+
+    Write-Step 'saga-happy' "drive shipment for orderId=$orderId so saga reaches ShipmentCreated"
+    $shipment = Wait-ShipmentForOrder $aH $orderId $PollSeconds
+    $shipmentId = $shipment.id
+    Wait-OrderStatus $cH $Qa.CustomerHappyId $orderId 'Confirmed' $PollSeconds | Out-Null
+
+    Write-Step 'saga-happy' "polling Saga DB until CurrentStep=Completed and Status=Completed"
+    Wait-SagaStep $orderId 'Completed' $PollSeconds
+    Wait-SagaStatus $orderId 'Completed' 5
+
+    Write-Step 'saga-happy' "shipment $shipmentId reached creation; cleanup transitions"
+    Invoke-ShipmentTransition $aH $shipmentId 'pick'
+    Wait-ShipmentStatus $aH $shipmentId 'Picked' 15 | Out-Null
+
+    Write-Host "[saga-happy-orchestrated] OK" -ForegroundColor Green
+}
+
+function Invoke-SagaDeclineOrchestrated {
+    Write-Step 'saga-decline' 'requires SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100'
+    Write-Step 'saga-decline' 'login customer-decline'
+    $h = Get-AuthHeaders (Invoke-Login $Qa.CustomerDeclineEmail $Qa.CustomerPassword)
+
+    Write-Step 'saga-decline' "POST /order/$($Qa.CustomerDeclineId) for product-decline"
+    $orderId = Invoke-PlaceOrder $h $Qa.CustomerDeclineId $Qa.ProductDeclineId 1
+
+    Write-Step 'saga-decline' "polling Saga DB until Status=Compensated"
+    Wait-SagaStatus $orderId 'Compensated' $PollSeconds
+
+    Write-Host "[saga-decline-orchestrated] OK" -ForegroundColor Green
+}
+
 function Invoke-Decline {
     Write-Step 'decline' 'login customer-decline'
     $h = Get-AuthHeaders (Invoke-Login $Qa.CustomerDeclineEmail $Qa.CustomerPassword)
@@ -356,6 +430,8 @@ switch ($Scenario) {
     'decline'   { Invoke-Decline }
     'stock-out' { Invoke-StockOut }
     'saga-first-transition' { Invoke-SagaFirstTransition }
+    'saga-happy-orchestrated' { Invoke-SagaHappyOrchestrated }
+    'saga-decline-orchestrated' { Invoke-SagaDeclineOrchestrated }
     'admin'     { Invoke-Admin }
     'all' {
         Invoke-Happy
