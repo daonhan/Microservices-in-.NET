@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Saga.Service.Infrastructure.Data.EntityFramework;
+using Saga.Service.Infrastructure.Reaper;
 
 namespace Saga.Tests;
 
@@ -34,6 +35,7 @@ public class SagaWebApplicationFactory : WebApplicationFactory<Program>, IAsyncL
         {
             RemoveHostedService<OutboxBackgroundService>(services);
             RemoveHostedService<RabbitMqHostedService>(services);
+            RemoveHostedService<SagaReaperService>(services);
             ApplyMigrations(services);
         });
     }

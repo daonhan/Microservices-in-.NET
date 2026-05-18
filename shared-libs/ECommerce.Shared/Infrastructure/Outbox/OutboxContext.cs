@@ -62,6 +62,25 @@ internal sealed class OutboxContext : DbContext, IOutboxStore
         }
     }
 
+    public async Task<bool> RequeueOutboxEvent(Guid outboxEventId)
+    {
+        var outboxEvent = await OutboxEvents.FindAsync(outboxEventId);
+
+        if (outboxEvent is null)
+        {
+            return false;
+        }
+
+        outboxEvent.Sent = false;
+        outboxEvent.Status = OutboxEventStatus.Pending;
+        outboxEvent.Attempts = 0;
+        outboxEvent.LastError = null;
+        outboxEvent.LastAttemptAt = null;
+        await SaveChangesAsync();
+
+        return true;
+    }
+
     public async Task RecordPublishFailure(Guid outboxEventId, string error, int maxAttempts)
     {
         var outboxEvent = await OutboxEvents.FindAsync(outboxEventId);

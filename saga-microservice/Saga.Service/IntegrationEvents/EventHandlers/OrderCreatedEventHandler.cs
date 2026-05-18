@@ -3,6 +3,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Saga.Service.Infrastructure.Data.EntityFramework;
+using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.Models;
 using Saga.Service.StateMachines;
 
@@ -16,17 +17,20 @@ internal sealed class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly SagaOrchestratorOptions _options;
     private readonly TimeProvider _timeProvider;
+    private readonly OrderSagaTimeoutScheduler _timeoutScheduler;
 
     public OrderCreatedEventHandler(
         SagaContext sagaContext,
         IOutboxUnitOfWork outboxUnitOfWork,
         IOptions<SagaOrchestratorOptions> options,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        OrderSagaTimeoutScheduler timeoutScheduler)
     {
         _sagaContext = sagaContext;
         _outboxUnitOfWork = outboxUnitOfWork;
         _options = options.Value;
         _timeProvider = timeProvider;
+        _timeoutScheduler = timeoutScheduler;
     }
 
     public async Task Handle(OrderCreatedEvent @event)
@@ -65,6 +69,7 @@ internal sealed class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent
                 CorrelationId = @event.CorrelationId,
                 CreatedAt = now,
                 UpdatedAt = now,
+                LastCommandId = result.Commands.Count == 0 ? null : result.Commands[0].Id,
                 OrderSagaState = new OrderSagaState
                 {
                     SagaId = sagaId,
@@ -84,6 +89,8 @@ internal sealed class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent
                     }
                 }
             };
+
+            _timeoutScheduler.Apply(saga, now);
 
             _sagaContext.SagaInstances.Add(saga);
             await _sagaContext.SaveChangesAsync();

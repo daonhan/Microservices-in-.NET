@@ -74,6 +74,36 @@ public sealed class OutboxFailureTrackingTests : IDisposable
     }
 
     [Fact]
+    public async Task Given_sent_failed_event_When_RequeueOutboxEvent_called_Then_event_is_pending_and_unpublished()
+    {
+        var id = Guid.NewGuid();
+        await SeedPending(
+            id,
+            status: OutboxEventStatus.Failed,
+            attempts: 3,
+            sent: true,
+            lastError: "broker down");
+
+        var requeued = await ((IOutboxStore)_context).RequeueOutboxEvent(id);
+
+        var row = await _context.OutboxEvents.FindAsync(id);
+        Assert.True(requeued);
+        Assert.False(row!.Sent);
+        Assert.Equal(OutboxEventStatus.Pending, row.Status);
+        Assert.Equal(0, row.Attempts);
+        Assert.Null(row.LastError);
+        Assert.Null(row.LastAttemptAt);
+    }
+
+    [Fact]
+    public async Task Given_missing_event_When_RequeueOutboxEvent_called_Then_false_is_returned()
+    {
+        var requeued = await ((IOutboxStore)_context).RequeueOutboxEvent(Guid.NewGuid());
+
+        Assert.False(requeued);
+    }
+
+    [Fact]
     public async Task Given_publish_throws_When_OutboxBackgroundService_processes_event_Then_RecordPublishFailure_invoked_and_event_not_marked_published()
     {
         var id = Guid.NewGuid();
@@ -126,15 +156,20 @@ public sealed class OutboxFailureTrackingTests : IDisposable
 
     private async Task SeedPending(Guid id,
         OutboxEventStatus status = OutboxEventStatus.Pending,
-        int attempts = 0)
+        int attempts = 0,
+        bool sent = false,
+        string? lastError = null)
     {
         _context.OutboxEvents.Add(new OutboxEvent
         {
             Id = id,
             EventType = "Sample",
             Data = "{}",
+            Sent = sent,
             Status = status,
-            Attempts = attempts
+            Attempts = attempts,
+            LastError = lastError,
+            LastAttemptAt = lastError is null ? null : DateTime.UtcNow
         });
         await _context.SaveChangesAsync();
     }

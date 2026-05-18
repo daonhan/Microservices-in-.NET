@@ -45,6 +45,18 @@ internal static class OrderSagaStateMachine
         var sequence = GetCompensationSequence(origin);
         if (sequence.Count == 0)
         {
+            if (origin == OrderSagaStep.Started)
+            {
+                var compensated = state with
+                {
+                    CurrentStep = OrderSagaStep.Compensated,
+                    Status = SagaStatus.Compensated,
+                    CompensationOrigin = origin,
+                    LastStepResult = trigger.GetType().Name
+                };
+                return new OrderSagaTransitionResult(compensated, [], Changed: true);
+            }
+
             var failed = state with
             {
                 Status = SagaStatus.Failed,

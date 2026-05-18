@@ -76,6 +76,9 @@ namespace Saga.Service.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<Guid?>("LastCommandId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime?>("NextTimeoutAt")
                         .HasColumnType("datetime2");
 

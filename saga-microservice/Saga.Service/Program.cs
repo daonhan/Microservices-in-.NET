@@ -9,9 +9,11 @@ using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
 using Saga.Service.Endpoints;
 using Saga.Service.Infrastructure.Data.EntityFramework;
+using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.IntegrationEvents;
 using Saga.Service.IntegrationEvents.EventHandlers;
 using Saga.Service.Models;
+using Saga.Service.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,7 +26,13 @@ builder.Services.AddOutbox(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.Configure<SagaOrchestratorOptions>(
     builder.Configuration.GetSection("Saga:Orchestrator"));
+builder.Services.Configure<SagaReaperOptions>(
+    builder.Configuration.GetSection("Saga:Reaper"));
+builder.Services.Configure<OrderSagaTimeoutOptions>(
+    builder.Configuration.GetSection("Saga:OrderSaga"));
+builder.Services.AddSingleton<OrderSagaTimeoutScheduler>();
 builder.Services.AddScoped<OrderSagaReplyProcessor>();
+builder.Services.AddHostedService<SagaReaperService>();
 
 builder.AddPlatformOpenApi("saga");
 
@@ -47,7 +55,8 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<ShipmentCancelledEvent, ShipmentCancelledEventHandler>();
 
 builder.AddPlatformObservability(serviceName,
-    customTracing: t => t.WithSqlInstrumentation());
+    customTracing: t => t.WithSqlInstrumentation(),
+    customMetrics: m => m.AddMeter(SagaTelemetry.MeterName));
 
 builder.Services.AddPlatformHealthChecks()
     .AddSqlServerProbe(builder.Configuration.GetConnectionString("Default") ?? "")

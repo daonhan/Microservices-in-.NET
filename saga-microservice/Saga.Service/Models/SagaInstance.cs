@@ -22,6 +22,8 @@ internal sealed class SagaInstance
 
     public int RetryCount { get; set; }
 
+    public Guid? LastCommandId { get; set; }
+
     public OrderSagaState? OrderSagaState { get; set; }
 
     public List<SagaTransition> Transitions { get; } = [];

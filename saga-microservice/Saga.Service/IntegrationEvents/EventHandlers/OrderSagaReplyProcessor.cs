@@ -2,6 +2,7 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Saga.Service.Infrastructure.Data.EntityFramework;
+using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.Models;
 using Saga.Service.StateMachines;
 
@@ -12,15 +13,18 @@ internal sealed class OrderSagaReplyProcessor
     private readonly SagaContext _sagaContext;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly TimeProvider _timeProvider;
+    private readonly OrderSagaTimeoutScheduler _timeoutScheduler;
 
     public OrderSagaReplyProcessor(
         SagaContext sagaContext,
         IOutboxUnitOfWork outboxUnitOfWork,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        OrderSagaTimeoutScheduler timeoutScheduler)
     {
         _sagaContext = sagaContext;
         _outboxUnitOfWork = outboxUnitOfWork;
         _timeProvider = timeProvider;
+        _timeoutScheduler = timeoutScheduler;
     }
 
     public async Task Handle(Event @event)
@@ -63,6 +67,8 @@ internal sealed class OrderSagaReplyProcessor
             saga.OrderSagaState.LastStepResult = result.State.LastStepResult;
             saga.OrderSagaState.Amount = result.State.Amount;
             saga.OrderSagaState.CompensationOrigin = result.State.CompensationOrigin?.ToString();
+            saga.LastCommandId = result.Commands.Count == 0 ? null : result.Commands[0].Id;
+            _timeoutScheduler.Apply(saga, now);
             saga.Transitions.Add(new SagaTransition
             {
                 SagaId = saga.SagaId,
