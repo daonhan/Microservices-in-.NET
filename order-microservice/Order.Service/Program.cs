@@ -39,9 +39,6 @@ builder.AddPlatformOpenApi("order");
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<PaymentAuthorizedEvent, PaymentAuthorizedEventHandler>()
-    .AddEventHandler<PaymentFailedEvent, PaymentFailedEventHandler>()
-    .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>()
     .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>()
     .AddEventHandler<ConfirmOrderCommand, ConfirmOrderCommandHandler>()
     .AddEventHandler<CancelOrderCommand, CancelOrderCommandHandler>();

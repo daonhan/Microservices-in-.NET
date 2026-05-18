@@ -3,6 +3,7 @@ using System.Text.Json;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.Outbox.Models;
+using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.ApiModels;
@@ -35,12 +36,13 @@ public class EventStreamConsolidationTests : IntegrationTestBase
         var orderId = Guid.NewGuid();
         var customerId = $"cust-happy-{Guid.NewGuid():N}";
 
-        // 1) Order confirmation + stock commitment ⇒ shipment created in Pending.
+        // 1) Order confirmation + CreateShipmentCommand ⇒ shipment created in Pending.
         await DispatchEventAsync(new OrderConfirmedEvent(orderId, customerId));
-        await DispatchEventAsync(new StockCommittedEvent(orderId, new List<CommittedItem>
-        {
-            new(ProductId: 100, WarehouseId: 1, Quantity: 1),
-        }));
+        await DispatchEventAsync(new CreateShipmentCommand(
+            orderId,
+            [new CreateShipmentItem(ProductId: 100, WarehouseId: 1, Quantity: 1)],
+            causationId: Guid.NewGuid(),
+            sagaId: Guid.NewGuid()));
 
         var shipmentId = await LookupShipmentIdAsync(orderId);
 
@@ -109,14 +111,19 @@ public class EventStreamConsolidationTests : IntegrationTestBase
         var customerId = $"cust-cancel-{Guid.NewGuid():N}";
 
         await DispatchEventAsync(new OrderConfirmedEvent(orderId, customerId));
-        await DispatchEventAsync(new StockCommittedEvent(orderId, new List<CommittedItem>
-        {
-            new(ProductId: 200, WarehouseId: 1, Quantity: 1),
-        }));
+        await DispatchEventAsync(new CreateShipmentCommand(
+            orderId,
+            [new CreateShipmentItem(ProductId: 200, WarehouseId: 1, Quantity: 1)],
+            causationId: Guid.NewGuid(),
+            sagaId: Guid.NewGuid()));
 
         var shipmentId = await LookupShipmentIdAsync(orderId);
 
-        await DispatchEventAsync(new OrderCancelledEvent(orderId, customerId));
+        await DispatchEventAsync(new CancelShipmentCommand(
+            orderId,
+            reason: "Order cancelled",
+            causationId: Guid.NewGuid(),
+            sagaId: Guid.NewGuid()));
 
         var events = await GetOutboxEventsForShipmentAsync(shipmentId);
 

@@ -29,8 +29,7 @@ internal class CreateShipmentCommandHandler : IEventHandler<CreateShipmentComman
         var customerId = await _shipmentStore.TryGetOrderCustomer(command.OrderId);
         if (customerId is null)
         {
-            // OrderConfirmedEvent has not been observed yet — redelivery resolves the race,
-            // mirroring StockCommittedEventHandler's choreography path.
+            // OrderConfirmedEvent has not been observed yet — redelivery resolves the race.
             return;
         }
 

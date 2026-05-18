@@ -24,8 +24,6 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
     .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
-    .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>()
-    .AddEventHandler<StockCommittedEvent, StockCommittedEventHandler>()
     .AddEventHandler<CreateShipmentCommand, CreateShipmentCommandHandler>()
     .AddEventHandler<CancelShipmentCommand, CancelShipmentCommandHandler>();
 

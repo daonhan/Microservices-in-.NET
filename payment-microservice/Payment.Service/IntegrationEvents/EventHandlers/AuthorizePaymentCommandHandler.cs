@@ -43,8 +43,7 @@ internal class AuthorizePaymentCommandHandler : IEventHandler<AuthorizePaymentCo
         var customerId = await _store.TryGetOrderCustomer(command.OrderId);
         if (customerId is null)
         {
-            // OrderCreatedEvent has not been observed yet for this order.
-            // Mirrors choreography StockReservedEventHandler — redelivery resolves the race.
+            // OrderCreatedEvent has not been observed yet for this order — redelivery resolves the race.
             return;
         }
 

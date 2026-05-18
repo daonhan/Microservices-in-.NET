@@ -12,14 +12,14 @@ The replacement is specified in [`PRD-Saga-Orchestrator.md`](../prd/PRD-Saga-Orc
 
 ## Decision
 
-Replace the order saga choreography with a central `saga-microservice` orchestrator. The orchestrator owns saga instance state, drives participant services by sending commands, and listens for the existing reply integration events. Participant services continue to publish their existing events during the strangler period so non-orchestrated orders and existing consumers keep working.
+Replace the order saga choreography with a central `saga-microservice` orchestrator. The orchestrator owns saga instance state, drives participant services by sending commands, and listens for the existing reply integration events. Participant services continue to publish their existing events as orchestrator-driven replies; choreography subscribers were removed at cutover.
 
-The rollout is phased behind `Saga:Orchestrator:Enabled`, with allowlist and percentage controls. Each order is assigned to exactly one path when `OrderCreatedEvent` arrives: the new orchestrator path or the existing choreography path. Choreography handlers remain in place until the orchestrator handles 100% of new orders for the documented soak window and a later cutover issue removes them.
+The rollout was phased behind `Saga:Orchestrator:Enabled`, with allowlist and percentage controls. Each order was assigned to exactly one path when `OrderCreatedEvent` arrived. Cutover to orchestrator-only completed **2026-05-18** (issue #132); the choreography saga-step handlers in Order, Inventory, Payment, and Shipping were removed in the same change. The runbook's cutover criteria — 100% orchestrator traffic with no manual operator intervention attributable to the orchestrator path — were the gating condition.
 
 ## Consequences
 
 - Operators get one durable saga state record and transition log to answer where an order is stuck.
 - Retry, timeout, and compensation rules move into one state machine instead of being spread across participant event handlers.
 - The saga service becomes coupled to participant command contracts, so command schemas and reply-event causation fields must be versioned deliberately.
-- Rollback remains a configuration change for new orders while the strangler flag is active; in-flight orders stay on the path selected at saga start.
+- Rollback is no longer a configuration change after cutover; reverting requires restoring the removed choreography handlers and event registrations.
 - Follow-up work implements the service skeleton, command contracts, state machine slices, reaper, observability, operator API, DLQ verification, and RefundSaga from the linked plan.
