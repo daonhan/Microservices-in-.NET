@@ -328,12 +328,14 @@ internal static class OrderSagaStateMachine
             ],
             OrderSagaStep.StockReserved =>
             [
-                OrderSagaStep.ReleasingStock
+                OrderSagaStep.ReleasingStock,
+                OrderSagaStep.CancellingOrder
             ],
             OrderSagaStep.PaymentAuthorized =>
             [
                 OrderSagaStep.VoidingPayment,
-                OrderSagaStep.ReleasingStock
+                OrderSagaStep.ReleasingStock,
+                OrderSagaStep.CancellingOrder
             ],
             OrderSagaStep.OrderConfirmed =>
             [

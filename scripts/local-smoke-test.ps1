@@ -378,6 +378,9 @@ function Invoke-SagaDeclineOrchestrated {
     Write-Step 'saga-decline' "polling Saga DB until Status=Compensated"
     Wait-SagaStatus $orderId 'Compensated' $PollSeconds
 
+    Write-Step 'saga-decline' "polling Order DB until status=Cancelled (participant end-state)"
+    Wait-OrderStatus $h $Qa.CustomerDeclineId $orderId 'Cancelled' $PollSeconds | Out-Null
+
     Write-Host "[saga-decline-orchestrated] OK" -ForegroundColor Green
 }
 

@@ -249,6 +249,24 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             sagaContext.ChangeTracker.Clear();
             var saga = await sagaContext.SagaInstances
                 .SingleAsync(s => s.SagaId == sagaId);
+            Assert.Equal(SagaStatus.Compensating, saga.Status);
+            Assert.Equal(OrderSagaStep.CancellingOrder.ToString(), saga.CurrentStep);
+        }
+
+        var cancelCommandId = await GetLatestCommandIdAsync(nameof(CancelOrderCommand));
+        var orderCancelled = new OrderCancelledEvent(orderId, "customer-1")
+        {
+            CausationId = cancelCommandId,
+            SagaId = sagaId,
+        };
+        await DispatchAsync<OrderCancelledEventHandler, OrderCancelledEvent>(orderCancelled);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
+            sagaContext.ChangeTracker.Clear();
+            var saga = await sagaContext.SagaInstances
+                .SingleAsync(s => s.SagaId == sagaId);
             Assert.Equal(SagaStatus.Compensated, saga.Status);
             Assert.Equal(OrderSagaStep.Compensated.ToString(), saga.CurrentStep);
         }

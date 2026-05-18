@@ -31,7 +31,7 @@ public class OrderSagaCompensationTests
     }
 
     [Fact]
-    public void Given_LastCompletedPaymentAuthorized_When_BeginCompensation_Then_EmitsVoidThenRelease()
+    public void Given_LastCompletedPaymentAuthorized_When_BeginCompensation_Then_EmitsVoidReleaseCancelOrder()
     {
         var snapshot = CompensatingSnapshot();
         var trigger = new PaymentFailedEvent(Guid.NewGuid(), snapshot.OrderId, "c", "x")
@@ -63,9 +63,19 @@ public class OrderSagaCompensationTests
         };
         var step3 = OrderSagaStateMachine.Transition(step2.State, afterRelease);
 
-        Assert.Equal(SagaStatus.Compensated, step3.State.Status);
-        Assert.Equal(OrderSagaStep.Compensated, step3.State.CurrentStep);
-        Assert.Empty(step3.Commands);
+        Assert.Equal(OrderSagaStep.CancellingOrder, step3.State.CurrentStep);
+        Assert.IsType<CancelOrderCommand>(Assert.Single(step3.Commands));
+
+        var afterCancel = new OrderCancelledEvent(snapshot.OrderId, "c")
+        {
+            SagaId = snapshot.SagaId,
+            CausationId = Guid.NewGuid()
+        };
+        var step4 = OrderSagaStateMachine.Transition(step3.State, afterCancel);
+
+        Assert.Equal(SagaStatus.Compensated, step4.State.Status);
+        Assert.Equal(OrderSagaStep.Compensated, step4.State.CurrentStep);
+        Assert.Empty(step4.Commands);
     }
 
     [Fact]

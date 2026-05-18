@@ -126,6 +126,23 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
         {
             var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
             sagaContext.ChangeTracker.Clear();
+            var cancelling = await sagaContext.SagaInstances
+                .SingleAsync(s => s.SagaId == sagaId);
+            Assert.Equal(SagaStatus.Compensating, cancelling.Status);
+            Assert.Equal(OrderSagaStep.CancellingOrder.ToString(), cancelling.CurrentStep);
+        }
+
+        var cancelId = await GetLatestCommandId(nameof(CancelOrderCommand));
+        await Dispatch<OrderCancelledEventHandler, OrderCancelledEvent>(new OrderCancelledEvent(orderId, "customer-1")
+        {
+            CausationId = cancelId,
+            SagaId = sagaId,
+        });
+
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
+            sagaContext.ChangeTracker.Clear();
             var compensated = await sagaContext.SagaInstances
                 .SingleAsync(s => s.SagaId == sagaId);
             Assert.Equal(SagaStatus.Compensated, compensated.Status);

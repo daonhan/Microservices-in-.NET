@@ -219,6 +219,101 @@ public class OrderSagaStateMachineTests
     }
 
     [Fact]
+    public void Given_PaymentAuthorizing_When_PaymentFailed_Then_CompensationEndsWithCancelOrder()
+    {
+        var sagaId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var paymentFailed = new PaymentFailedEvent(Guid.NewGuid(), orderId, "customer-1", "declined")
+        {
+            CausationId = Guid.NewGuid(),
+            SagaId = sagaId
+        };
+        var state = new OrderSagaStateSnapshot(
+            sagaId,
+            orderId,
+            OrderSagaStep.PaymentAuthorizing,
+            SagaStatus.Running);
+
+        var afterFail = OrderSagaStateMachine.Transition(state, paymentFailed);
+        Assert.IsType<ReleaseStockCommand>(Assert.Single(afterFail.Commands));
+        Assert.Equal(OrderSagaStep.ReleasingStock, afterFail.State.CurrentStep);
+        Assert.Equal(OrderSagaStep.StockReserved, afterFail.State.CompensationOrigin);
+
+        var stockReleased = new StockReleasedEvent(orderId, [new ReleasedItem(101, 1, 2)])
+        {
+            CausationId = Guid.NewGuid(),
+            SagaId = sagaId
+        };
+        var afterRelease = OrderSagaStateMachine.Transition(afterFail.State, stockReleased);
+        Assert.True(afterRelease.Changed);
+        Assert.IsType<CancelOrderCommand>(Assert.Single(afterRelease.Commands));
+        Assert.Equal(OrderSagaStep.CancellingOrder, afterRelease.State.CurrentStep);
+        Assert.Equal(SagaStatus.Compensating, afterRelease.State.Status);
+
+        var orderCancelled = new OrderCancelledEvent(orderId, "customer-1")
+        {
+            CausationId = Guid.NewGuid(),
+            SagaId = sagaId
+        };
+        var afterCancel = OrderSagaStateMachine.Transition(afterRelease.State, orderCancelled);
+        Assert.True(afterCancel.Changed);
+        Assert.Empty(afterCancel.Commands);
+        Assert.Equal(SagaStatus.Compensated, afterCancel.State.Status);
+    }
+
+    [Fact]
+    public void Given_PaymentAuthorized_Origin_CompensationChain_EndsWithCancelOrder()
+    {
+        var sagaId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var trigger = new OrderCancelledEvent(orderId, "customer-1")
+        {
+            CausationId = Guid.NewGuid(),
+            SagaId = sagaId
+        };
+        var state = new OrderSagaStateSnapshot(
+            sagaId,
+            orderId,
+            OrderSagaStep.OrderConfirming,
+            SagaStatus.Running);
+
+        var begin = OrderSagaStateMachine.BeginCompensation(
+            state,
+            OrderSagaStep.PaymentAuthorized,
+            trigger);
+        Assert.IsType<VoidPaymentCommand>(Assert.Single(begin.Commands));
+        Assert.Equal(OrderSagaStep.VoidingPayment, begin.State.CurrentStep);
+
+        var paymentVoided = new PaymentVoidedEvent(Guid.NewGuid(), orderId, "customer-1", "compensation")
+        {
+            CausationId = Guid.NewGuid(),
+            SagaId = sagaId
+        };
+        var afterVoid = OrderSagaStateMachine.Transition(begin.State, paymentVoided);
+        Assert.IsType<ReleaseStockCommand>(Assert.Single(afterVoid.Commands));
+        Assert.Equal(OrderSagaStep.ReleasingStock, afterVoid.State.CurrentStep);
+
+        var stockReleased = new StockReleasedEvent(orderId, [new ReleasedItem(101, 1, 2)])
+        {
+            CausationId = Guid.NewGuid(),
+            SagaId = sagaId
+        };
+        var afterRelease = OrderSagaStateMachine.Transition(afterVoid.State, stockReleased);
+        Assert.IsType<CancelOrderCommand>(Assert.Single(afterRelease.Commands));
+        Assert.Equal(OrderSagaStep.CancellingOrder, afterRelease.State.CurrentStep);
+
+        var orderCancelled = new OrderCancelledEvent(orderId, "customer-1")
+        {
+            CausationId = Guid.NewGuid(),
+            SagaId = sagaId
+        };
+        var afterCancel = OrderSagaStateMachine.Transition(afterRelease.State, orderCancelled);
+        Assert.True(afterCancel.Changed);
+        Assert.Empty(afterCancel.Commands);
+        Assert.Equal(SagaStatus.Compensated, afterCancel.State.Status);
+    }
+
+    [Fact]
     public void Given_StockReserving_When_StockReservationFailed_Then_StartsCompensationFromStarted()
     {
         var sagaId = Guid.NewGuid();
