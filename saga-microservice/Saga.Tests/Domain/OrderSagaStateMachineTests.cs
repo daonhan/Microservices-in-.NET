@@ -219,7 +219,7 @@ public class OrderSagaStateMachineTests
     }
 
     [Fact]
-    public void Given_StockReserving_When_StockReservationFailed_Then_ParksSagaInFailed()
+    public void Given_StockReserving_When_StockReservationFailed_Then_StartsCompensationFromStarted()
     {
         var sagaId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
@@ -239,9 +239,9 @@ public class OrderSagaStateMachineTests
         var result = OrderSagaStateMachine.Transition(state, reservationFailed);
 
         Assert.True(result.Changed);
-        Assert.Empty(result.Commands);
-        Assert.Equal(OrderSagaStep.StockReserving, result.State.CurrentStep);
-        Assert.Equal(SagaStatus.Failed, result.State.Status);
-        Assert.Equal(nameof(StockReservationFailedEvent), result.State.LastStepResult);
+        Assert.Equal(SagaStatus.Compensating, result.State.Status);
+        Assert.Equal(OrderSagaStep.CancellingOrder, result.State.CurrentStep);
+        Assert.Equal(OrderSagaStep.Started, result.State.CompensationOrigin);
+        Assert.IsType<CancelOrderCommand>(Assert.Single(result.Commands));
     }
 }

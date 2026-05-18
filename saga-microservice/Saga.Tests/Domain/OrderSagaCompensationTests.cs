@@ -186,6 +186,36 @@ public class OrderSagaCompensationTests
     }
 
     [Fact]
+    public void Given_StockReserving_When_StockReservationFailed_Then_CompletesCompensationOnOrderCancelled()
+    {
+        var sagaId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var snapshot = new OrderSagaStateSnapshot(
+            sagaId, orderId, OrderSagaStep.StockReserving, SagaStatus.Running);
+        var reservationFailed = new StockReservationFailedEvent(
+            orderId, [new FailedItem(101, 2, 0)])
+        {
+            CausationId = Guid.NewGuid(),
+            SagaId = sagaId
+        };
+
+        var step1 = OrderSagaStateMachine.Transition(snapshot, reservationFailed);
+        Assert.Equal(OrderSagaStep.CancellingOrder, step1.State.CurrentStep);
+        Assert.IsType<CancelOrderCommand>(Assert.Single(step1.Commands));
+
+        var afterCancel = new OrderCancelledEvent(orderId, "c")
+        {
+            SagaId = sagaId,
+            CausationId = Guid.NewGuid()
+        };
+        var step2 = OrderSagaStateMachine.Transition(step1.State, afterCancel);
+
+        Assert.Equal(SagaStatus.Compensated, step2.State.Status);
+        Assert.Equal(OrderSagaStep.Compensated, step2.State.CurrentStep);
+        Assert.Empty(step2.Commands);
+    }
+
+    [Fact]
     public void Given_CompensatingWithoutOrigin_When_StockReleasedArrives_Then_ParksSagaInFailed()
     {
         var sagaId = Guid.NewGuid();

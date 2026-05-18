@@ -45,18 +45,6 @@ internal static class OrderSagaStateMachine
         var sequence = GetCompensationSequence(origin);
         if (sequence.Count == 0)
         {
-            if (origin == OrderSagaStep.Started)
-            {
-                var compensated = state with
-                {
-                    CurrentStep = OrderSagaStep.Compensated,
-                    Status = SagaStatus.Compensated,
-                    CompensationOrigin = origin,
-                    LastStepResult = trigger.GetType().Name
-                };
-                return new OrderSagaTransitionResult(compensated, [], Changed: true);
-            }
-
             var failed = state with
             {
                 Status = SagaStatus.Failed,
@@ -252,13 +240,7 @@ internal static class OrderSagaStateMachine
             return NoChange(state);
         }
 
-        var next = state with
-        {
-            Status = SagaStatus.Failed,
-            LastStepResult = nameof(StockReservationFailedEvent)
-        };
-
-        return new OrderSagaTransitionResult(next, [], Changed: true);
+        return BeginCompensation(state, OrderSagaStep.Started, @event);
     }
 
     private static OrderSagaTransitionResult OnPaymentFailed(
@@ -340,6 +322,10 @@ internal static class OrderSagaStateMachine
     private static IReadOnlyList<OrderSagaStep> GetCompensationSequence(OrderSagaStep origin) =>
         origin switch
         {
+            OrderSagaStep.Started =>
+            [
+                OrderSagaStep.CancellingOrder
+            ],
             OrderSagaStep.StockReserved =>
             [
                 OrderSagaStep.ReleasingStock

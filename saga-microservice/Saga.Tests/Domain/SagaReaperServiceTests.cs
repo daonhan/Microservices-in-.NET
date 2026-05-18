@@ -100,7 +100,7 @@ public class SagaReaperServiceTests : IClassFixture<SagaWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Given_RunningSagaAtMaxRetries_When_ReaperRuns_Then_SagaTransitionsToCompensated()
+    public async Task Given_RunningSagaAtMaxRetries_When_ReaperRuns_Then_CompensationStartsAndCancelOrderIsEnqueued()
     {
         var now = new DateTimeOffset(2026, 5, 17, 9, 0, 0, TimeSpan.Zero);
         var timeProvider = new FakeTimeProvider(now);
@@ -121,18 +121,20 @@ public class SagaReaperServiceTests : IClassFixture<SagaWebApplicationFactory>
         var saga = await sagaContext.SagaInstances
             .Include(s => s.Transitions)
             .SingleAsync(s => s.SagaId == sagaId);
-        Assert.Equal(SagaStatus.Compensated, saga.Status);
-        Assert.Equal(OrderSagaStep.Compensated.ToString(), saga.CurrentStep);
-        Assert.Null(saga.NextTimeoutAt);
-        Assert.Null(saga.LastCommandId);
+        Assert.Equal(SagaStatus.Compensating, saga.Status);
+        Assert.Equal(OrderSagaStep.CancellingOrder.ToString(), saga.CurrentStep);
+        Assert.NotNull(saga.LastCommandId);
+        Assert.NotEqual(command.Id, saga.LastCommandId);
         Assert.Contains(saga.Transitions, t =>
             t.FromStep == OrderSagaStep.StockReserving.ToString()
-            && t.ToStep == OrderSagaStep.Compensated.ToString()
+            && t.ToStep == OrderSagaStep.CancellingOrder.ToString()
             && t.TriggerKind == SagaTriggerKind.Timeout);
 
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
         var unpublished = await outboxStore.GetUnpublishedOutboxEvents();
-        Assert.DoesNotContain(unpublished, e => e.Id == command.Id);
+        Assert.Contains(unpublished, e =>
+            e.Id == saga.LastCommandId
+            && e.EventType.Contains(nameof(CancelOrderCommand), StringComparison.Ordinal));
     }
 
     [Theory]

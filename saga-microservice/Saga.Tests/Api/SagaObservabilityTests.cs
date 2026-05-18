@@ -142,7 +142,7 @@ public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
     }
 
     [Fact]
-    public async Task Given_OpenSaga_When_StockReservationFails_Then_FailedCounterWithReasonIsEmitted()
+    public async Task Given_OpenSaga_When_StockReservationFails_Then_CompensationCounterIsEmitted()
     {
         var orderId = Guid.NewGuid();
         var orderCreated = CreateOrderCreated(orderId);
@@ -159,10 +159,10 @@ public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
                 SagaId = sagaId,
             });
 
-        var failed = Assert.Single(metrics.Measurements("saga_failed_total"));
-        Assert.Equal(1, failed.Value);
-        Assert.Equal("Order", failed.Tag("type"));
-        Assert.False(string.IsNullOrWhiteSpace((string?)failed.Tag("reason")));
+        var compensation = Assert.Single(metrics.Measurements("saga_compensation_total"));
+        Assert.Equal(1, compensation.Value);
+        Assert.Equal("Order", compensation.Tag("type"));
+        Assert.Empty(metrics.Measurements("saga_failed_total"));
     }
 
     private async Task<Guid> OpenSaga(OrderCreatedEvent orderCreated)
