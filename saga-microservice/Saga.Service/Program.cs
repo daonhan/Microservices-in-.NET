@@ -33,6 +33,7 @@ builder.Services.Configure<OrderSagaTimeoutOptions>(
     builder.Configuration.GetSection("Saga:OrderSaga"));
 builder.Services.AddSingleton<OrderSagaTimeoutScheduler>();
 builder.Services.AddScoped<OrderSagaReplyProcessor>();
+builder.Services.AddScoped<RefundSagaReplyProcessor>();
 builder.Services.AddHostedService<SagaReaperService>();
 
 builder.AddPlatformOpenApi("saga");
@@ -41,6 +42,7 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
     .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
+    .AddEventHandler<RefundRequestedEvent, RefundRequestedEventHandler>()
     .AddEventHandler<StockReservedEvent, StockReservedEventHandler>()
     .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>()
     .AddEventHandler<PaymentAuthorizedEvent, PaymentAuthorizedEventHandler>()

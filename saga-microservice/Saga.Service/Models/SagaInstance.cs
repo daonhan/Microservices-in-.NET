@@ -26,5 +26,7 @@ internal sealed class SagaInstance
 
     public OrderSagaState? OrderSagaState { get; set; }
 
+    public RefundSagaState? RefundSagaState { get; set; }
+
     public List<SagaTransition> Transitions { get; } = [];
 }

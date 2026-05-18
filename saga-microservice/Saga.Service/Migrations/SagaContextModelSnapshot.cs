@@ -59,6 +59,41 @@ namespace Saga.Service.Migrations
                     b.ToTable("OrderSagaStates");
                 });
 
+            modelBuilder.Entity("Saga.Service.Models.RefundSagaState", b =>
+                {
+                    b.Property<Guid>("SagaId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("LastStepResult")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PaymentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid?>("ShipmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("SagaId");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique();
+
+                    b.ToTable("RefundSagaStates");
+                });
+
             modelBuilder.Entity("Saga.Service.Models.SagaInstance", b =>
                 {
                     b.Property<Guid>("SagaId")
@@ -165,6 +200,17 @@ namespace Saga.Service.Migrations
                     b.Navigation("SagaInstance");
                 });
 
+            modelBuilder.Entity("Saga.Service.Models.RefundSagaState", b =>
+                {
+                    b.HasOne("Saga.Service.Models.SagaInstance", "SagaInstance")
+                        .WithOne("RefundSagaState")
+                        .HasForeignKey("Saga.Service.Models.RefundSagaState", "SagaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SagaInstance");
+                });
+
             modelBuilder.Entity("Saga.Service.Models.SagaTransition", b =>
                 {
                     b.HasOne("Saga.Service.Models.SagaInstance", "SagaInstance")
@@ -179,6 +225,8 @@ namespace Saga.Service.Migrations
             modelBuilder.Entity("Saga.Service.Models.SagaInstance", b =>
                 {
                     b.Navigation("OrderSagaState");
+
+                    b.Navigation("RefundSagaState");
 
                     b.Navigation("Transitions");
                 });

@@ -14,6 +14,8 @@ internal class SagaContext : DbContext
 
     public DbSet<OrderSagaState> OrderSagaStates { get; set; } = null!;
 
+    public DbSet<RefundSagaState> RefundSagaStates { get; set; } = null!;
+
     public DbSet<SagaTransition> SagaTransitions { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -60,6 +62,29 @@ internal class SagaContext : DbContext
             builder.HasOne(s => s.SagaInstance)
                 .WithOne(s => s.OrderSagaState)
                 .HasForeignKey<OrderSagaState>(s => s.SagaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RefundSagaState>(builder =>
+        {
+            builder.HasKey(s => s.SagaId);
+
+            builder.Property(s => s.Currency)
+                .HasMaxLength(3)
+                .IsRequired();
+
+            builder.Property(s => s.LastStepResult)
+                .HasMaxLength(128);
+
+            builder.Property(s => s.RefundAmount)
+                .HasPrecision(18, 2);
+
+            builder.HasIndex(s => s.OrderId)
+                .IsUnique();
+
+            builder.HasOne(s => s.SagaInstance)
+                .WithOne(s => s.RefundSagaState)
+                .HasForeignKey<RefundSagaState>(s => s.SagaId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

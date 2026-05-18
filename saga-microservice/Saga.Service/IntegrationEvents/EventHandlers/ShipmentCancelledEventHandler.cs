@@ -5,11 +5,19 @@ namespace Saga.Service.IntegrationEvents.EventHandlers;
 internal sealed class ShipmentCancelledEventHandler : IEventHandler<ShipmentCancelledEvent>
 {
     private readonly OrderSagaReplyProcessor _processor;
+    private readonly RefundSagaReplyProcessor _refundProcessor;
 
-    public ShipmentCancelledEventHandler(OrderSagaReplyProcessor processor)
+    public ShipmentCancelledEventHandler(
+        OrderSagaReplyProcessor processor,
+        RefundSagaReplyProcessor refundProcessor)
     {
         _processor = processor;
+        _refundProcessor = refundProcessor;
     }
 
-    public Task Handle(ShipmentCancelledEvent @event) => _processor.Handle(@event);
+    public async Task Handle(ShipmentCancelledEvent @event)
+    {
+        await _processor.Handle(@event);
+        await _refundProcessor.Handle(@event);
+    }
 }
