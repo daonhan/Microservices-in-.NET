@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Claude Code SessionEnd hook for QMD memory capture.
 # Reads hook JSON from stdin, writes one redacted markdown session file, then
-# refreshes the local QMD index asynchronously.
+# refreshes the local QMD session index asynchronously.
 
 set -euo pipefail
 
@@ -17,6 +17,7 @@ fi
 MEMORY_DIR="$REPO_ROOT/.claude/agent-memory"
 LOG_PATH="$MEMORY_DIR/qmd-index.log"
 SESSIONS_COLLECTION="nhamnhi-sessions"
+SESSIONS_INDEX_SCRIPT="$SCRIPT_DIR/qmd-index-sessions.mjs"
 
 die() {
     printf '[session-end] ERROR: %s\n' "$*" >&2
@@ -90,33 +91,22 @@ run_index_job() {
     temp_log="$(make_temp_log)"
 
     {
-        local update_status=0
-        local embed_status=0
+        local index_status=0
 
         printf '== qmd index run started %s ==\n' "$(timestamp)"
         printf '[%s] repo: %s\n' "$(timestamp)" "$REPO_ROOT"
         printf '[%s] collection: %s\n' "$(timestamp)" "$SESSIONS_COLLECTION"
         printf '[%s] session: %s\n' "$(timestamp)" "$session_path"
 
-        printf '[%s] command: qmd update\n' "$(timestamp)"
-        (cd "$REPO_ROOT" && qmd update) || update_status=$?
-        if [[ "$update_status" -eq 0 ]]; then
-            printf '[%s] command succeeded: qmd update\n' "$(timestamp)"
-
-            printf '[%s] command: qmd embed\n' "$(timestamp)"
-            (cd "$REPO_ROOT" && qmd embed) || embed_status=$?
-            if [[ "$embed_status" -eq 0 ]]; then
-                printf '[%s] command succeeded: qmd embed\n' "$(timestamp)"
-            else
-                printf '[%s] command failed (%s): qmd embed\n' "$(timestamp)" "$embed_status"
-            fi
+        printf '[%s] command: node %s %s\n' "$(timestamp)" "$SESSIONS_INDEX_SCRIPT" "$SESSIONS_COLLECTION"
+        (cd "$REPO_ROOT" && node "$SESSIONS_INDEX_SCRIPT" "$SESSIONS_COLLECTION") || index_status=$?
+        if [[ "$index_status" -eq 0 ]]; then
+            printf '[%s] command succeeded: sessions-only qmd index\n' "$(timestamp)"
         else
-            printf '[%s] command failed (%s): qmd update\n' "$(timestamp)" "$update_status"
-            printf '[%s] command skipped: qmd embed\n' "$(timestamp)"
-            embed_status="skipped"
+            printf '[%s] command failed (%s): sessions-only qmd index\n' "$(timestamp)" "$index_status"
         fi
 
-        printf '== qmd index run finished %s update=%s embed=%s ==\n\n' "$(timestamp)" "$update_status" "$embed_status"
+        printf '== qmd index run finished %s status=%s ==\n\n' "$(timestamp)" "$index_status"
     } >"$temp_log" 2>&1
 
     append_index_log "$temp_log"

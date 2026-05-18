@@ -24,6 +24,7 @@ Infrastructure - Deployment/ARCHITECTURE.md
 .claude/*
 !.claude/scripts/
 .claude/scripts/*
+!.claude/scripts/qmd-index-sessions.mjs
 !.claude/scripts/qmd-init.sh
 !.claude/scripts/qmd_memory.py
 !.claude/scripts/session-end.sh
