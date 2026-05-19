@@ -1,6 +1,6 @@
 # Architecture
 
-The platform decomposes an e-commerce domain into seven independently deployable services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on the provider-selected broker. RabbitMQ is the default local provider; Azure Service Bus uses the same event and operator contracts when `Messaging:Provider=AzureServiceBus`. For local broker selection, use [docs/local-dev/messaging.md](../local-dev/messaging.md).
+The platform decomposes an e-commerce domain into eight independently deployable business services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on the provider-selected broker. RabbitMQ is the default local provider; Azure Service Bus uses the same event and operator contracts when `Messaging:Provider=AzureServiceBus`. For local broker selection, use [docs/local-dev/messaging.md](../local-dev/messaging.md).
 
 ## High-level topology
 
@@ -14,6 +14,7 @@ graph TD
     GW --> Inventory["Inventory<br/>:8005"]
     GW --> Shipping["Shipping<br/>:8006"]
     GW --> Payment["Payment<br/>:8007"]
+    GW --> Saga["Saga<br/>:8008"]
 
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL · Order)]
@@ -22,17 +23,29 @@ graph TD
     Inventory --- SQLInventory[(SQL · Inventory)]
     Shipping --- SQLShipping[(SQL · Shipping)]
     Payment --- SQLPayment[(SQL · Payment)]
+    Saga --- SQLSaga[(SQL · Saga)]
 
     Order -- publishes --> Broker{{"Broker<br/>RabbitMQ exchange<br/>or ASB topic"}}
     Product -- publishes --> Broker
     Inventory -- publishes --> Broker
     Shipping -- publishes --> Broker
     Payment -- publishes --> Broker
+    Saga -- publishes commands --> Broker
     Broker -- subscribes --> Basket
     Broker -- subscribes --> Order
     Broker -- subscribes --> Inventory
     Broker -- subscribes --> Shipping
     Broker -- subscribes --> Payment
+    Broker -- subscribes --> Saga
+
+    Saga -- commands --> Order
+    Saga -- commands --> Inventory
+    Saga -- commands --> Payment
+    Saga -- commands --> Shipping
+    Order -- reply events --> Saga
+    Inventory -- reply events --> Saga
+    Payment -- reply events --> Saga
+    Shipping -- reply events --> Saga
 ```
 
 ## Core design rules
@@ -48,63 +61,36 @@ graph TD
 | **Pluggable messaging & telemetry providers** | `Messaging__Provider` switches between `RabbitMqEventBus` and `AzureServiceBusEventBus`; `OpenTelemetry__Exporter` switches between local OTLP and Application Insights. Same `IEventBus`, same handlers. See [Azure-Deployment](Azure-Deployment). |
 
 
-## Saga: Order ↔ Inventory ↔ Payment ↔ Shipping
+## Saga: orchestrator coordinates Order, Inventory, Payment, Shipping
 
-Order, Inventory, Payment, and Shipping coordinate via a choreographed saga. Each participant reacts to events and emits its own. Order's "confirm" edge is driven by `PaymentAuthorizedEvent` (not `StockReservedEvent` directly), so no unpaid order proceeds to shipment. Capture happens when goods physically dispatch.
+The [Saga service](Service-Saga) (`:8008`) owns the order saga end-to-end. It opens a persisted saga instance on `OrderCreatedEvent`, drives the four participants via commands, and advances on their reply events. Order's "confirm" edge is gated on `PaymentAuthorizedEvent`, so no unpaid order proceeds to shipment. Capture happens when goods physically dispatch. See [ADR-0010](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0010-saga-orchestrator-supersedes-choreography.md).
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Order
-    participant Bus as Broker
-    participant Inventory
-    participant Payment
-    participant Shipping
-
-    Client->>Order: POST /order/{customerId}
-    Order->>Order: Persist Order + outbox (one tx)
-    Order-->>Bus: OrderCreatedEvent
-    Bus-->>Inventory: OrderCreatedEvent
-    Bus-->>Payment: OrderCreatedEvent
-    alt Stock available
-        Inventory->>Inventory: Reserve stock
-        Inventory-->>Bus: StockReservedEvent
-        Bus-->>Payment: StockReservedEvent
-        alt Gateway approves
-            Payment-->>Bus: PaymentAuthorizedEvent
-            Bus-->>Order: PaymentAuthorizedEvent
-            Order-->>Bus: OrderConfirmedEvent
-            Bus-->>Inventory: OrderConfirmedEvent
-            Inventory->>Inventory: Commit reservation
-            Inventory-->>Bus: StockCommittedEvent
-            Bus-->>Shipping: StockCommittedEvent
-            Shipping-->>Bus: ShipmentCreatedEvent
-            Shipping-->>Bus: ShipmentDispatchedEvent
-            Bus-->>Payment: ShipmentDispatchedEvent
-            Payment-->>Bus: PaymentCapturedEvent
-            Shipping-->>Bus: ShipmentDeliveredEvent
-        else Gateway declines
-            Payment-->>Bus: PaymentFailedEvent
-            Bus-->>Order: PaymentFailedEvent
-            Order-->>Bus: OrderCancelledEvent
-            Bus-->>Inventory: OrderCancelledEvent
-            Inventory-->>Bus: StockReleasedEvent
-            Bus-->>Payment: OrderCancelledEvent
-        end
-    else Insufficient stock
-        Inventory-->>Bus: StockReservationFailedEvent
-        Bus-->>Order: StockReservationFailedEvent
-        Order-->>Bus: OrderCancelledEvent
-        Bus-->>Inventory: OrderCancelledEvent
-        Inventory->>Inventory: Release reservation
-        Inventory-->>Bus: StockReleasedEvent
-        Bus-->>Shipping: OrderCancelledEvent
-        Shipping-->>Bus: ShipmentCancelledEvent
-        Bus-->>Payment: OrderCancelledEvent
-    end
+    autonumber
+    participant O as Order
+    participant Sg as Saga
+    participant I as Inventory
+    participant P as Payment
+    participant Sh as Shipping
+    O-->>Sg: OrderCreatedEvent
+    Sg->>I: ReserveStockCommand
+    I-->>Sg: StockReservedEvent
+    Sg->>P: AuthorizePaymentCommand
+    P-->>Sg: PaymentAuthorizedEvent
+    Sg->>O: ConfirmOrderCommand
+    O-->>Sg: OrderConfirmedEvent
+    Sg->>I: CommitStockCommand
+    I-->>Sg: StockCommittedEvent
+    Sg->>Sh: CreateShipmentCommand
+    Sh-->>Sg: ShipmentCreatedEvent
+    Sh-->>Sg: ShipmentDispatchedEvent
+    Sg->>P: CapturePaymentCommand
+    P-->>Sg: PaymentCapturedEvent
+    Sh-->>Sg: ShipmentDeliveredEvent
 ```
 
-The full event catalog lives in [Integration-Events](Integration-Events).
+Compensation (`ReleaseStockCommand`, `VoidPaymentCommand`, `RefundPaymentCommand`, `CancelShipmentCommand`, `CancelOrderCommand`) is issued by Saga depending on the last completed step. The full event catalog and saga command table live in [Integration-Events](Integration-Events); the dedicated saga diagrams live in [Diagram-Saga](Diagram-Saga).
 
 ## Observability flow
 

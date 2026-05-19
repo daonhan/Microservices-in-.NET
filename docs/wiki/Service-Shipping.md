@@ -1,6 +1,6 @@
 # Shipping Service
 
-Handles shipment lifecycle, carrier integration, and event-driven fulfillment for orders. Implements a rich state machine, admin/customer flows, and emits milestone events for observability and downstream processing.
+Handles shipment lifecycle, carrier integration, and orchestrated fulfillment for orders. Implements a rich state machine, admin/customer flows, and emits milestone events as saga reply messages plus operational signals.
 
 | | |
 |---|---|
@@ -9,11 +9,12 @@ Handles shipment lifecycle, carrier integration, and event-driven fulfillment fo
 | **Source** | [`shipping-microservice/Shipping.Service/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/shipping-microservice/Shipping.Service) |
 | **Tests** | [`shipping-microservice/Shipping.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/shipping-microservice/Shipping.Tests) |
 | **Publishes** | `ShipmentCreatedEvent`, `ShipmentDispatchedEvent`, `ShipmentDeliveredEvent`, `ShipmentCancelledEvent`, `ShipmentFailedEvent`, `ShipmentReturnedEvent`, `ShipmentStatusChangedEvent` |
-| **Subscribes** | `StockCommittedEvent`, `OrderCancelledEvent` |
+| **Subscribes** | `CreateShipmentCommand`, `CancelShipmentCommand` (from Saga) |
 
 ## Responsibilities
 
-- Create shipments for orders (on `StockCommittedEvent`)
+- Execute `CreateShipmentCommand` from the [Saga service](Service-Saga); publish `ShipmentCreatedEvent` as the reply event. Later transitions (dispatch, delivery) publish `ShipmentDispatchedEvent` and `ShipmentDeliveredEvent`, which Saga advances on.
+- Execute `CancelShipmentCommand` during compensation; publish `ShipmentCancelledEvent`. Idempotent on terminal states.
 - Track shipment state: Pending → Picked → Packed → Shipped → InTransit → Delivered/Cancelled/Failed/Returned
 - Integrate with carriers (rate shopping, dispatch, status polling, webhooks)
 - Enforce customer/admin access and transitions
@@ -62,19 +63,19 @@ stateDiagram-v2
     [*] --> Returned
 ```
 
-## Integration events
+## Integration events and commands
 
-- **Publishes**:
+- **Publishes (reply events)**:
   - `ShipmentCreatedEvent` (on creation)
   - `ShipmentDispatchedEvent` (on dispatch)
   - `ShipmentDeliveredEvent` (on delivered)
   - `ShipmentCancelledEvent` (on cancel)
   - `ShipmentFailedEvent` (on fail)
   - `ShipmentReturnedEvent` (on return)
-  - `ShipmentStatusChangedEvent` (on every transition)
-- **Subscribes**:
-  - `StockCommittedEvent` (creates shipment)
-  - `OrderCancelledEvent` (cancels shipment if not terminal)
+  - `ShipmentStatusChangedEvent` (on every transition; ops/audit)
+- **Subscribes (saga commands)**:
+  - `CreateShipmentCommand` — creates a shipment for the order; publishes `ShipmentCreatedEvent`. Later transitions to `Shipped`/`Delivered` publish `ShipmentDispatchedEvent` / `ShipmentDeliveredEvent` to advance the saga.
+  - `CancelShipmentCommand` — cancels the shipment if not in a terminal state; publishes `ShipmentCancelledEvent`. Idempotent on terminal states.
 
 ## Carrier integration
 

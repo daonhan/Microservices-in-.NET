@@ -17,6 +17,17 @@ A snapshot of where the platform is heading. Intent here is aspirational; author
 - ✅ Azure cloud deployment — Bicep IaC (VNet, AKS, ACR, SQL, Redis, Key Vault, Monitor, Service Bus), per-service Azure Pipelines (build + multi-env deploy), Dev/Staging/Prod AKS manifests with Ingress, Azure Service Bus adapter for `IEventBus`, Application Insights via Azure Monitor OTel exporter — [Epic #33](https://github.com/daonhan/Microservices-in-.NET/issues/33) · [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/azure-infrastructure-deployment.md) · [Plan](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/plans/azure-infrastructure-deployment-plan.md) · wiki: [Azure-Deployment](Azure-Deployment)
 - ✅ Public Wiki (this wiki) — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Wiki.md)
 
+### Delivered (2026-05)
+
+- ✅ **Saga orchestrator cutover** — Saga service owns end-to-end order saga state; participants driven by commands (Reserve/Commit/Release stock, Authorize/Capture/Void/Refund payment, Confirm/Cancel order, Create/Cancel shipment); legacy event-driven saga handlers removed — [#132](https://github.com/daonhan/Microservices-in-.NET/issues/132) · [#136](https://github.com/daonhan/Microservices-in-.NET/issues/136) · [#137](https://github.com/daonhan/Microservices-in-.NET/issues/137) · [Strangler runbook](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/runbooks/saga-orchestrator-strangler.md)
+- ✅ **Refund saga** — `RefundSaga` state machine + `RefundRequestedEvent` for post-capture refund flow — [#130](https://github.com/daonhan/Microservices-in-.NET/issues/130)
+- ✅ **Saga reaper + per-step timeouts** — background reaper drives stuck saga instances to compensation when participants miss step deadlines — [#126](https://github.com/daonhan/Microservices-in-.NET/issues/126)
+- ✅ **Compensation matrix** — reverse-command paths defined per saga state, exercised by the orchestrator state machine — [#125](https://github.com/daonhan/Microservices-in-.NET/issues/125)
+- ✅ **Operator saga API** — list/detail/retry/abort endpoints (Bearer + `Operator` claim) — [#128](https://github.com/daonhan/Microservices-in-.NET/issues/128)
+- ✅ **StockItem aggregate** — atomic reserve/commit/release via `Evaluate`/`ApplyHold`; one-shot levels lookup — [#117](https://github.com/daonhan/Microservices-in-.NET/issues/117) · [#118](https://github.com/daonhan/Microservices-in-.NET/issues/118)
+- ✅ **Messaging provider abstraction** — `AddPlatform*` wiring across services, `Messaging:Provider` selects RabbitMQ (default) or Azure Service Bus — [#79](https://github.com/daonhan/Microservices-in-.NET/issues/79) · [#88](https://github.com/daonhan/Microservices-in-.NET/issues/88)
+- ✅ **Provider-agnostic DLQ poller** — gateway dead-letter capture/replay works on both RabbitMQ and ASB — [#81](https://github.com/daonhan/Microservices-in-.NET/issues/81) · [#100](https://github.com/daonhan/Microservices-in-.NET/issues/100)
+
 ## In flight
 
 Tracked under [`docs/plans/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/docs/plans):

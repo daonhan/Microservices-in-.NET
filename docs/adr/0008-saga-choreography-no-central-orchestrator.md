@@ -1,6 +1,6 @@
 # ADR-0008 — Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping
 
-- **Status**: Superseded by ADR-0010
+- **Status**: Superseded by [ADR-0010](0010-saga-orchestrator-supersedes-choreography.md)
 - **Date**: 2026-05-06
 - **Last choreography state preserved on branch**: [`saga-choreography`](https://github.com/daonhan/Microservices-in-.NET/tree/saga-choreography) — kept as a read-only reference for the pre-cutover code path; do not merge back to `main`.
 

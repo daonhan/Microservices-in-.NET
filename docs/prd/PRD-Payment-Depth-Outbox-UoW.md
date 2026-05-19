@@ -111,7 +111,7 @@ All five files migrate to the shallow `IOutboxUnitOfWork` overload. Shipping doe
 
 ### Architectural decisions
 
-- **No central orchestrator is introduced.** ADR-0008 (saga choreography) stands. Payment continues to react to events and emit events; this PRD only changes how Payment internally couples state changes to event publication.
+- **No dedicated orchestrator is introduced by this PRD.** ADR-0008 (event-driven saga coordination) is in effect at the time of writing. Payment continues to react to events and emit events; this PRD only changes how Payment internally couples state changes to event publication.
 - **No change to Integration Event shapes.** `PaymentCapturedEvent`, `PaymentRefundedEvent`, `PaymentAuthorizedEvent` keep their existing fields. Subscribers (Order, Shipping) see no contract change.
 - **No change to provider-selected messaging topology.** RabbitMQ remains the default local provider with fanout exchange `ecommerce-exchange` and the existing DLQ contract (ADR-0004). Azure Service Bus remains selected through `Messaging:Provider=AzureServiceBus` and uses the same Integration Event contracts and Outbox publisher path.
 - **No change to the database-per-service decision** (ADR-0007) or the JWT/JWKS model (ADR-0003).

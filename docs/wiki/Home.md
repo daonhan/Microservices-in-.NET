@@ -16,6 +16,7 @@ graph TD
     GW --> Inventory["Inventory<br/>:8005"]
     GW --> Shipping["Shipping<br/>:8006"]
     GW --> Payment["Payment<br/>:8007"]
+    GW --> Saga["Saga<br/>:8008"]
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL Server)]
     Product --- SQLProduct[(SQL Server)]
@@ -23,16 +24,27 @@ graph TD
     Inventory --- SQLInventory[(SQL Server)]
     Shipping --- SQLShipping[(SQL Server)]
     Payment --- SQLPayment[(SQL Server)]
+    Saga --- SQLSaga[(SQL Server)]
     Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>fanout exchange"}}
     Product -- publishes --> RabbitMQ
     Inventory -- publishes --> RabbitMQ
     Shipping -- publishes --> RabbitMQ
     Payment -- publishes --> RabbitMQ
+    Saga -- publishes commands --> RabbitMQ
     RabbitMQ -- subscribes --> Basket
     RabbitMQ -- subscribes --> Order
     RabbitMQ -- subscribes --> Inventory
     RabbitMQ -- subscribes --> Shipping
     RabbitMQ -- subscribes --> Payment
+    RabbitMQ -- subscribes --> Saga
+    Saga -- commands --> Order
+    Saga -- commands --> Inventory
+    Saga -- commands --> Payment
+    Saga -- commands --> Shipping
+    Order -- reply events --> Saga
+    Inventory -- reply events --> Saga
+    Payment -- reply events --> Saga
+    Shipping -- reply events --> Saga
 ```
 
 See [Architecture](Architecture) for the full story.
@@ -43,11 +55,12 @@ See [Architecture](Architecture) for the full story.
 |---|---|
 | Run the platform locally | [Getting-Started](Getting-Started) |
 | Understand the design | [Architecture](Architecture) |
-| Learn one service | [Service-Basket](Service-Basket) · [Service-Order](Service-Order) · [Service-Product](Service-Product) · [Service-Auth](Service-Auth) · [Service-Inventory](Service-Inventory) · [Service-Shipping](Service-Shipping) · [Service-Payment](Service-Payment) · [Service-API-Gateway](Service-API-Gateway) |
+| Learn one service | [Service-Basket](Service-Basket) · [Service-Order](Service-Order) · [Service-Product](Service-Product) · [Service-Auth](Service-Auth) · [Service-Inventory](Service-Inventory) · [Service-Shipping](Service-Shipping) · [Service-Payment](Service-Payment) · [Service-Saga](Service-Saga) · [Service-API-Gateway](Service-API-Gateway) |
 | Try the API in a browser | Combined Swagger UI at `http://localhost:8004/swagger` (dev/staging only) |
 | See all HTTP endpoints | [API-Reference](API-Reference) |
 | Trace cross-service events | [Integration-Events](Integration-Events) |
 | See the saga at a glance | [Diagram-Saga](Diagram-Saga) |
+| Understand the saga orchestrator | [Service-Saga](Service-Saga) |
 | See the outbox flow | [Diagram-Outbox](Diagram-Outbox) |
 | Learn the shared building blocks | [Shared-Library](Shared-Library) |
 | Write tests the house way | [Testing](Testing) |
@@ -63,6 +76,7 @@ See [Architecture](Architecture) for the full story.
 - **.NET 10**, ASP.NET Core Minimal APIs
 - **RabbitMQ** fanout exchange for async events
 - **EF Core + SQL Server** per service; **Redis** for Basket
+- **Saga service** for orchestrator-owned order and refund workflows
 - **YARP** API Gateway (Ocelot retained as runtime-switchable fallback)
 - **OpenTelemetry** → Jaeger (traces), Prometheus (metrics), Loki (logs), Grafana (dashboards), Alertmanager
 - **xUnit + NSubstitute + WebApplicationFactory** for tests

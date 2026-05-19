@@ -20,9 +20,9 @@ Durable decisions that apply across all phases:
   5. ADR-0005 — `ECommerce.Shared` distributed as a NuGet package via a local feed
   6. ADR-0006 — One `.slnx` solution per service; no root `.sln`
   7. ADR-0007 — EF Core with one database per service
-  8. ADR-0008 — Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping
+  8. ADR-0008 — Event-driven saga coordination (no dedicated orchestrator) for Order/Inventory/Payment/Shipping
   9. ADR-0009 — OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack
-- **Glossary scope**: Saga, Outbox, Dead-Letter Queue (DLQ), Integration Event, Reservation, Backorder, Authorize, Capture, Refund, JWKS, Fanout exchange, YARP, Ocelot, Choreography vs Orchestration, Minimal API, `.slnx`, OTEL Collector.
+- **Glossary scope**: Saga, Outbox, Dead-Letter Queue (DLQ), Integration Event, Reservation, Backorder, Authorize, Capture, Refund, JWKS, Fanout exchange, YARP, Ocelot, Orchestration vs event-driven coordination, Minimal API, `.slnx`, OTEL Collector.
 - **Living doc rule**: `CONTEXT.md` is updated in the same PR as any change that invalidates a section.
 - **No tests**: No automated link-checking or other automation. Quality is enforced at PR review time.
 - **README change**: A single new line near the top of `README.md` pointing readers at `CONTEXT.md`. No other README content moves.
@@ -78,7 +78,7 @@ Fill the domain glossary in `CONTEXT.md` with the full term set, each entry bein
 
 ### Acceptance criteria
 
-- [ ] The glossary section in `CONTEXT.md` defines all terms in the agreed scope: Saga, Outbox, Dead-Letter Queue (DLQ), Integration Event, Reservation, Backorder, Authorize, Capture, Refund, JWKS, Fanout exchange, YARP, Ocelot, Choreography vs Orchestration, Minimal API, `.slnx`, OTEL Collector.
+- [ ] The glossary section in `CONTEXT.md` defines all terms in the agreed scope: Saga, Outbox, Dead-Letter Queue (DLQ), Integration Event, Reservation, Backorder, Authorize, Capture, Refund, JWKS, Fanout exchange, YARP, Ocelot, Orchestration vs event-driven coordination, Minimal API, `.slnx`, OTEL Collector.
 - [ ] Each glossary entry is one to three sentences, in business or platform terms, and avoids file paths or code references.
 - [ ] The "Architecture at a glance" section embeds the mermaid diagram from `README.md` and includes a short paragraph orienting the reader to the seven services, the gateway, and the saga participants.
 - [ ] Every glossary term appears in at least one ADR or service description elsewhere in `CONTEXT.md` or the wiki (so terms aren't orphaned).
@@ -98,7 +98,7 @@ Write the first-person narrative sections of `CONTEXT.md`: why I built the proje
 - [ ] "Why I built it" tells the personal story in the first person, naming the learning goals and the portfolio motivation.
 - [ ] "What it is" gives a one-screen summary of the platform — services, datastores, gateway, observability, deployment targets — without duplicating the README.
 - [ ] "AI workflow" explains concretely which tasks were paired with Claude Code Pro versus GitHub Copilot Pro+, references how PRDs and plans (`docs/prd/`, `docs/plans/`) acted as the contract between human and agent, and notes which boundaries (security review, deployment, schema migrations) I kept under direct human control.
-- [ ] "What I learned" lists five to seven concrete takeaways covering at minimum: saga choreography vs orchestration, outbox semantics, JWT/JWKS issuance, OpenTelemetry wiring, dual-gateway switching, and NuGet-vs-project-reference shared libraries.
+- [ ] "What I learned" lists five to seven concrete takeaways covering at minimum: orchestration vs event-driven saga coordination, outbox semantics, JWT/JWKS issuance, OpenTelemetry wiring, dual-gateway switching, and NuGet-vs-project-reference shared libraries.
 - [ ] All four sections are in first person. Tone is consistent with the share-block at the top.
 
 ---

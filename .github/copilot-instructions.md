@@ -17,23 +17,24 @@ For the authoritative architectural overview, read [CLAUDE.md](../CLAUDE.md) and
 
 Services and ports (from [docker-compose.yaml](../docker-compose.yaml)):
 
-| Service       | Port | Datastore                  |
-|---------------|------|----------------------------|
-| basket        | 8000 | Redis                      |
-| order         | 8001 | SQL Server (+ Redis cache) |
-| product       | 8002 | SQL Server                 |
-| auth          | 8003 | SQL Server                 |
-| api-gateway   | 8004 | — (YARP, Ocelot fallback)  |
-| inventory     | 8005 | SQL Server                 |
-| shipping      | 8006 | SQL Server                 |
-| payment       | 8007 | SQL Server                 |
+| Service | Port | Datastore | Responsibility |
+|---|---:|---|---|
+| Basket | 8000 | Redis | Shopping cart CRUD and product price caching |
+| Order | 8001 | SQL Server + Redis | Order creation, confirmation, cancellation, and order events |
+| Product | 8002 | SQL Server | Product catalog and product price events |
+| Auth | 8003 | SQL Server | User JWTs, service tokens, and JWKS discovery |
+| API Gateway | 8004 | SQL Server | YARP/Ocelot routing, auth enforcement, combined Swagger UI, and DLQ operator API |
+| Inventory | 8005 | SQL Server | Stock levels, reservations, backorders, and inventory reply events |
+| Shipping | 8006 | SQL Server | Shipment lifecycle and shipment reply events |
+| Payment | 8007 | SQL Server | Payment authorization, capture, void, refund, and payment reply events |
+| Saga | 8008 | SQL Server | Owns order saga state; drives Order/Inventory/Payment/Shipping via commands |
 
 ## Tech stack (actual)
 
 - **Language / runtime:** C# (latest), .NET 10
 - **Web:** ASP.NET Core **Minimal APIs** (no MVC controllers, no MediatR)
 - **Persistence:** EF Core with **SQL Server** (Redis only for basket and as order cache)
-- **Messaging:** RabbitMQ via fanout exchange `ecommerce-exchange`, wrapped by `IEventBus` in `ECommerce.Shared`
+- **Messaging:** RabbitMQ by default or Azure Service Bus via `Messaging:Provider`, wrapped by `IEventBus` in `ECommerce.Shared`
 - **Observability:** OpenTelemetry, Jaeger, Loki, Grafana, Prometheus (see `observability/` and `kubernetes/`)
 - **Containerization:** Docker / Docker Compose; Kubernetes manifests under `kubernetes/`
 - **CI/CD:** **Azure Pipelines** (`azure-pipelines.yml` per service). GitHub Actions is not used.
@@ -90,14 +91,14 @@ Consumers won't see changes until the version is bumped and the new `.nupkg` lan
 
 The "big picture" lives in three places that have to be read together:
 
-1. **Each service's `Program.cs`** — composition root. All wiring uses extension methods from `ECommerce.Shared`: `AddSqlServerDatastore`, `AddOutbox`, `AddRabbitMqEventBus`, `AddRabbitMqEventPublisher`, `AddRabbitMqSubscriberService`, `AddEventHandler<TEvent, THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`. New cross-cutting concerns belong in `shared-libs/ECommerce.Shared`, not duplicated per service.
+1. **Each service's `Program.cs`** — composition root. All wiring uses extension methods from `ECommerce.Shared`: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent, THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`. New cross-cutting concerns belong in `shared-libs/ECommerce.Shared`, not duplicated per service.
 
 2. **`shared-libs/ECommerce.Shared/Infrastructure/`**
    - `EventBus/` — `IEventBus`, `Event` base type, handler registration via keyed DI.
-   - `RabbitMq/` — fanout exchange `ecommerce-exchange`; `RabbitMqHostedService` subscribes, `RabbitMqEventBus` publishes; OTEL context propagates through message headers (`RabbitMqTelemetry`).
+   - `Messaging/`, `RabbitMq/`, `AzureServiceBus/` — provider selection via `Messaging:Provider`; RabbitMQ uses fanout exchange `ecommerce-exchange`, Azure Service Bus uses topics/subscriptions, and both preserve the same event contracts.
    - `Outbox/` — transactional outbox. `OutboxBackgroundService` polls `OutboxContext` for unpublished events. Services that publish events must call `AddOutbox(...)` and (in Development) `app.ApplyOutboxMigrations()`.
 
-3. **Order ↔ Inventory saga** — `OrderCreatedEvent` → Inventory reserves stock → `StockReserved` / `StockReservationFailed` → Order emits `OrderConfirmed` / `OrderCancelled` → Inventory commits or releases. Touching either side without considering both will desynchronize the flow. Event types live in each service's `IntegrationEvents/Events/`; handlers in `IntegrationEvents/EventHandlers/`.
+3. **Saga orchestrator** — Saga service starts from `OrderCreatedEvent`, persists saga state, and drives Order/Inventory/Payment/Shipping through commands. Participants publish reply events with `SagaId` and `CausationId`; Saga advances, retries, or compensates from those replies. Event and command handlers live under each service's `IntegrationEvents/EventHandlers/`.
 
 ## Service internal layout
 

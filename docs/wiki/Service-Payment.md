@@ -1,6 +1,6 @@
 # Payment Service
 
-Closes the checkout loop with authorize/capture/refund against a pluggable provider. Joins the existing Order ↔ Inventory ↔ Shipping choreography as a sibling participant: authorizes on `StockReservedEvent`, captures on `ShipmentDispatchedEvent`, and compensates on `OrderCancelledEvent`. Defaults to a deterministic in-memory gateway so the saga runs end-to-end with no external PSP secrets.
+Closes the checkout loop with authorize/capture/refund against a pluggable provider. Joins the order saga as an orchestrated participant: authorizes on `AuthorizePaymentCommand`, captures on `CapturePaymentCommand`, voids on `VoidPaymentCommand`, and refunds on `RefundPaymentCommand`. Defaults to a deterministic in-memory gateway so the saga runs end-to-end with no external PSP secrets.
 
 | | |
 |---|---|
@@ -8,16 +8,16 @@ Closes the checkout loop with authorize/capture/refund against a pluggable provi
 | **Datastore** | SQL Server (database: `Payment`) |
 | **Source** | [`payment-microservice/Payment.Service/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/payment-microservice/Payment.Service) |
 | **Tests** | [`payment-microservice/Payment.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/payment-microservice/Payment.Tests) |
-| **Publishes** | `PaymentAuthorizedEvent`, `PaymentFailedEvent`, `PaymentCapturedEvent`, `PaymentRefundedEvent` |
-| **Subscribes** | `OrderCreatedEvent`, `StockReservedEvent`, `ShipmentDispatchedEvent`, `OrderCancelledEvent` |
+| **Publishes** | `PaymentAuthorizedEvent`, `PaymentFailedEvent`, `PaymentCapturedEvent`, `PaymentVoidedEvent`, `PaymentRefundedEvent` |
+| **Subscribes** | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RefundPaymentCommand` (from Saga); `OrderCreatedEvent` (customer cache) |
 
 ## Responsibilities
 
-- Authorize the order amount on `StockReservedEvent` against `IPaymentGateway`; emit `PaymentAuthorizedEvent` on success or `PaymentFailedEvent` on decline.
-- Capture authorized funds when goods leave the warehouse (`ShipmentDispatchedEvent`); emit `PaymentCapturedEvent`.
-- Compensate on `OrderCancelledEvent`: void/refund any in-flight `Pending` or `Authorized` payment for the cancelled order. Idempotent.
-- Expose ownership-checked read endpoints to customers and admin-only refund/manual-capture endpoints.
 - Cache `(OrderId, CustomerId)` from `OrderCreatedEvent` so authorize knows the owning customer without an extra round trip.
+- Execute `AuthorizePaymentCommand` against `IPaymentGateway`; publish `PaymentAuthorizedEvent` on success or `PaymentFailedEvent` on decline as the reply event.
+- Execute `CapturePaymentCommand` when Saga advances after shipment dispatch; publish `PaymentCapturedEvent`.
+- Execute `VoidPaymentCommand` / `RefundPaymentCommand` during compensation; publish `PaymentVoidedEvent` / `PaymentRefundedEvent`. Both are idempotent on terminal states.
+- Expose ownership-checked read endpoints to customers and admin-only refund/manual-capture endpoints.
 - Emit metrics for payment volume per status and authorize latency.
 
 ## HTTP endpoints
@@ -37,54 +37,22 @@ Implementation: `Endpoints/PaymentApiEndpoints.cs`. Cross-customer reads return 
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending: StockReservedEvent
+    [*] --> Pending: AuthorizePaymentCommand
     Pending --> Authorized: gateway approves
     Pending --> Failed: gateway declines
-    Authorized --> Captured: ShipmentDispatchedEvent / manual capture
-    Captured --> Refunded: admin refund
-    Authorized --> Failed: OrderCancelledEvent (void)
-    Pending --> Failed: OrderCancelledEvent (void)
+    Authorized --> Captured: CapturePaymentCommand / manual capture
+    Captured --> Refunded: RefundPaymentCommand / admin refund
+    Authorized --> Voided: VoidPaymentCommand
+    Pending --> Voided: VoidPaymentCommand
     [*] --> Failed
     [*] --> Refunded
 ```
 
-Transitions are exposed on the `Payment` aggregate (`Authorize`, `Fail`, `Capture`, `Refund`, `Void`); illegal transitions throw `InvalidOperationException`. Unique constraint on `OrderId` enforces idempotency on redelivered `StockReservedEvent`.
+Transitions are exposed on the `Payment` aggregate (`Authorize`, `Fail`, `Capture`, `Refund`, `Void`); illegal transitions throw `InvalidOperationException`. Unique constraint on `OrderId` enforces idempotency on redelivered `AuthorizePaymentCommand`.
 
 ## Saga participation
 
-Payment moves the saga's "confirm" edge: Order no longer confirms on `StockReservedEvent` directly; it confirms in response to `PaymentAuthorizedEvent`. On decline, Order publishes the existing `OrderCancelledEvent` so Inventory's existing handler releases the reservation — no parallel compensation channel is introduced.
-
-```mermaid
-sequenceDiagram
-    participant Order
-    participant Bus as RabbitMQ
-    participant Inventory
-    participant Payment
-    participant Shipping
-
-    Order-->>Bus: OrderCreatedEvent
-    Bus-->>Inventory: OrderCreatedEvent
-    Bus-->>Payment: OrderCreatedEvent (cache CustomerId)
-    Inventory-->>Bus: StockReservedEvent
-    Bus-->>Payment: StockReservedEvent
-    alt gateway approves
-        Payment-->>Bus: PaymentAuthorizedEvent
-        Bus-->>Order: PaymentAuthorizedEvent
-        Order-->>Bus: OrderConfirmedEvent
-        Bus-->>Inventory: OrderConfirmedEvent
-        Inventory-->>Bus: StockCommittedEvent
-        Bus-->>Shipping: StockCommittedEvent
-        Shipping-->>Bus: ShipmentDispatchedEvent
-        Bus-->>Payment: ShipmentDispatchedEvent
-        Payment-->>Bus: PaymentCapturedEvent
-    else gateway declines
-        Payment-->>Bus: PaymentFailedEvent
-        Bus-->>Order: PaymentFailedEvent
-        Order-->>Bus: OrderCancelledEvent
-        Bus-->>Inventory: OrderCancelledEvent
-        Bus-->>Payment: OrderCancelledEvent
-    end
-```
+Payment is an orchestrated participant. The [Saga service](Service-Saga) gates the order's "confirm" edge on `PaymentAuthorizedEvent` and never advances unpaid orders to shipment. Compensation is explicit: Saga issues `VoidPaymentCommand` if only authorized, `RefundPaymentCommand` if already captured. See the canonical sequence in [Diagram-Saga](Diagram-Saga).
 
 ## Payment gateway abstraction
 
@@ -92,20 +60,23 @@ sequenceDiagram
 - `InMemoryPaymentGateway` — deterministic by amount cents (`.00` approves, `.99` declines). Lets the saga run end-to-end in CI without a real PSP.
 - A real Stripe/Adyen implementation can be slotted behind config without changing consumers.
 
-## Integration events
+## Integration events and commands
 
-- **Publishes**:
+- **Publishes (reply events)**:
   - `PaymentAuthorizedEvent` — `{ PaymentId, OrderId, CustomerId, Amount, Currency }`
   - `PaymentFailedEvent` — `{ PaymentId, OrderId, CustomerId, Reason }`
   - `PaymentCapturedEvent` — `{ PaymentId, OrderId, Amount }`
+  - `PaymentVoidedEvent` — `{ PaymentId, OrderId }`
   - `PaymentRefundedEvent` — `{ PaymentId, OrderId, Amount }`
-- **Subscribes**:
-  - `OrderCreatedEvent` — caches `(OrderId, CustomerId)` so authorize knows ownership.
-  - `StockReservedEvent` — creates `Pending` row, calls gateway, transitions to `Authorized` or `Failed`.
-  - `ShipmentDispatchedEvent` — captures the authorized payment.
-  - `OrderCancelledEvent` — voids in-flight `Pending`/`Authorized` payments for the cancelled order; idempotent on terminal states.
+- **Subscribes (saga commands)**:
+  - `AuthorizePaymentCommand` — creates `Pending` row, calls gateway, transitions to `Authorized` or `Failed`. Publishes the matching reply event.
+  - `CapturePaymentCommand` — captures the authorized payment; publishes `PaymentCapturedEvent`.
+  - `VoidPaymentCommand` — voids in-flight `Pending`/`Authorized` payments; idempotent on terminal states.
+  - `RefundPaymentCommand` — refunds a captured payment (full or partial); publishes `PaymentRefundedEvent`.
+- **Subscribes (events)**:
+  - `OrderCreatedEvent` — caches `(OrderId, CustomerId)` so the authorize handler knows ownership without an extra round trip.
 
-All published events go through the shared transactional outbox, so payment events cannot be lost mid-write.
+All published events and incoming commands flow through the shared transactional outbox + broker path, so payment state and reply events cannot diverge.
 
 ## Metrics
 

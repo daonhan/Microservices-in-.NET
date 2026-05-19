@@ -92,6 +92,8 @@ dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
 
 Pre-commit hook (`.husky/task-runner.json`) re-runs `dotnet format`, `dotnet build`, and the basket test suite — do not bypass with `--no-verify`.
 
+For docs-only changes (anything under `docs/**` or in a catalog surface), also run `scripts/check-doc-drift.sh` (or `scripts/check-doc-drift.ps1`) as the AFK self-check — the CI gate (`azure-pipelines.docs.yml`) runs the same script and blocks merge on drift.
+
 ## 6. Commit
 
 A single commit:

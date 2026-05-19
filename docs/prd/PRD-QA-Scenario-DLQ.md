@@ -3,7 +3,7 @@
 > Status: draft (plan mode).
 
 ## Context
-Following the completion of the baseline QA dataset (Issue #72), the platform requires a deterministic scenario to verify the Dead-Letter Queue (DLQ) and Operator Replay flow defined in ADR-0004. This ensures that transient infrastructure failures are recoverable without causing duplicate side-effects across the choreographed saga.
+Following the completion of the baseline QA dataset (Issue #72), the platform requires a deterministic scenario to verify the Dead-Letter Queue (DLQ) and Operator Replay flow defined in ADR-0004. This ensures that transient infrastructure failures are recoverable without causing duplicate side-effects across the saga participants.
 
 Per project conventions, this scenario prioritizes an automated "AFK" (Away From Keyboard) implementation via `scripts/local-smoke-test.ps1` first, followed by manual Human-in-the-Loop (HITL) verification using Bruno and Markdown runbooks.
 

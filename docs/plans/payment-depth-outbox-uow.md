@@ -31,7 +31,7 @@ Durable decisions that apply across all phases:
 - **External payment gateway**: payment gateway calls remain outside the database/outbox transaction. The unit-of-work covers only persisted Payment state and Outbox enqueue.
 - **Integration Events**: `PaymentAuthorizedEvent`, `PaymentCapturedEvent`, and `PaymentRefundedEvent` payloads remain unchanged.
 - **Messaging provider**: the Outbox unit-of-work is broker-agnostic. It writes provider-neutral Outbox rows and leaves delivery to the existing `IEventBus` publisher path selected by `Messaging:Provider`.
-- **Saga choreography**: no central orchestrator is introduced. Payment continues to react to and publish Integration Events as a saga participant.
+- **Saga coordination**: no dedicated orchestrator is introduced by this plan. Payment continues to react to and publish Integration Events as a saga participant.
 - **Shared package workflow**: `ECommerce.Shared` changes start from the merged `2.14.0` baseline. The Payment slice consumes `2.15.0`; additional consumers still require explicit package upgrades.
 - **Testing style**: tests assert external behaviour through the relevant seam. They do not assert private implementation details or raw transaction mechanics.
 

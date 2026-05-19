@@ -17,6 +17,7 @@ graph TD
     GW --> Inventory["Inventory<br/>:8005"]
     GW --> Shipping["Shipping<br/>:8006"]
     GW --> Payment["Payment<br/>:8007"]
+    GW --> Saga["Saga<br/>:8008"]
 
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL Server)]
@@ -25,6 +26,7 @@ graph TD
     Inventory --- SQLInventory[(SQL Server)]
     Shipping --- SQLShipping[(SQL Server)]
     Payment --- SQLPayment[(SQL Server)]
+    Saga --- SQLSaga[(SQL Server)]
     GW --- SQLGateway[(SQL Server<br/>dead_letter_messages)]
 
     Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>fanout exchange<br/>ecommerce-exchange<br/>+ ecommerce-dlq"}}
@@ -32,11 +34,22 @@ graph TD
     Inventory -- publishes --> RabbitMQ
     Payment -- publishes --> RabbitMQ
     Shipping -- publishes --> RabbitMQ
+    Saga -- publishes commands --> RabbitMQ
     RabbitMQ -- subscribes --> Basket
     RabbitMQ -- subscribes --> Order
     RabbitMQ -- subscribes --> Inventory
     RabbitMQ -- subscribes --> Payment
     RabbitMQ -- subscribes --> Shipping
+    RabbitMQ -- subscribes --> Saga
+
+    Saga -- commands --> Order
+    Saga -- commands --> Inventory
+    Saga -- commands --> Payment
+    Saga -- commands --> Shipping
+    Order -- reply events --> Saga
+    Inventory -- reply events --> Saga
+    Payment -- reply events --> Saga
+    Shipping -- reply events --> Saga
 
     subgraph Observability
         OTEL["OTEL Collector"]
@@ -54,6 +67,7 @@ graph TD
     Inventory -.-> OTEL
     Shipping -.-> OTEL
     Payment -.-> OTEL
+    Saga -.-> OTEL
     OTEL -.-> Jaeger
     OTEL -.-> Loki
     Prometheus -.-> Alertmanager
@@ -62,7 +76,7 @@ graph TD
     Grafana --- Jaeger
 ```
 
-Order, Inventory, Payment, and Shipping coordinate via a saga-style flow: `OrderCreatedEvent` → Inventory reserves stock → `StockReserved` / `StockReservationFailed` → Order emits `OrderConfirmedEvent` / `OrderCancelledEvent` → Inventory commits or releases the reservation, Payment authorizes/captures (publishing `PaymentAuthorized` / `PaymentCaptured` / `PaymentFailed` / `PaymentRefunded`), and Shipping creates a shipment on `StockCommitted` (publishing `ShipmentCreated` / `ShipmentDispatched` / `ShipmentDelivered` / `ShipmentCancelled` / `ShipmentReturned` / `ShipmentFailed`).
+Saga owns the order workflow. Order publishes `OrderCreatedEvent`; Saga persists an instance, sends commands to Order, Inventory, Payment, and Shipping, and advances only when those services publish reply events carrying `SagaId` and `CausationId`.
 
 ## Services
 
@@ -75,7 +89,8 @@ Order, Inventory, Payment, and Shipping coordinate via a saga-style flow: `Order
 | **API Gateway** | 8004 | SQL Server | YARP reverse proxy (Ocelot fallback available), centralized auth, role-based access, combined Swagger UI, **DLQ operator API** (`/operator/api/failures*`) |
 | **Inventory** | 8005 | SQL Server | Stock levels, reservations, backorders, low-stock monitoring; publishes `StockReserved`/`StockCommitted`/`StockReleased`/`StockAdjusted`/`StockDepleted`/`LowStock` events |
 | **Shipping** | 8006 | SQL Server | Creates and tracks shipments on `StockCommitted`; publishes `ShipmentCreated`/`ShipmentDispatched`/`ShipmentDelivered`/`ShipmentCancelled`/`ShipmentReturned`/`ShipmentFailed`/`ShipmentStatusChanged` events |
-| **Payment** | 8007 | SQL Server | Authorizes, captures, and refunds payments driven by order/saga events; publishes `PaymentAuthorized`/`PaymentCaptured`/`PaymentFailed`/`PaymentRefunded` events |
+| **Payment** | 8007 | SQL Server | Authorizes, captures, voids, and refunds payments driven by saga commands; publishes `PaymentAuthorized`/`PaymentCaptured`/`PaymentFailed`/`PaymentVoided`/`PaymentRefunded` events |
+| Saga | 8008 | SQL Server | Owns order saga state; drives Order/Inventory/Payment/Shipping via commands |
 
 ## Project Structure
 
@@ -95,6 +110,8 @@ Order, Inventory, Payment, and Shipping coordinate via a saga-style flow: `Order
 │   └── Shipping.Tests/       Unit & integration tests
 ├── payment-microservice/     Payment authorization, capture, refunds
 │   └── Payment.Tests/        Unit & integration tests
+├── saga-microservice/        Order/refund saga orchestration + operator saga API
+│   └── Saga.Tests/           Unit, integration, and end-to-end saga tests
 ├── shared-libs/              ECommerce.Shared NuGet library
 ├── local-nuget-packages/     Local NuGet feed for ECommerce.Shared
 ├── kubernetes/               K8s deployment manifests (services + observability)
@@ -134,7 +151,7 @@ Each microservice follows a consistent layout:
 docker compose up --build
 ```
 
-This starts the full stack: 8 microservices (Basket, Order, Product, Auth, Inventory, Shipping, Payment, API Gateway) + infrastructure (SQL Server, RabbitMQ, Redis) + observability (OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki) + Prometheus exporters for RabbitMQ, Redis, and SQL Server.
+This starts the full stack: 8 business microservices (Basket, Order, Product, Auth, Inventory, Shipping, Payment, Saga) + API Gateway + infrastructure (SQL Server, RabbitMQ, Redis) + observability (OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki) + Prometheus exporters for RabbitMQ, Redis, and SQL Server.
 
 RabbitMQ remains the default local broker for `docker compose up`, local smoke runs, and the Phase-4 saga regression path. To exercise the Azure Service Bus adapter locally, start the opt-in emulator profile:
 
@@ -208,7 +225,7 @@ dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
 | **Per-service datastore** | Each service owns its data — no shared databases |
 | **Event-driven communication** | Provider-aware async cross-service events over RabbitMQ or Azure Service Bus |
 | **Transactional Outbox** | DB write + outbox record in single transaction; background service publishes |
-| **Saga coordination** | Order ↔ Inventory ↔ Payment ↔ Shipping coordinate via integration events; no orchestrator |
+| **Saga coordination** | Saga service owns the workflow state and drives Order, Inventory, Payment, and Shipping with commands |
 | **Dead-Letter Queue + replay** | Failed broker messages and failed outbox rows are persisted in `dead_letter_messages`; the provider-agnostic gateway operator API allows replay/discard (single + batch) |
 | **API Gateway** | YARP reverse proxy centralizes routing, JWT validation, and role-based access (Ocelot implementation retained as runtime-switchable fallback) |
 | **Service auth** | Auth issues RS256 user tokens (`/login`) and service tokens (`/token`, `client_credentials`); consumers validate via `/jwks` and the shared `RequireService` policy |
@@ -380,7 +397,7 @@ Services discover each other via Kubernetes DNS (e.g., `rabbitmq-clusterip-servi
 | Testing | xUnit, NSubstitute, WebApplicationFactory |
 | Observability | OpenTelemetry (traces + metrics + logs via OTLP), OTEL Collector, Jaeger, Prometheus, Alertmanager, Grafana, Loki |
 | Health | `Microsoft.Extensions.Diagnostics.HealthChecks` via shared `AddPlatformHealthChecks` |
-| Resilience | Polly, EF Core retries, Outbox pattern with failure tracking, provider-agnostic DLQ capture/replay, saga-style order/inventory/payment/shipping coordination |
+| Resilience | Polly, EF Core retries, Outbox pattern with failure tracking, provider-agnostic DLQ capture/replay, saga-orchestrated order/inventory/payment/shipping coordination |
 | Security | RS256 JWTs (`/jwks` discovery), `client_credentials` service tokens, `RequireService` policy, YARP API Gateway (Ocelot fallback), role-based auth |
 | Tooling | Husky.Net pre-commit hooks (`dotnet format` + build + Basket tests) |
 | Deployment | Docker, Docker Compose, Kubernetes |
