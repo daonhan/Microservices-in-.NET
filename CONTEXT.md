@@ -81,7 +81,7 @@ Short definitions of the load-bearing terms used throughout this repo. Each entr
 - **Fanout exchange.** A RabbitMQ exchange type that broadcasts every published message to every bound queue, with no routing-key filtering. The platform uses a single fanout exchange so adding a new subscriber is a configuration change, not a publisher change.
 - **YARP.** Yet Another Reverse Proxy, Microsoft's modern reverse-proxy library for .NET. It is the default provider behind the API Gateway and handles routing, JWT enforcement, and combined Swagger UI.
 - **Ocelot.** A long-standing .NET API gateway library. It compiles into the same gateway binary as YARP and can be selected at boot via the `Gateway:Provider` flag, giving a like-for-like fallback without a redeploy of the surrounding services.
-- **Choreography vs Orchestration.** Two styles of saga coordination. In _orchestration_ a central process tells each service what to do next; in _choreography_ each service reacts to events and decides its own next move. This platform now uses orchestration through the Saga service; ADR-0010 supersedes the earlier ADR-0008 choreography decision.
+- **Orchestration vs event-driven coordination.** Two styles of saga coordination. In _orchestration_ a central process tells each service what to do next; in the event-driven style each service reacts to peer events and decides its own next move. This platform now uses orchestration through the Saga service, which sends commands to Order, Inventory, Payment, and Shipping and advances on their reply events; ADR-0010 supersedes the earlier ADR-0008 decision.
 - **Minimal API.** The ASP.NET Core programming model that defines HTTP endpoints as lambdas registered directly on the app, without MVC controllers. Every service in this repo exposes its HTTP surface this way, keeping endpoint files small and focused.
 - **`.slnx`.** The XML-based Visual Studio solution format that replaces the legacy `.sln` for this repo. Each service ships its own `.slnx`, so build and test boundaries match service boundaries and there is no monolithic root solution.
 - **OTEL Collector.** The OpenTelemetry Collector, a vendor-neutral agent that receives traces, metrics, and logs from the services and forwards them to Jaeger, Prometheus, and Loki. Services talk only to the Collector, which keeps the export pipeline swappable.
@@ -175,9 +175,9 @@ The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/REA
 5. [ADR-0005](docs/adr/0005-ecommerce-shared-as-nuget-via-local-feed.md) — `ECommerce.Shared` distributed as a NuGet package via a local feed
 6. [ADR-0006](docs/adr/0006-one-slnx-solution-per-service.md) — One `.slnx` solution per service; no root `.sln`
 7. [ADR-0007](docs/adr/0007-ef-core-database-per-service.md) — EF Core with one database per service
-8. [ADR-0008](docs/adr/0008-saga-choreography-no-central-orchestrator.md) — Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping
+8. [ADR-0008](docs/adr/0008-saga-choreography-no-central-orchestrator.md) — Event-driven saga coordination for Order/Inventory/Payment/Shipping (superseded)
 9. [ADR-0009](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md) — OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack
-10. [ADR-0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md) — Saga orchestrator supersedes choreography for Order/Inventory/Payment/Shipping
+10. [ADR-0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md) — Saga orchestrator owns Order/Inventory/Payment/Shipping (supersedes ADR-0008)
 
 ## AI workflow
 
@@ -201,7 +201,7 @@ The net effect is that AI tools moved me from "can I learn this in my spare time
 
 In rough order of how surprising each one was:
 
-1. **Saga choreography vs orchestration is a real architectural choice, not a style preference.** I started with choreography for Order → Inventory → Payment → Shipping (ADR-0008), then replaced it with the Saga service after the operational cost became concrete (ADR-0010). The trade-off is observable rather than theoretical: tracing helps, but a persisted orchestrator state machine is the file that tells you the saga's shape.
+1. **Event-driven coordination vs orchestration is a real architectural choice, not a style preference.** I started with peer-to-peer event coordination for Order → Inventory → Payment → Shipping (ADR-0008), then replaced it with the Saga service after the operational cost became concrete (ADR-0010). The trade-off is observable rather than theoretical: tracing helps, but a persisted orchestrator state machine is the file that tells you the saga's shape.
 2. **Outbox semantics are subtler than the pattern's name suggests.** "Write the event in the same transaction as the state change" is the easy half. The hard half is the poller: idempotent publish, ordered drain per aggregate, dead-letter on poisoned messages, and an operator API to replay or discard them (ADR-0004). The outbox isn't done until the DLQ has a UX.
 3. **JWT issuance with JWKS discovery is more boring than I expected, and that's the point.** RS256 + `/jwks` (ADR-0003) means no service ever sees the signing key, no shared secret has to rotate across service config files, and adding another service is a three-line change. The first time I rotated a key in dev and nothing broke is the moment the design earned its keep.
 4. **OpenTelemetry wiring is 80% plumbing, 20% taste.** Getting traces, metrics, and logs through a single Collector into Jaeger/Prometheus/Loki is mechanical (ADR-0009). The interesting work is *what* to instrument: outbox lag, DLQ depth, saga step latency, RabbitMQ queue backlog. The dashboards and alerts (`HighHttpErrorRate`, `RabbitMqQueueBacklog`, `LowStockAlert`) are where the platform becomes operable rather than just observable.
@@ -291,9 +291,9 @@ Every doc, plan, ADR, runbook, and deployment manifest folder in the repo, index
 - [ADR-0005 — `ECommerce.Shared` as NuGet via local feed](docs/adr/0005-ecommerce-shared-as-nuget-via-local-feed.md)
 - [ADR-0006 — One `.slnx` solution per service](docs/adr/0006-one-slnx-solution-per-service.md)
 - [ADR-0007 — EF Core database per service](docs/adr/0007-ef-core-database-per-service.md)
-- [ADR-0008 — Saga choreography (no central orchestrator)](docs/adr/0008-saga-choreography-no-central-orchestrator.md)
+- [ADR-0008 — Event-driven saga coordination (superseded)](docs/adr/0008-saga-choreography-no-central-orchestrator.md)
 - [ADR-0009 — OTEL + Jaeger + Prometheus + Loki + Grafana](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md)
-- [ADR-0010 — Saga orchestrator supersedes choreography](docs/adr/0010-saga-orchestrator-supersedes-choreography.md)
+- [ADR-0010 — Saga orchestrator (supersedes ADR-0008)](docs/adr/0010-saga-orchestrator-supersedes-choreography.md)
 
 ### Runbooks ([`docs/runbooks/`](docs/runbooks/))
 

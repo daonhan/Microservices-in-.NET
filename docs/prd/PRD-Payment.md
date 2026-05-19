@@ -4,7 +4,7 @@
 
 ## Context
 
-The Nhamnhi e-commerce repo currently runs an event-choreographed saga across Order, Inventory, Basket, Shipping, Product, and Auth services. The checkout loop today is **incomplete**: an order is created, stock is reserved/committed, and a shipment is produced — but **money never moves**. There is no payment authorization, no capture, no failure compensation tied to charging. This PRD specifies a Payment microservice that joins the existing choreography as a sibling participant (modeled on Shipping), closes the checkout loop, and lets failed payments compensate the saga via the existing `OrderCancelledEvent` path. Outcome: a complete create-order → reserve-stock → authorize-payment → confirm-order → ship → capture → deliver flow with deterministic, testable failure handling and no real PSP dependency.
+The Nhamnhi e-commerce repo currently runs an event-coordinated saga across Order, Inventory, Basket, Shipping, Product, and Auth services. The checkout loop today is **incomplete**: an order is created, stock is reserved/committed, and a shipment is produced — but **money never moves**. There is no payment authorization, no capture, no failure compensation tied to charging. This PRD specifies a Payment microservice that joins the existing event-driven saga as a sibling participant (modeled on Shipping), closes the checkout loop, and lets failed payments compensate the saga via the existing `OrderCancelledEvent` path. Outcome: a complete create-order → reserve-stock → authorize-payment → confirm-order → ship → capture → deliver flow with deterministic, testable failure handling and no real PSP dependency.
 
 ## Problem Statement
 
@@ -152,7 +152,7 @@ Modules under test:
 ## Further Notes
 
 - The shared library version bump (1.17 → 1.18) is the riskiest piece. Every service `csproj` referencing `ECommerce.Shared` must be bumped together to avoid runtime mismatch on event shapes. The bump should land in the same PR as the Payment service.
-- Choreography is preserved deliberately. There is no MassTransit/NServiceBus saga state machine in the repo today, and this PRD does not introduce one. The Payment-driven `OrderConfirmed` decision keeps all coordination in event handlers, consistent with the rest of the codebase.
+- The event-driven saga coordination is preserved deliberately by this PRD. There is no MassTransit/NServiceBus saga state machine in the repo today, and this PRD does not introduce one. The Payment-driven `OrderConfirmed` decision keeps all coordination in event handlers, consistent with the rest of the codebase.
 
 ---
 

@@ -9,12 +9,12 @@ Stock ledger. Tracks stock levels, reservations, movements, and backorders, and 
 | **Source** | [`inventory-microservice/Inventory.Service/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/inventory-microservice/Inventory.Service) |
 | **Tests** | [`inventory-microservice/Inventory.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/inventory-microservice/Inventory.Tests) |
 | **Publishes** | `StockReservedEvent`, `StockReservationFailedEvent`, `StockCommittedEvent`, `StockReleasedEvent`, `StockAdjustedEvent`, `StockDepletedEvent`, `LowStockEvent` |
-| **Subscribes** | `ProductCreatedEvent`, `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent` |
+| **Subscribes** | `ReserveStockCommand`, `CommitStockCommand`, `ReleaseStockCommand` (from Saga), `ProductCreatedEvent` |
 
 ## Responsibilities
 
 - Maintain stock rows keyed by `ProductId` (created on `ProductCreatedEvent`).
-- Reserve stock on `OrderCreatedEvent`; commit on `OrderConfirmedEvent`; release on `OrderCancelledEvent`.
+- Execute saga commands from the [Saga service](Service-Saga): reserve on `ReserveStockCommand`, commit on `CommitStockCommand`, release on `ReleaseStockCommand`. Publish the matching reply event (`StockReservedEvent` / `StockReservationFailedEvent` / `StockCommittedEvent` / `StockReleasedEvent`) for each.
 - Record every stock change as a stock movement.
 - Accept backorder requests when stock is insufficient.
 - Emit low-stock and depleted signals for ops/alerting.
@@ -53,7 +53,7 @@ See [`docs/prd/PRD-StockItem-Aggregate.md`](https://github.com/daonhan/Microserv
 
 ## Saga participation
 
-See [Architecture § Saga](Architecture#saga-order--inventory).
+Inventory is a saga participant driven by the [Saga service](Service-Saga). The aggregate methods `Hold` / `Commit` / `Release` are invoked from `ReserveStockCommandHandler`, `CommitStockCommandHandler`, and `ReleaseStockCommandHandler`; each handler publishes the matching reply event back to Saga in the same outbox envelope. See the canonical sequence in [Diagram-Saga](Diagram-Saga).
 
 ## Structure
 

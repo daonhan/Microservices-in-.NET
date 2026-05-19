@@ -1,6 +1,6 @@
 # Order Service
 
-Order lifecycle service. Persists orders to SQL Server, emits domain events via the Outbox, and participates in the Order↔Inventory saga.
+Order lifecycle service. Persists orders to SQL Server, emits domain events via the Outbox, and participates in the order saga as a command receiver and reply-event publisher driven by the [Saga service](Service-Saga).
 
 | | |
 |---|---|
@@ -9,12 +9,12 @@ Order lifecycle service. Persists orders to SQL Server, emits domain events via 
 | **Source** | [`order-microservice/Order.Service/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/order-microservice/Order.Service) |
 | **Tests** | [`order-microservice/Order.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/order-microservice/Order.Tests) |
 | **Publishes** | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent` |
-| **Subscribes** | `StockReservationFailedEvent`, `PaymentAuthorizedEvent`, `PaymentFailedEvent`, `ProductCreatedEvent` |
+| **Subscribes** | `ConfirmOrderCommand`, `CancelOrderCommand` (from Saga), `ProductCreatedEvent` (price cache) |
 
 ## Responsibilities
 
-- Accept an order, persist it with its line items, and emit `OrderCreatedEvent` transactionally via the Outbox.
-- React to Inventory's reservation outcome and transition the order to `Confirmed` or `Cancelled`.
+- Accept an order, persist it with its line items, and emit `OrderCreatedEvent` transactionally via the Outbox. `OrderCreatedEvent` opens a saga in the Saga service.
+- Execute `ConfirmOrderCommand` and `CancelOrderCommand` from Saga, transition the order's state, and publish `OrderConfirmedEvent` / `OrderCancelledEvent` as reply events.
 - Expose read access to the order.
 - Maintain a Redis-backed price cache used at order submission, primed by `ProductCreatedEvent` and refilled on miss via the Product service HTTP client.
 
@@ -31,13 +31,12 @@ Implementation: `Endpoints/OrderApiEndpoint.cs`.
 
 ## Saga participation
 
-See the sequence diagram in [Architecture](Architecture#saga-order--inventory--payment--shipping). Summary:
+Order is a saga participant. The orchestration is owned by the [Saga service](Service-Saga); see the canonical sequence in [Diagram-Saga](Diagram-Saga). Order's contribution:
 
 - On `POST`, Order writes order rows + outbox row in one transaction. `OrderCreatedEvent` carries `UnitPrice` per item and `Currency` so Payment can authorize without an extra round trip.
-- Outbox background service publishes `OrderCreatedEvent`.
-- `PaymentAuthorizedEventHandler` → order becomes `Confirmed`, emits `OrderConfirmedEvent`. (The pre-Payment behaviour where `StockReservedEvent` confirmed directly has been removed.)
-- `PaymentFailedEventHandler` → order becomes `Cancelled`, emits `OrderCancelledEvent`. Inventory's existing handler releases the reservation from the same signal.
-- `StockReservationFailedEventHandler` → order becomes `Cancelled`, emits `OrderCancelledEvent`.
+- Outbox background service publishes `OrderCreatedEvent`. Saga subscribes to it and opens a persisted saga instance.
+- `ConfirmOrderCommandHandler` → order becomes `Confirmed` and publishes `OrderConfirmedEvent` as the reply event. Saga issues this command only after `PaymentAuthorizedEvent`, so no unpaid order can advance.
+- `CancelOrderCommandHandler` → order becomes `Cancelled` and publishes `OrderCancelledEvent` as the reply event. Saga issues this command during compensation, after the relevant stock/payment/shipment reversal commands have completed.
 
 ## Persistence pattern: unit-of-work + domain events
 

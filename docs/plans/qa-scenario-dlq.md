@@ -9,7 +9,7 @@ Durable decisions that apply across all phases:
 - **Authentication / Authorization**: The scenario relies on a pre-seeded `operator@qa.test` persona that holds the `operator` role claim, granting access to the protected Gateway Operator APIs.
 - **Routes**: Interactions occur exclusively via the API Gateway Minimal API endpoints (`/operator/api/failures` and `/operator/api/failures/{id}/replay`). The Blazor UI is out of scope.
 - **Failure Simulation Orchestration**: Transient failures are deterministically simulated via Docker container orchestration (stopping and starting `sql-shipping` container) rather than modifying application logic to ingest poison pills.
-- **Targeted Replay**: A replay from the DLQ targets only the originally failed service, ensuring that previously successful choreographies (like Basket checkout or Payment) are not inadvertently duplicated.
+- **Targeted Replay**: A replay from the DLQ targets only the originally failed service, ensuring that previously successful saga steps (like Basket checkout or Payment) are not inadvertently duplicated.
 
 ---
 

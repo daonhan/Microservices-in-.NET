@@ -87,5 +87,5 @@ All operator routes require Bearer auth with the existing `RequireService` polic
 
 - [PRD-Saga-Orchestrator](../prd/PRD-Saga-Orchestrator.md)
 - [Saga orchestrator strangler runbook](../runbooks/saga-orchestrator-strangler.md)
-- [ADR-0010 — Saga orchestrator supersedes choreography](../adr/0010-saga-orchestrator-supersedes-choreography.md)
+- [ADR-0010 — Saga orchestrator (supersedes ADR-0008)](../adr/0010-saga-orchestrator-supersedes-choreography.md)
 - [Integration events](Integration-Events)

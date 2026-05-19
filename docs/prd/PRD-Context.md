@@ -31,7 +31,7 @@ Alongside `CONTEXT.md`, bootstrap a new `docs/adr/` directory with nine numbered
 5. As a developer friend, I want the top of `CONTEXT.md` to be a scannable TL;DR with badges, a one-paragraph pitch, and a "what's interesting here" list, so that I can decide in 30 seconds whether to keep reading.
 6. As a recruiter or hiring manager visiting from my LinkedIn (`linkedin.com/in/daonhan`), I want `CONTEXT.md` to make the scope and ambition of the project obvious without requiring me to read code, so that I can evaluate the work quickly.
 7. As a recruiter, I want a clear "AI workflow" section explaining which tasks were paired with Claude Code Pro versus GitHub Copilot Pro+, so that I understand the candidate's competency with modern AI-assisted development.
-8. As any reader, I want a "What I learned" section listing five to seven concrete takeaways (saga choreography vs orchestration, outbox semantics, JWT/JWKS issuance, OpenTelemetry wiring, dual-gateway switching, NuGet-vs-project-reference shared libraries), so that the document has lasting reference value.
+8. As any reader, I want a "What I learned" section listing five to seven concrete takeaways (orchestration vs event-driven saga coordination, outbox semantics, JWT/JWKS issuance, OpenTelemetry wiring, dual-gateway switching, NuGet-vs-project-reference shared libraries), so that the document has lasting reference value.
 9. As any reader, I want screenshots of the Grafana dashboards and the API Gateway Swagger UI embedded in `CONTEXT.md`, so that the system feels real even before I run it locally.
 10. As any reader, I want badges at the top of `CONTEXT.md` for build status, license, and .NET 10 target, so that the project's health is immediately visible.
 11. As any reader, I want a footer linking back to my LinkedIn profile and Substack page, so that the document doubles as a personal landing page.
@@ -47,7 +47,7 @@ Alongside `CONTEXT.md`, bootstrap a new `docs/adr/` directory with nine numbered
 21. As an external learner, I want ADR-0005 to capture `ECommerce.Shared` distributed as a NuGet package against a local feed (instead of project references) so that I understand the shared-library workflow.
 22. As an external learner, I want ADR-0006 to capture the choice of one `.slnx` per service with no root `.sln` so that I understand the per-service build/test boundary.
 23. As an external learner, I want ADR-0007 to capture EF Core with one database per service so that I understand the data-isolation invariant.
-24. As an external learner, I want ADR-0008 to capture saga choreography (no orchestrator) for the Order/Inventory/Payment/Shipping flow so that I understand why coordination is event-driven.
+24. As an external learner, I want ADR-0008 to capture event-driven saga coordination (no dedicated orchestrator) for the Order/Inventory/Payment/Shipping flow so that I understand why coordination is event-driven.
 25. As an external learner, I want ADR-0009 to capture the OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack so that I understand how signals are exported, stored, and visualized.
 26. As a contributor proposing a new architectural decision, I want a clear template at `docs/adr/0000-template.md` so that the format is consistent across ADRs.
 27. As a maintainer, I want `docs/adr/README.md` to be a one-page index listing every ADR by number, title, and status, so that the directory is self-navigating.
@@ -62,7 +62,7 @@ Alongside `CONTEXT.md`, bootstrap a new `docs/adr/` directory with nine numbered
 - **Audiences served**: AI agents (primary), human developers and friends, recruiters arriving from LinkedIn. The structure is ordered to serve all three from the top down.
 - **Top-of-file share-block** contains: project title, badges (build status, license, .NET 10 target), one-paragraph pitch, three to five "what's interesting here" bullets, links to README, wiki home, live demo (if any), and to my LinkedIn and Substack.
 - **Body sections** (in order): Why I built it · What it is · Domain glossary · Architecture at a glance (reuses the mermaid diagram from `README.md`) · Architectural decisions index (links to each ADR) · AI workflow (Claude Code Pro + Copilot Pro+ — what each was used for) · What I learned · Link tree (wiki pages, PRDs, plans, runbooks) · Footer (LinkedIn + Substack).
-- **Glossary scope**: full set — Saga, Outbox, Dead-Letter Queue (DLQ), Integration Event, Reservation, Backorder, Authorize, Capture, Refund, JWKS, Fanout exchange, YARP, Ocelot, Choreography vs Orchestration, Minimal API, `.slnx`, OTEL Collector. Each entry is one to three sentences in business or platform terms — not implementation detail.
+- **Glossary scope**: full set — Saga, Outbox, Dead-Letter Queue (DLQ), Integration Event, Reservation, Backorder, Authorize, Capture, Refund, JWKS, Fanout exchange, YARP, Ocelot, Orchestration vs event-driven coordination, Minimal API, `.slnx`, OTEL Collector. Each entry is one to three sentences in business or platform terms — not implementation detail.
 - **Living doc**: `CONTEXT.md` is updated in the same PR as any change that invalidates a section (new service, new ADR, removed component, changed glossary term).
 - **No tests**: per the user, no link-check or other automation is added in this PRD's scope. Review at PR time is the quality gate.
 - **ADR directory**: a new `docs/adr/` folder with `README.md` (index), `0000-template.md` (template), and ADRs 0001 through 0009 listed below.
@@ -76,7 +76,7 @@ Alongside `CONTEXT.md`, bootstrap a new `docs/adr/` directory with nine numbered
   5. ADR-0005 — `ECommerce.Shared` distributed as a NuGet package via a local feed
   6. ADR-0006 — One `.slnx` solution per service; no root `.sln`
   7. ADR-0007 — EF Core with one database per service
-  8. ADR-0008 — Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping
+  8. ADR-0008 — Event-driven saga coordination (no dedicated orchestrator) for Order/Inventory/Payment/Shipping
   9. ADR-0009 — OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack
 - **ADRs explicitly out of the initial set**: Minimal APIs vs MVC (deferred — not load-bearing enough to warrant an ADR yet).
 - **Cross-linking**: `CONTEXT.md` deep-links to each ADR by number and title. Each ADR links back to the relevant wiki page and source folder. `README.md` is updated only with a single new line near the top pointing readers at `CONTEXT.md` — no other README content moves.
