@@ -5,13 +5,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 
-> **TL;DR — share-block.** I built this repo to learn and demonstrate microservices in .NET 10 end-to-end, paired with **Claude Code Pro** and **GitHub Copilot Pro+** as my coding partners. It's a seven-service e-commerce platform with a YARP/Ocelot-switchable gateway, a transactional outbox, an event-driven saga across Order/Inventory/Payment/Shipping, RS256 JWT auth with `/jwks` discovery, an OpenTelemetry stack (Jaeger + Prometheus + Loki + Grafana), Kubernetes manifests, and a full GitHub Wiki sourced from `docs/wiki/`. This file is the single grounded entry point for AI agents, developer friends, and recruiters.
+> **TL;DR — share-block.** I built this repo to learn and demonstrate microservices in .NET 10 end-to-end, paired with **Claude Code Pro** and **GitHub Copilot Pro+** as my coding partners. It's an eight-business-service e-commerce platform with a YARP/Ocelot-switchable gateway, a transactional outbox, a Saga orchestrator for Order/Inventory/Payment/Shipping, RS256 JWT auth with `/jwks` discovery, an OpenTelemetry stack (Jaeger + Prometheus + Loki + Grafana), Kubernetes manifests, and a full GitHub Wiki sourced from `docs/wiki/`. This file is the single grounded entry point for AI agents, developer friends, and recruiters.
 
 ### What's interesting here
 
 - **Dual-gateway switch.** The same gateway service compiles both **YARP** (default) and **Ocelot** behind a `Gateway:Provider` flag — same routes, same auth, same metrics, swap at boot.
 - **Transactional outbox + provider-aware messaging + DLQ operator API.** Publishers never write straight to the broker; a poller drains the outbox, and RabbitMQ or Azure Service Bus dead letters surface through the same gateway-fronted operator endpoint.
-- **Choreographed saga across four services** — Order → Inventory → Payment → Shipping, no central orchestrator, all coordination via integration events.
+- **Orchestrator-led saga across four participants** — Saga owns the workflow state and drives Order, Inventory, Payment, and Shipping through commands plus reply events.
 - **`ECommerce.Shared` as a real NuGet package** against a local feed (`local-nuget-packages/`) instead of project references — closer to how real shared libraries propagate.
 - **One `.slnx` per service, no root `.sln`.** Each service has an independent build/test boundary; `Directory.Build.props` enforces `TreatWarningsAsErrors`.
 - **AI-first development workflow.** PRDs in `docs/prd/`, plans in `docs/plans/`, and `CLAUDE.md` / `.github/copilot-instructions.md` act as the contract between me and the agents.
@@ -28,7 +28,7 @@
 
 ## Why I built it
 
-I built this repo to teach myself microservices in .NET 10 the way I'd want to be taught — by shipping a system that actually walks the hard paths, not by reading another tutorial that stops at "hello world over HTTP." My day job rarely lets me touch the parts of distributed systems I find most interesting: choreographed sagas, transactional outboxes, JWT issuance with JWKS, dead-letter handling, OpenTelemetry end-to-end. So I gave myself a portfolio-sized scope — seven services, a real gateway, real observability, real deployment manifests — and committed to learning each piece by making it work, breaking it, and writing about it.
+I built this repo to teach myself microservices in .NET 10 the way I'd want to be taught — by shipping a system that actually walks the hard paths, not by reading another tutorial that stops at "hello world over HTTP." My day job rarely lets me touch the parts of distributed systems I find most interesting: saga orchestration, transactional outboxes, JWT issuance with JWKS, dead-letter handling, OpenTelemetry end-to-end. So I gave myself a portfolio-sized scope — eight business services, a real gateway, real observability, real deployment manifests — and committed to learning each piece by making it work, breaking it, and writing about it.
 
 The second motivation is portfolio: I wanted one repository I can point a recruiter or a future teammate at and say "this is how I think about systems, this is how I work with AI tools, this is the depth I care about." Most of my professional code lives behind NDAs. This one is public on purpose.
 
@@ -36,17 +36,31 @@ The third motivation is the AI-pair-programming workflow itself. I wanted to fin
 
 ## What it is
 
-A seven-service e-commerce platform on .NET 10, built to run locally in Docker Compose and to deploy to Kubernetes.
+An eight-business-service e-commerce platform on .NET 10, built to run locally in Docker Compose and to deploy to Kubernetes.
 
-- **Services.** Auth, Basket, Product, Order, Inventory, Payment, Shipping. One bounded context each, one datastore each, one `.slnx` solution each.
+- **Services.** Auth, Basket, Product, Order, Inventory, Payment, Shipping, Saga. One bounded context each, one datastore each, one `.slnx` solution each.
 - **Datastores.** SQL Server for everything except Basket, which uses Redis. Each service owns its schema; there is no shared database.
-- **Gateway.** A single API Gateway in front of the seven services that compiles **both** YARP and Ocelot and selects between them at boot via the `Gateway:Provider` flag. Same routes, same auth rules, same metrics either way.
+- **Gateway.** A single API Gateway in front of the business services that compiles **both** YARP and Ocelot and selects between them at boot via the `Gateway:Provider` flag. Same routes, same auth rules, same metrics either way.
 - **Auth.** RS256 JWTs issued by the Auth service and validated by every other service via the `/jwks` discovery endpoint — no shared secrets, no copy-pasted signing keys.
 - **Async backbone.** RabbitMQ is the default local broker, and Azure Service Bus can be selected with `Messaging:Provider`. Use [docs/local-dev/messaging.md](docs/local-dev/messaging.md) to choose between Compose Rabbit, F5 + ASB emulator, F5 + shared dev namespace, and Compose `--profile asb`. Both broker paths use the gateway operator API for captured dead letters. Publishers go through a transactional outbox so a crash between "committed" and "published" cannot desynchronise the system.
-- **Saga.** Order → Inventory → Payment → Shipping, choreographed through integration events. No central orchestrator; the workflow lives in the events themselves.
+- **Saga.** Saga service starts from `OrderCreatedEvent`, stores saga instance state, sends commands to Order/Inventory/Payment/Shipping, and advances from their reply events.
 - **Observability.** OpenTelemetry traces, metrics, and logs flow through an OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top and Alertmanager wired to a starter set of alerts.
 - **Deployment.** Docker Compose for local, Kubernetes manifests under `kubernetes/` for `dev`/`staging`/`prod`, and an Azure-flavoured infra/pipelines folder under `Infrastructure - Deployment/`.
 - **Shared library.** `ECommerce.Shared` is published as a NuGet package against a local feed (`local-nuget-packages/`) and consumed by every service via `<PackageReference>`, not via project references.
+
+Service catalog:
+
+| Service | Port | Datastore | Responsibility |
+|---|---:|---|---|
+| Basket | 8000 | Redis | Shopping cart CRUD and product price caching |
+| Order | 8001 | SQL Server + Redis | Order creation, confirmation, cancellation, and order events |
+| Product | 8002 | SQL Server | Product catalog and product price events |
+| Auth | 8003 | SQL Server | User JWTs, service tokens, and JWKS discovery |
+| API Gateway | 8004 | SQL Server | YARP/Ocelot routing, auth enforcement, combined Swagger UI, and DLQ operator API |
+| Inventory | 8005 | SQL Server | Stock levels, reservations, backorders, and inventory reply events |
+| Shipping | 8006 | SQL Server | Shipment lifecycle and shipment reply events |
+| Payment | 8007 | SQL Server | Payment authorization, capture, void, refund, and payment reply events |
+| Saga | 8008 | SQL Server | Owns order saga state; drives Order/Inventory/Payment/Shipping via commands |
 
 If you want the runnable quickstart and the full per-service reference, that lives in the [README](README.md) and the [wiki](docs/wiki/Home.md). This page is the *why* and the *how I work*; those are the *what* and the *how to run*.
 
@@ -54,7 +68,7 @@ If you want the runnable quickstart and the full per-service reference, that liv
 
 Short definitions of the load-bearing terms used throughout this repo. Each entry is platform vocabulary, not implementation guidance — see the ADRs and wiki for how each term is realised in code.
 
-- **Saga.** A long-running business transaction that spans multiple services and reaches a consistent end state through a sequence of local steps and compensating actions. In this platform a saga walks Order → Inventory → Payment → Shipping and ends in either `OrderConfirmed` or `OrderCancelled`.
+- **Saga.** A long-running business transaction that spans multiple services and reaches a consistent end state through a sequence of local steps and compensating actions. In this platform the Saga service drives Order → Inventory → Payment → Shipping and records each transition.
 - **Outbox.** A reliability pattern where a service writes the events it intends to publish into the same database transaction as the state change that produced them. A separate poller drains the outbox to the message broker, so a crash between "committed" and "published" cannot leave the system inconsistent.
 - **Dead-Letter Queue (DLQ).** A holding area for messages that could not be processed after the configured retries. Operators inspect, replay, or discard them through the gateway's operator API instead of losing the work or blocking the live queues.
 - **Integration Event.** A message a service publishes to announce that something has happened in its bounded context, intended for other services to react to. Integration events are the only sanctioned way for services in this repo to communicate state changes — there is no shared database and no cross-service synchronous call for write paths.
@@ -67,14 +81,14 @@ Short definitions of the load-bearing terms used throughout this repo. Each entr
 - **Fanout exchange.** A RabbitMQ exchange type that broadcasts every published message to every bound queue, with no routing-key filtering. The platform uses a single fanout exchange so adding a new subscriber is a configuration change, not a publisher change.
 - **YARP.** Yet Another Reverse Proxy, Microsoft's modern reverse-proxy library for .NET. It is the default provider behind the API Gateway and handles routing, JWT enforcement, and combined Swagger UI.
 - **Ocelot.** A long-standing .NET API gateway library. It compiles into the same gateway binary as YARP and can be selected at boot via the `Gateway:Provider` flag, giving a like-for-like fallback without a redeploy of the surrounding services.
-- **Choreography vs Orchestration.** Two styles of saga coordination. In _orchestration_ a central process tells each service what to do next; in _choreography_ each service reacts to events and decides its own next move. This platform uses choreography — there is no orchestrator service.
+- **Choreography vs Orchestration.** Two styles of saga coordination. In _orchestration_ a central process tells each service what to do next; in _choreography_ each service reacts to events and decides its own next move. This platform now uses orchestration through the Saga service; ADR-0010 supersedes the earlier ADR-0008 choreography decision.
 - **Minimal API.** The ASP.NET Core programming model that defines HTTP endpoints as lambdas registered directly on the app, without MVC controllers. Every service in this repo exposes its HTTP surface this way, keeping endpoint files small and focused.
 - **`.slnx`.** The XML-based Visual Studio solution format that replaces the legacy `.sln` for this repo. Each service ships its own `.slnx`, so build and test boundaries match service boundaries and there is no monolithic root solution.
 - **OTEL Collector.** The OpenTelemetry Collector, a vendor-neutral agent that receives traces, metrics, and logs from the services and forwards them to Jaeger, Prometheus, and Loki. Services talk only to the Collector, which keeps the export pipeline swappable.
 
 ## Architecture at a glance
 
-Seven business services sit behind a single API Gateway and coordinate asynchronously over RabbitMQ. The gateway terminates JWT auth (validated against the Auth service's JWKS), aggregates Swagger, and fronts the DLQ operator API. The four saga participants — **Order**, **Inventory**, **Payment**, **Shipping** — exchange integration events through a fanout exchange to walk the choreographed Order → Inventory → Payment → Shipping flow; **Basket**, **Product**, and **Auth** stay outside the saga but publish/consume their own events. Each service owns its datastore (SQL Server, with Redis for Basket) and emits OpenTelemetry traces, metrics, and logs through the OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top.
+Eight business services sit behind a single API Gateway and coordinate asynchronously over RabbitMQ or Azure Service Bus. The gateway terminates JWT auth (validated against the Auth service's JWKS), aggregates Swagger, and fronts the DLQ operator API. The **Saga** service owns the Order → Inventory → Payment → Shipping workflow, sends commands to those four participants, and consumes their reply events; **Basket**, **Product**, and **Auth** stay outside the order saga but publish/consume their own events. Each service owns its datastore (SQL Server, with Redis for Basket) and emits OpenTelemetry traces, metrics, and logs through the OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top.
 
 ```mermaid
 graph TD
@@ -87,6 +101,7 @@ graph TD
     GW --> Inventory["Inventory<br/>:8005"]
     GW --> Shipping["Shipping<br/>:8006"]
     GW --> Payment["Payment<br/>:8007"]
+    GW --> Saga["Saga<br/>:8008"]
 
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL Server)]
@@ -95,6 +110,7 @@ graph TD
     Inventory --- SQLInventory[(SQL Server)]
     Shipping --- SQLShipping[(SQL Server)]
     Payment --- SQLPayment[(SQL Server)]
+    Saga --- SQLSaga[(SQL Server)]
     GW --- SQLGateway[(SQL Server<br/>dead_letter_messages)]
 
     Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>fanout exchange<br/>ecommerce-exchange<br/>+ ecommerce-dlq"}}
@@ -102,11 +118,22 @@ graph TD
     Inventory -- publishes --> RabbitMQ
     Payment -- publishes --> RabbitMQ
     Shipping -- publishes --> RabbitMQ
+    Saga -- publishes commands --> RabbitMQ
     RabbitMQ -- subscribes --> Basket
     RabbitMQ -- subscribes --> Order
     RabbitMQ -- subscribes --> Inventory
     RabbitMQ -- subscribes --> Payment
     RabbitMQ -- subscribes --> Shipping
+    RabbitMQ -- subscribes --> Saga
+
+    Saga -- commands --> Order
+    Saga -- commands --> Inventory
+    Saga -- commands --> Payment
+    Saga -- commands --> Shipping
+    Order -- reply events --> Saga
+    Inventory -- reply events --> Saga
+    Payment -- reply events --> Saga
+    Shipping -- reply events --> Saga
 
     subgraph Observability
         OTEL["OTEL Collector"]
@@ -124,6 +151,7 @@ graph TD
     Inventory -.-> OTEL
     Shipping -.-> OTEL
     Payment -.-> OTEL
+    Saga -.-> OTEL
     OTEL -.-> Jaeger
     OTEL -.-> Loki
     Prometheus -.-> Alertmanager
@@ -155,7 +183,7 @@ The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/REA
 
 This repo was built as a deliberate experiment in pair-programming with two AI tools at once. The split that emerged after several months of work:
 
-- **Claude Code Pro** is my long-running, repo-aware partner. It reads `CLAUDE.md`, the PRDs, and the plans before it touches code, and it owns multi-file work: scaffolding new services, threading a saga step end-to-end, refactoring across all seven services when `ECommerce.Shared` changes, writing the integration tests that exercise `WebApplicationFactory<Program>` against a real database. AFK-style tasks (`.github/prompts/afk-task.prompt.md`) are written for it — pick an issue, implement the smallest end-to-end slice, run the feedback loops, commit. When I need *judgment* — "is this the right shape for the saga?", "is this `StockItem` aggregate the right boundary?" — that conversation happens with Claude.
+- **Claude Code Pro** is my long-running, repo-aware partner. It reads `CLAUDE.md`, the PRDs, and the plans before it touches code, and it owns multi-file work: scaffolding new services, threading a saga step end-to-end, refactoring across all eight business services when `ECommerce.Shared` changes, writing the integration tests that exercise `WebApplicationFactory<Program>` against a real database. AFK-style tasks (`.github/prompts/afk-task.prompt.md`) are written for it — pick an issue, implement the smallest end-to-end slice, run the feedback loops, commit. When I need *judgment* — "is this the right shape for the saga?", "is this `StockItem` aggregate the right boundary?" — that conversation happens with Claude.
 - **GitHub Copilot Pro+** is my in-editor reflex. Inline completions, single-method edits, test scaffolding, the boilerplate of a new endpoint or DTO, the "finish this LINQ query" moments. Copilot Chat is where I do quick, file-local exploration without spinning up a longer Claude session.
 
 The contract between me and either agent is written down, not improvised. PRDs in [docs/prd/](docs/prd/) define *what* a feature is and what its acceptance criteria look like. Plans in [docs/plans/](docs/plans/) decompose a PRD into tracer-bullet phases and explicit feedback loops. ADRs in [docs/adr/](docs/adr/) record the load-bearing choices so neither agent has to re-derive them. `CLAUDE.md` and `.github/copilot-instructions.md` lay out the repo conventions both must respect — `Given_When_Then` test names, DTOs in `ApiModels/` versus domain types in `Models/`, `dotnet format` and `TreatWarningsAsErrors` are non-negotiable. When an agent is wrong, it's almost always because the PRD or the ADR was wrong; fixing the doc fixes the next ten generations.
@@ -173,9 +201,9 @@ The net effect is that AI tools moved me from "can I learn this in my spare time
 
 In rough order of how surprising each one was:
 
-1. **Saga choreography vs orchestration is a real architectural choice, not a style preference.** Choosing choreography for Order → Inventory → Payment → Shipping (ADR-0008) made each service trivially testable in isolation but pushed the workflow into the events themselves — there is no single file that tells you the saga's shape. The trade-off is observable rather than theoretical: tracing across a choreographed saga in Jaeger is the only sane way to read the workflow back, which is why ADR-0009 stopped feeling optional.
+1. **Saga choreography vs orchestration is a real architectural choice, not a style preference.** I started with choreography for Order → Inventory → Payment → Shipping (ADR-0008), then replaced it with the Saga service after the operational cost became concrete (ADR-0010). The trade-off is observable rather than theoretical: tracing helps, but a persisted orchestrator state machine is the file that tells you the saga's shape.
 2. **Outbox semantics are subtler than the pattern's name suggests.** "Write the event in the same transaction as the state change" is the easy half. The hard half is the poller: idempotent publish, ordered drain per aggregate, dead-letter on poisoned messages, and an operator API to replay or discard them (ADR-0004). The outbox isn't done until the DLQ has a UX.
-3. **JWT issuance with JWKS discovery is more boring than I expected, and that's the point.** RS256 + `/jwks` (ADR-0003) means no service ever sees the signing key, no shared secret has to rotate across seven config files, and adding an eighth service is a three-line change. The first time I rotated a key in dev and nothing broke is the moment the design earned its keep.
+3. **JWT issuance with JWKS discovery is more boring than I expected, and that's the point.** RS256 + `/jwks` (ADR-0003) means no service ever sees the signing key, no shared secret has to rotate across service config files, and adding another service is a three-line change. The first time I rotated a key in dev and nothing broke is the moment the design earned its keep.
 4. **OpenTelemetry wiring is 80% plumbing, 20% taste.** Getting traces, metrics, and logs through a single Collector into Jaeger/Prometheus/Loki is mechanical (ADR-0009). The interesting work is *what* to instrument: outbox lag, DLQ depth, saga step latency, RabbitMQ queue backlog. The dashboards and alerts (`HighHttpErrorRate`, `RabbitMqQueueBacklog`, `LowStockAlert`) are where the platform becomes operable rather than just observable.
 5. **A dual-gateway switch is a cheap insurance policy.** Compiling both YARP and Ocelot behind a `Gateway:Provider` flag (ADR-0001) cost a single afternoon and gave me a non-trivial migration story, an A/B comparison surface, and a rollback plan for free. The lesson generalises: when two stacks both look like "the right answer," make the choice runtime-switchable until production tells you which one wins.
 6. **Distributing a shared library as NuGet — even against a local feed — is qualitatively different from a project reference.** ADR-0005 forced me to think in versions: a breaking change in `ECommerce.Shared` requires a `<Version>` bump, a `dotnet pack`, a push to the local feed, and an explicit consumer upgrade. That ceremony is annoying for a hobby repo and exactly right for a real platform — it surfaces coupling that project references hide.
@@ -213,7 +241,7 @@ Every doc, plan, ADR, runbook, and deployment manifest folder in the repo, index
 - [Contributing](docs/wiki/Contributing.md)
 - [Troubleshooting](docs/wiki/Troubleshooting.md)
 - [Roadmap](docs/wiki/Roadmap.md)
-- Service pages: [API Gateway](docs/wiki/Service-API-Gateway.md) · [Auth](docs/wiki/Service-Auth.md) · [Basket](docs/wiki/Service-Basket.md) · [Order](docs/wiki/Service-Order.md) · [Product](docs/wiki/Service-Product.md) · [Inventory](docs/wiki/Service-Inventory.md) · [Payment](docs/wiki/Service-Payment.md) · [Shipping](docs/wiki/Service-Shipping.md)
+- Service pages: [API Gateway](docs/wiki/Service-API-Gateway.md) · [Auth](docs/wiki/Service-Auth.md) · [Basket](docs/wiki/Service-Basket.md) · [Order](docs/wiki/Service-Order.md) · [Product](docs/wiki/Service-Product.md) · [Inventory](docs/wiki/Service-Inventory.md) · [Payment](docs/wiki/Service-Payment.md) · [Shipping](docs/wiki/Service-Shipping.md) · [Saga](docs/wiki/Service-Saga.md)
 - Wiki chrome: [_Sidebar](docs/wiki/_Sidebar.md) · [_Footer](docs/wiki/_Footer.md)
 
 ### PRDs ([`docs/prd/`](docs/prd/))

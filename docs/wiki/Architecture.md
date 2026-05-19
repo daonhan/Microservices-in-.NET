@@ -1,6 +1,6 @@
 # Architecture
 
-The platform decomposes an e-commerce domain into seven independently deployable services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on the provider-selected broker. RabbitMQ is the default local provider; Azure Service Bus uses the same event and operator contracts when `Messaging:Provider=AzureServiceBus`. For local broker selection, use [docs/local-dev/messaging.md](../local-dev/messaging.md).
+The platform decomposes an e-commerce domain into eight independently deployable business services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on the provider-selected broker. RabbitMQ is the default local provider; Azure Service Bus uses the same event and operator contracts when `Messaging:Provider=AzureServiceBus`. For local broker selection, use [docs/local-dev/messaging.md](../local-dev/messaging.md).
 
 ## High-level topology
 
@@ -14,6 +14,7 @@ graph TD
     GW --> Inventory["Inventory<br/>:8005"]
     GW --> Shipping["Shipping<br/>:8006"]
     GW --> Payment["Payment<br/>:8007"]
+    GW --> Saga["Saga<br/>:8008"]
 
     Basket --- Redis[(Redis)]
     Order --- SQLOrder[(SQL · Order)]
@@ -22,17 +23,29 @@ graph TD
     Inventory --- SQLInventory[(SQL · Inventory)]
     Shipping --- SQLShipping[(SQL · Shipping)]
     Payment --- SQLPayment[(SQL · Payment)]
+    Saga --- SQLSaga[(SQL · Saga)]
 
     Order -- publishes --> Broker{{"Broker<br/>RabbitMQ exchange<br/>or ASB topic"}}
     Product -- publishes --> Broker
     Inventory -- publishes --> Broker
     Shipping -- publishes --> Broker
     Payment -- publishes --> Broker
+    Saga -- publishes commands --> Broker
     Broker -- subscribes --> Basket
     Broker -- subscribes --> Order
     Broker -- subscribes --> Inventory
     Broker -- subscribes --> Shipping
     Broker -- subscribes --> Payment
+    Broker -- subscribes --> Saga
+
+    Saga -- commands --> Order
+    Saga -- commands --> Inventory
+    Saga -- commands --> Payment
+    Saga -- commands --> Shipping
+    Order -- reply events --> Saga
+    Inventory -- reply events --> Saga
+    Payment -- reply events --> Saga
+    Shipping -- reply events --> Saga
 ```
 
 ## Core design rules
