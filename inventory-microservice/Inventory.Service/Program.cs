@@ -27,6 +27,7 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<CommitStockCommand, CommitStockCommandHandler>()
     .AddEventHandler<ReleaseStockCommand, ReleaseStockCommandHandler>();
 
+builder.AddAspireServiceDefaults();
 builder.AddPlatformObservability("Inventory",
     customTracing: t => t.WithSqlInstrumentation(),
     customMetrics: m => m.AddView("reservation-latency-ms",

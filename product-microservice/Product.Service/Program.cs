@@ -17,6 +17,7 @@ builder.Services.AddOutbox(builder.Configuration);
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration);
 
+builder.AddAspireServiceDefaults();
 builder.AddPlatformObservability("Product",
     customTracing: t => t.WithSqlInstrumentation());
 

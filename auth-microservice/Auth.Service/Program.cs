@@ -12,6 +12,7 @@ builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.IPasswordHasher<Auth
 builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.RegisterTokenService(builder.Configuration);
 
+builder.AddAspireServiceDefaults();
 builder.AddPlatformObservability("Auth",
     customTracing: t => t.WithSqlInstrumentation());
 

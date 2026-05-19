@@ -32,6 +32,7 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<VoidPaymentCommand, VoidPaymentCommandHandler>()
     .AddEventHandler<RefundPaymentCommand, RefundPaymentCommandHandler>();
 
+builder.AddAspireServiceDefaults();
 builder.AddPlatformObservability("Payment",
     customTracing: t => t.WithSqlInstrumentation());
 

@@ -55,6 +55,7 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>()
     .AddEventHandler<ShipmentCancelledEvent, ShipmentCancelledEventHandler>();
 
+builder.AddAspireServiceDefaults();
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation().AddSource(SagaTelemetry.ActivitySourceName),
     customMetrics: m => m.AddMeter(SagaTelemetry.MeterName));

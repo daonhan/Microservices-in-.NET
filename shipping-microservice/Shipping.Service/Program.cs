@@ -27,6 +27,7 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<CreateShipmentCommand, CreateShipmentCommandHandler>()
     .AddEventHandler<CancelShipmentCommand, CancelShipmentCommandHandler>();
 
+builder.AddAspireServiceDefaults();
 builder.AddPlatformObservability("Shipping",
     customTracing: t => t.WithSqlInstrumentation());
 

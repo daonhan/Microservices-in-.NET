@@ -1,4 +1,12 @@
 <Solution>
   <Project Path="Nhamnhi.AppHost/Nhamnhi.AppHost.csproj" />
+  <Project Path="../auth-microservice/Auth.Service/Auth.Service.csproj" />
   <Project Path="../basket-microservice/Basket.Service/Basket.Service.csproj" />
+  <Project Path="../product-microservice/Product.Service/Product.Service.csproj" />
+  <Project Path="../order-microservice/Order.Service/Order.Service.csproj" />
+  <Project Path="../inventory-microservice/Inventory.Service/Inventory.Service.csproj" />
+  <Project Path="../payment-microservice/Payment.Service/Payment.Service.csproj" />
+  <Project Path="../shipping-microservice/Shipping.Service/Shipping.Service.csproj" />
+  <Project Path="../saga-microservice/Saga.Service/Saga.Service.csproj" />
+  <Project Path="../api-gateway/ApiGateway/ApiGateway.csproj" />
 </Solution>

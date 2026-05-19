@@ -43,6 +43,7 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<ConfirmOrderCommand, ConfirmOrderCommandHandler>()
     .AddEventHandler<CancelOrderCommand, CancelOrderCommandHandler>();
 
+builder.AddAspireServiceDefaults();
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation(),
     customMetrics: m => m.AddView("products-per-order",

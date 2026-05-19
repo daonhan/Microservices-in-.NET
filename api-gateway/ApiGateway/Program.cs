@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddConfiguredGateway();
 OperatorModule.AddServices(builder);
 builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.AddAspireServiceDefaults();
 builder.AddPlatformObservability(
     "ApiGateway",
     customTracing: tracing => tracing.AddSource("Yarp.ReverseProxy"));
