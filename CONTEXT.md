@@ -138,7 +138,7 @@ The live stack view below is the Grafana side of that observability pipeline onc
 
 ## Architectural decisions
 
-The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/README.md). Each is `Accepted` and links to the source folder(s) that implement it.
+The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/README.md). Each status is recorded in the ADR index, and each ADR links to the source folder(s) that implement it.
 
 1. [ADR-0001](docs/adr/0001-api-gateway-yarp-default-ocelot-fallback.md) — API Gateway provider switch: YARP default with Ocelot fallback
 2. [ADR-0002](docs/adr/0002-transactional-outbox-per-publishing-service.md) — Transactional Outbox per publishing service
@@ -149,6 +149,7 @@ The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/REA
 7. [ADR-0007](docs/adr/0007-ef-core-database-per-service.md) — EF Core with one database per service
 8. [ADR-0008](docs/adr/0008-saga-choreography-no-central-orchestrator.md) — Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping
 9. [ADR-0009](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md) — OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack
+10. [ADR-0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md) — Saga orchestrator supersedes choreography for Order/Inventory/Payment/Shipping
 
 ## AI workflow
 
@@ -264,11 +265,13 @@ Every doc, plan, ADR, runbook, and deployment manifest folder in the repo, index
 - [ADR-0007 — EF Core database per service](docs/adr/0007-ef-core-database-per-service.md)
 - [ADR-0008 — Saga choreography (no central orchestrator)](docs/adr/0008-saga-choreography-no-central-orchestrator.md)
 - [ADR-0009 — OTEL + Jaeger + Prometheus + Loki + Grafana](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md)
+- [ADR-0010 — Saga orchestrator supersedes choreography](docs/adr/0010-saga-orchestrator-supersedes-choreography.md)
 
 ### Runbooks ([`docs/runbooks/`](docs/runbooks/))
 
 - [Payment smoke test](docs/runbooks/payment-smoke.md)
 - [Provider-agnostic DLQ capture and replay](docs/runbooks/provider-agnostic-dlq.md)
+- [Saga orchestrator strangler](docs/runbooks/saga-orchestrator-strangler.md)
 
 ### Deployment manifests
 
