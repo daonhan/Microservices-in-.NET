@@ -1,0 +1,18 @@
+# scripts/doc-drift-allowlist.txt
+#
+# One repo-relative path per line. Lines starting with `#` or blank are ignored.
+# Paths use forward slashes regardless of host OS.
+#
+# Files listed here are exempt from the banned-phrase check in
+# scripts/check-doc-drift.ps1 / .sh. Use this exemption ONLY for documents that
+# legitimately describe the pre-orchestrator architecture for historical
+# context (superseded ADRs, the cutover runbook, the docs-refresh PRD/plan).
+#
+# Reviewer rule for any PR that adds an entry: "Are we exempting drift or
+# recording history?" If it's drift, fix the doc — do not exempt it.
+docs/adr/0008-saga-choreography-no-central-orchestrator.md
+docs/adr/0010-saga-orchestrator-supersedes-choreography.md
+docs/runbooks/saga-orchestrator-strangler.md
+docs/prd/PRD-Saga-Orchestrator.md
+docs/prd/PRD-Docs-Refresh-2026-05.md
+docs/plans/docs-refresh-2026-05.md
