@@ -1,20 +1,10 @@
-# Saga Orchestrator Strangler Runbook
+# Saga Orchestrator Runbook
 
-This runbook covers the period where the Saga service can orchestrate selected new orders while the existing Order, Inventory, Payment, and Shipping choreography remains active for every non-selected order.
+The Saga service is the sole driver of the order and refund sagas. Choreography saga-step handlers were removed on 2026-05-18 (issue #132), and the strangler feature flag `Saga:Orchestrator:Enabled` / `Percentage` / `AllowList` was removed on 2026-05-19 (issue #136). Every `OrderCreatedEvent` opens an `Order` saga; every `RefundRequestedEvent` opens a `Refund` saga.
 
 ## Ownership Rule
 
-Each order must be owned by exactly one path for its lifetime.
-
-- Choreography owner: the order is not selected by `Saga:Orchestrator:*`; existing participant event handlers drive the flow.
-- Orchestrator owner: the Saga service opens an `Order` saga from `OrderCreatedEvent` and drives participants with commands.
-- In-flight choreography orders are not migrated into the orchestrator.
-
-The Saga service decides once, when it handles `OrderCreatedEvent`:
-
-- `Saga:Orchestrator:Enabled=false`: no new orders are orchestrated.
-- `Saga:Orchestrator:Enabled=true` with `Percentage=0` and no allowlist match: choreography fallback.
-- `AllowList` match or deterministic percentage match: orchestrator path.
+The Saga service owns the saga state machine and dispatches every command. Participant services (Order, Inventory, Payment, Shipping) only respond to commands and publish reply events. There is no fallback path.
 
 ## Idempotency Assertion
 
@@ -55,17 +45,7 @@ Expected row values:
 - `Status`: `Pending` before replay, `Replayed` after replay
 - `CorrelationId`: preserved from the original saga command
 
-## Half-On-Flag Failure Mode
-
-This means a new order is being processed by choreography while the Saga service also opened a saga for the same `OrderId`. Treat this as a rollout incident because duplicate commands can cause compensation or duplicate side effects.
-
-Immediate actions:
-
-1. Stop selecting new orders for orchestration by setting `Saga:Orchestrator:Percentage=0` and clearing the allowlist, or set `Saga:Orchestrator:Enabled=false`.
-2. Do not replay saga DLQ messages or use saga retry until ownership is confirmed.
-3. Query the saga row and participant state for the order.
-
-Saga lookup:
+## Saga Lookup
 
 ```sql
 SELECT si.SagaId, si.CurrentStep, si.Status, si.LastCommandId, si.CreatedAt, si.UpdatedAt
@@ -74,7 +54,7 @@ JOIN Saga.dbo.OrderSagaStates os ON os.SagaId = si.SagaId
 WHERE os.OrderId = '<order-id>';
 ```
 
-Participant checks:
+Participant cross-checks:
 
 - Order: current `OrderStatus` and whether `OrderConfirmedEvent` / `OrderCancelledEvent` outbox rows exist.
 - Inventory: reservation status for the `OrderId`.
@@ -82,40 +62,24 @@ Participant checks:
 - Shipping: shipment status for the `OrderId`.
 - Gateway DLQ: pending rows where `CorrelationId` or payload contains the `OrderId`.
 
-Resolution guidance:
+## Operator Recovery
 
-- If choreography already reached a terminal business state, do not blindly abort the saga. Saga abort starts compensation and can change customer-visible state. Escalate with the state snapshot and choose an explicit corrective action.
-- If the Saga service owns the order and choreography has not advanced it, use the saga operator retry or DLQ replay path for the failed step.
-- If both paths emitted side effects, freeze automated replay and reconcile from the participant stores first. Prefer idempotent no-op replays only after confirming the current step still expects that message.
+For a stuck saga, prefer in order:
 
-## Choreography Fallback Smoke
+1. Use the saga operator retry endpoint to re-dispatch the in-flight command for the current step.
+2. Replay the failed message from the gateway DLQ if the failure was message-level.
+3. Use the saga operator abort endpoint to force compensation when the order cannot proceed.
 
-Before any rollout and before handler removal, prove non-selected orders still use choreography. Run with `Saga:Orchestrator:Enabled=true`, `Saga:Orchestrator:Percentage=0`, and no allowlist entry for the QA order ids:
+Avoid blind aborts: aborting starts compensation and changes customer-visible state. Confirm the current step before invoking abort.
+
+## Smoke
 
 ```powershell
 pwsh scripts/local-smoke-test.ps1 -Scenario happy
 pwsh scripts/local-smoke-test.ps1 -Scenario stock-out
 pwsh scripts/local-smoke-test.ps1 -Scenario decline
+pwsh scripts/local-smoke-test.ps1 -Scenario saga-happy-orchestrated
+pwsh scripts/local-smoke-test.ps1 -Scenario saga-decline-orchestrated
 ```
 
-Coverage:
-
-- `happy` exercises `PaymentAuthorizedEventHandler`.
-- `stock-out` exercises `StockReservationFailedEventHandler`.
-- `decline` exercises `PaymentFailedEventHandler`.
-
-Expected result: orders reach the same terminal states as the pre-orchestrator choreography path, and no `Saga.dbo.OrderSagaStates` row exists for those `OrderId` values.
-
-## Cutover Criteria
-
-Do not remove choreography handlers until all of the following are true:
-
-- `Saga:Orchestrator:Enabled=true` and `Saga:Orchestrator:Percentage=100` have handled all new orders for two continuous weeks.
-- Zero manual operator interventions were attributable to the orchestrator path during that window.
-- Operator dashboard snapshots or incident logs document the two-week window.
-- DLQ shows no unresolved orchestrator command or reply pattern.
-- Reaper metrics show no persistent overdue-step backlog.
-- Smoke scenarios pass with 100 percent orchestration: happy path, stock shortage, payment decline, shipment failure, overdue reaper compensation, operator abort compensation.
-- Choreography fallback smoke above passed immediately before the cutover decision.
-
-Record the cutover date in ADR-0010 or a follow-up ADR before removing choreography handlers.
+Every scenario expects an orchestrator-owned saga row; choreography no longer runs.

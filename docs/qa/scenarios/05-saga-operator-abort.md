@@ -1,13 +1,13 @@
 # Scenario 05: Saga Operator Abort
 
-Start from a clean stack with the orchestrator fully enabled:
+Start from a clean stack:
 
 ```powershell
 docker compose down -v
 docker compose up --build
 ```
 
-Set the Saga service environment to `SAGA_ORCHESTRATOR_ENABLED=true` and `SAGA_ORCHESTRATOR_PERCENTAGE=100` before the run. Use the Bruno collection in `qa/bruno/saga-operator` with the `qa-local` environment.
+Use the Bruno collection in `qa/bruno/saga-operator` with the `qa-local` environment. The orchestrator opens a saga for every order; no opt-in flag.
 
 ## 1. Open an orchestrated order saga
 

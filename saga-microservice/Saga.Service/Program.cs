@@ -25,8 +25,6 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.Configure<SagaOrchestratorOptions>(
-    builder.Configuration.GetSection("Saga:Orchestrator"));
 builder.Services.Configure<SagaReaperOptions>(
     builder.Configuration.GetSection("Saga:Reaper"));
 builder.Services.Configure<OrderSagaTimeoutOptions>(

@@ -14,7 +14,7 @@ The replacement is specified in [`PRD-Saga-Orchestrator.md`](../prd/PRD-Saga-Orc
 
 Replace the order saga choreography with a central `saga-microservice` orchestrator. The orchestrator owns saga instance state, drives participant services by sending commands, and listens for the existing reply integration events. Participant services continue to publish their existing events as orchestrator-driven replies; choreography subscribers were removed at cutover.
 
-The rollout was phased behind `Saga:Orchestrator:Enabled`, with allowlist and percentage controls. Each order was assigned to exactly one path when `OrderCreatedEvent` arrived. Cutover to orchestrator-only completed **2026-05-18** (issue #132); the choreography saga-step handlers in Order, Inventory, Payment, and Shipping were removed in the same change. The runbook's cutover criteria — 100% orchestrator traffic with no manual operator intervention attributable to the orchestrator path — were the gating condition.
+The rollout was phased behind `Saga:Orchestrator:Enabled`, with allowlist and percentage controls. Each order was assigned to exactly one path when `OrderCreatedEvent` arrived. Cutover to orchestrator-only completed **2026-05-18** (issue #132); the choreography saga-step handlers in Order, Inventory, Payment, and Shipping were removed in the same change. The runbook's cutover criteria — 100% orchestrator traffic with no manual operator intervention attributable to the orchestrator path — were the gating condition. The strangler flag was removed **2026-05-19** (issue #136); the orchestrator now opens a saga for every `OrderCreatedEvent` unconditionally.
 
 ## Consequences
 

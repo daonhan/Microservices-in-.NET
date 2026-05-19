@@ -34,11 +34,6 @@ public class SagaReaperServiceTests : IClassFixture<SagaWebApplicationFactory>
             var handler = new OrderCreatedEventHandler(
                 scope.ServiceProvider.GetRequiredService<SagaContext>(),
                 scope.ServiceProvider.GetRequiredService<IOutboxUnitOfWork>(),
-                Options.Create(new SagaOrchestratorOptions
-                {
-                    Enabled = true,
-                    AllowList = [orderCreated.OrderId]
-                }),
                 timeProvider,
                 new OrderSagaTimeoutScheduler(Options.Create(new OrderSagaTimeoutOptions
                 {

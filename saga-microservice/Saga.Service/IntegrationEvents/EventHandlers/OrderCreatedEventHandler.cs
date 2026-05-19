@@ -1,7 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.Models;
@@ -16,7 +15,6 @@ internal sealed partial class OrderCreatedEventHandler : IEventHandler<OrderCrea
 
     private readonly SagaContext _sagaContext;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
-    private readonly SagaOrchestratorOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly OrderSagaTimeoutScheduler _timeoutScheduler;
     private readonly ILogger<OrderCreatedEventHandler> _logger;
@@ -24,14 +22,12 @@ internal sealed partial class OrderCreatedEventHandler : IEventHandler<OrderCrea
     public OrderCreatedEventHandler(
         SagaContext sagaContext,
         IOutboxUnitOfWork outboxUnitOfWork,
-        IOptions<SagaOrchestratorOptions> options,
         TimeProvider timeProvider,
         OrderSagaTimeoutScheduler timeoutScheduler,
         ILogger<OrderCreatedEventHandler> logger)
     {
         _sagaContext = sagaContext;
         _outboxUnitOfWork = outboxUnitOfWork;
-        _options = options.Value;
         _timeProvider = timeProvider;
         _timeoutScheduler = timeoutScheduler;
         _logger = logger;
@@ -39,11 +35,6 @@ internal sealed partial class OrderCreatedEventHandler : IEventHandler<OrderCrea
 
     public async Task Handle(OrderCreatedEvent @event)
     {
-        if (!ShouldOrchestrate(@event.OrderId))
-        {
-            return;
-        }
-
         await _outboxUnitOfWork.ExecuteAsync(_sagaContext.Database.CreateExecutionStrategy(), async () =>
         {
             if (await _sagaContext.OrderSagaStates.AnyAsync(s => s.OrderId == @event.OrderId))
@@ -127,36 +118,4 @@ internal sealed partial class OrderCreatedEventHandler : IEventHandler<OrderCrea
         OrderSagaStep step,
         Guid messageId,
         Guid? causationId);
-
-    private bool ShouldOrchestrate(Guid orderId)
-    {
-        if (!_options.Enabled)
-        {
-            return false;
-        }
-
-        if (_options.AllowList.Contains(orderId))
-        {
-            return true;
-        }
-
-        if (_options.Percentage <= 0)
-        {
-            return false;
-        }
-
-        if (_options.Percentage >= 100)
-        {
-            return true;
-        }
-
-        return GetBucket(orderId) < _options.Percentage;
-    }
-
-    internal static int GetBucket(Guid orderId)
-    {
-        var bytes = orderId.ToByteArray();
-        var value = BitConverter.ToUInt32(bytes, 0);
-        return (int)(value % 100);
-    }
 }

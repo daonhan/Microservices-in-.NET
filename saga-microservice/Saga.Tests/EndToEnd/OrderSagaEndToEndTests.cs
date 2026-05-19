@@ -4,7 +4,6 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.IntegrationEvents;
 using Saga.Service.IntegrationEvents.EventHandlers;
@@ -159,13 +158,7 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
     private async Task<Guid> OpenSaga(OrderCreatedEvent orderCreated)
     {
         using var scope = Factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<OrderCreatedEventHandler>(
-            scope.ServiceProvider,
-            Options.Create(new SagaOrchestratorOptions
-            {
-                Enabled = true,
-                AllowList = [orderCreated.OrderId],
-            }));
+        var handler = ActivatorUtilities.CreateInstance<OrderCreatedEventHandler>(scope.ServiceProvider);
 
         await handler.Handle(orderCreated);
 

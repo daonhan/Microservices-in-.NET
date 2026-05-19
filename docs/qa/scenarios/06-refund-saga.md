@@ -1,15 +1,13 @@
 # Scenario 06: Customer-Initiated Refund Saga
 
-Start from a clean stack with the orchestrator fully enabled:
+Start from a clean stack:
 
 ```powershell
 docker compose down -v
 docker compose up --build
 ```
 
-Set the Saga service environment to `SAGA_ORCHESTRATOR_ENABLED=true` and
-`SAGA_ORCHESTRATOR_PERCENTAGE=100` before the run. The refund saga follows the
-same allowlist/percentage scheme as the order saga, keyed by `OrderId`.
+The orchestrator opens a saga for every refund-requested event; no opt-in flag.
 
 ## 1. Place and fulfil an orchestrated order
 

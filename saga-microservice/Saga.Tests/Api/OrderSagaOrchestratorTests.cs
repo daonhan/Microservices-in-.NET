@@ -4,7 +4,6 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.IntegrationEvents;
 using Saga.Service.IntegrationEvents.EventHandlers;
@@ -22,63 +21,14 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
     }
 
     [Fact]
-    public async Task Given_FlagOff_When_OrderCreated_Then_OrchestratorNoOps()
+    public async Task Given_OrderCreated_When_HandlerRuns_Then_SagaOpensAndReserveCommandIsQueued()
     {
         var orderId = Guid.NewGuid();
         var orderCreated = CreateOrderCreated(orderId);
 
-        await Handle(orderCreated, new SagaOrchestratorOptions { Enabled = false });
-
-        using var scope = _factory.Services.CreateScope();
-        var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
-        Assert.False(await sagaContext.OrderSagaStates.AnyAsync(s => s.OrderId == orderId));
-    }
-
-    [Fact]
-    public async Task Given_OrderInAllowList_When_OrderCreated_Then_SagaOpensAndReserveCommandIsQueued()
-    {
-        var orderId = Guid.NewGuid();
-        var orderCreated = CreateOrderCreated(orderId);
-
-        await Handle(orderCreated, new SagaOrchestratorOptions
-        {
-            Enabled = true,
-            AllowList = [orderId]
-        });
+        await Handle(orderCreated);
 
         await AssertSagaOpened(orderCreated);
-    }
-
-    [Fact]
-    public async Task Given_OrderInPercentageBucket_When_OrderCreated_Then_SagaOpens()
-    {
-        var orderId = Guid.NewGuid();
-        var orderCreated = CreateOrderCreated(orderId);
-
-        await Handle(orderCreated, new SagaOrchestratorOptions
-        {
-            Enabled = true,
-            Percentage = 100
-        });
-
-        await AssertSagaOpened(orderCreated);
-    }
-
-    [Fact]
-    public async Task Given_OrderExcluded_When_OrderCreated_Then_OrchestratorNoOps()
-    {
-        var orderId = Guid.NewGuid();
-        var orderCreated = CreateOrderCreated(orderId);
-
-        await Handle(orderCreated, new SagaOrchestratorOptions
-        {
-            Enabled = true,
-            Percentage = 0
-        });
-
-        using var scope = _factory.Services.CreateScope();
-        var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
-        Assert.False(await sagaContext.OrderSagaStates.AnyAsync(s => s.OrderId == orderId));
     }
 
     [Fact]
@@ -272,12 +222,10 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
         }
     }
 
-    private async Task Handle(OrderCreatedEvent orderCreated, SagaOrchestratorOptions options)
+    private async Task Handle(OrderCreatedEvent orderCreated)
     {
         using var scope = _factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<OrderCreatedEventHandler>(
-            scope.ServiceProvider,
-            Options.Create(options));
+        var handler = ActivatorUtilities.CreateInstance<OrderCreatedEventHandler>(scope.ServiceProvider);
 
         await handler.Handle(orderCreated);
     }
@@ -315,11 +263,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
 
     private async Task<Guid> OpenSaga(OrderCreatedEvent orderCreated)
     {
-        await Handle(orderCreated, new SagaOrchestratorOptions
-        {
-            Enabled = true,
-            AllowList = [orderCreated.OrderId]
-        });
+        await Handle(orderCreated);
 
         using var scope = _factory.Services.CreateScope();
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();

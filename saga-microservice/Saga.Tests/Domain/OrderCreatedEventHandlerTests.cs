@@ -23,6 +23,18 @@ public class OrderCreatedEventHandlerTests : IClassFixture<SagaWebApplicationFac
     }
 
     [Fact]
+    public async Task Given_OrderCreated_When_HandlerRuns_Then_SagaStartsForEveryOrder()
+    {
+        var orderCreated = CreateOrderCreated();
+
+        await HandleOrderCreated(orderCreated);
+
+        using var scope = _factory.Services.CreateScope();
+        var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
+        Assert.True(await sagaContext.OrderSagaStates.AnyAsync(s => s.OrderId == orderCreated.OrderId));
+    }
+
+    [Fact]
     public async Task Given_SameOrderIdSeenTwice_When_OrderCreatedHandlerRuns_Then_OnlyOneSagaAndReserveCommandAreStored()
     {
         var orderCreated = CreateOrderCreated();
@@ -64,11 +76,6 @@ public class OrderCreatedEventHandlerTests : IClassFixture<SagaWebApplicationFac
         var handler = new OrderCreatedEventHandler(
             scope.ServiceProvider.GetRequiredService<SagaContext>(),
             scope.ServiceProvider.GetRequiredService<IOutboxUnitOfWork>(),
-            Options.Create(new SagaOrchestratorOptions
-            {
-                Enabled = true,
-                AllowList = [orderCreated.OrderId]
-            }),
             TimeProvider.System,
             new OrderSagaTimeoutScheduler(Options.Create(new OrderSagaTimeoutOptions())),
             NullLogger<OrderCreatedEventHandler>.Instance);

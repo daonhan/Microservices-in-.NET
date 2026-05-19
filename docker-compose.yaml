@@ -147,8 +147,6 @@ services:
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Saga;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
       - "EventBus__QueueName=saga-microservice"
-      - "Saga__Orchestrator__Enabled=${SAGA_ORCHESTRATOR_ENABLED:-false}"
-      - "Saga__Orchestrator__Percentage=${SAGA_ORCHESTRATOR_PERCENTAGE:-0}"
       - "Outbox__PublishIntervalInSeconds=2"
       - "OpenTelemetry__OtlpExporterEndpoint=http://jaeger:4317"
       - "OpenTelemetry__LogsOtlpExporterEndpoint=http://otel-collector:4317"

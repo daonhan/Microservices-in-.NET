@@ -3,7 +3,6 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.IntegrationEvents;
 using Saga.Service.IntegrationEvents.EventHandlers;
@@ -21,20 +20,7 @@ public class RefundSagaOrchestratorTests : IClassFixture<SagaWebApplicationFacto
     }
 
     [Fact]
-    public async Task Given_FlagOff_When_RefundRequested_Then_OrchestratorNoOps()
-    {
-        var orderId = Guid.NewGuid();
-        var requested = CreateRefundRequested(orderId, shipmentId: Guid.NewGuid());
-
-        await Handle(requested, new SagaOrchestratorOptions { Enabled = false });
-
-        using var scope = _factory.Services.CreateScope();
-        var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
-        Assert.False(await sagaContext.RefundSagaStates.AnyAsync(s => s.OrderId == orderId));
-    }
-
-    [Fact]
-    public async Task Given_AllowListed_When_RefundRequested_Then_SagaOpensAndRefundCommandQueued()
+    public async Task Given_RefundRequested_When_HandlerRuns_Then_SagaOpensAndRefundCommandQueued()
     {
         var orderId = Guid.NewGuid();
         var requested = CreateRefundRequested(orderId, shipmentId: Guid.NewGuid());
@@ -158,23 +144,17 @@ public class RefundSagaOrchestratorTests : IClassFixture<SagaWebApplicationFacto
         }
     }
 
-    private async Task Handle(RefundRequestedEvent requested, SagaOrchestratorOptions options)
+    private async Task Handle(RefundRequestedEvent requested)
     {
         using var scope = _factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<RefundRequestedEventHandler>(
-            scope.ServiceProvider,
-            Options.Create(options));
+        var handler = ActivatorUtilities.CreateInstance<RefundRequestedEventHandler>(scope.ServiceProvider);
 
         await handler.Handle(requested);
     }
 
     private async Task<Guid> OpenSaga(RefundRequestedEvent requested)
     {
-        await Handle(requested, new SagaOrchestratorOptions
-        {
-            Enabled = true,
-            AllowList = [requested.OrderId]
-        });
+        await Handle(requested);
 
         using var scope = _factory.Services.CreateScope();
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();

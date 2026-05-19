@@ -1,7 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Models;
 using Saga.Service.Observability;
@@ -15,31 +14,23 @@ internal sealed partial class RefundRequestedEventHandler : IEventHandler<Refund
 
     private readonly SagaContext _sagaContext;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
-    private readonly SagaOrchestratorOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<RefundRequestedEventHandler> _logger;
 
     public RefundRequestedEventHandler(
         SagaContext sagaContext,
         IOutboxUnitOfWork outboxUnitOfWork,
-        IOptions<SagaOrchestratorOptions> options,
         TimeProvider timeProvider,
         ILogger<RefundRequestedEventHandler> logger)
     {
         _sagaContext = sagaContext;
         _outboxUnitOfWork = outboxUnitOfWork;
-        _options = options.Value;
         _timeProvider = timeProvider;
         _logger = logger;
     }
 
     public async Task Handle(RefundRequestedEvent @event)
     {
-        if (!ShouldOrchestrate(@event.OrderId))
-        {
-            return;
-        }
-
         await _outboxUnitOfWork.ExecuteAsync(_sagaContext.Database.CreateExecutionStrategy(), async () =>
         {
             if (await _sagaContext.RefundSagaStates.AnyAsync(s => s.OrderId == @event.OrderId))
@@ -127,29 +118,4 @@ internal sealed partial class RefundRequestedEventHandler : IEventHandler<Refund
         RefundSagaStep step,
         Guid messageId,
         Guid? causationId);
-
-    private bool ShouldOrchestrate(Guid orderId)
-    {
-        if (!_options.Enabled)
-        {
-            return false;
-        }
-
-        if (_options.AllowList.Contains(orderId))
-        {
-            return true;
-        }
-
-        if (_options.Percentage <= 0)
-        {
-            return false;
-        }
-
-        if (_options.Percentage >= 100)
-        {
-            return true;
-        }
-
-        return OrderCreatedEventHandler.GetBucket(orderId) < _options.Percentage;
-    }
 }

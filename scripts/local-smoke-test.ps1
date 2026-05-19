@@ -11,16 +11,12 @@
       - stock-out: login as customer-cancel, place an order against product-zero-stock,
                    assert the order ends Cancelled.
       - saga-first-transition:
-                   with SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100
-                   on the saga container, place an order and assert Saga DB reaches StockReserved.
+                   place an order and assert Saga DB reaches StockReserved.
       - saga-happy-orchestrated:
-                   with SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100, place
-                   a happy-path order and assert Saga DB reaches CurrentStep=Completed,
-                   Status=Completed. Cutover signal for orchestrated happy path.
+                   place a happy-path order and assert Saga DB reaches CurrentStep=Completed,
+                   Status=Completed.
       - saga-decline-orchestrated:
-                   with SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100, place
-                   a payment-decline order and assert Saga DB reaches Status=Compensated. Cutover
-                   signal for orchestrated failure compensation.
+                   place a payment-decline order and assert Saga DB reaches Status=Compensated.
       - admin:     login as admin, hit the inventory low-stock and restock-target fixtures.
       - all:       run every scenario in order. Default.
 
@@ -327,7 +323,6 @@ function Invoke-StockOut {
 }
 
 function Invoke-SagaFirstTransition {
-    Write-Step 'saga' 'requires saga container env SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100'
     Write-Step 'saga' 'login customer-happy'
     $h = Get-AuthHeaders (Invoke-Login $Qa.CustomerHappyEmail $Qa.CustomerPassword)
 
@@ -341,7 +336,6 @@ function Invoke-SagaFirstTransition {
 }
 
 function Invoke-SagaHappyOrchestrated {
-    Write-Step 'saga-happy' 'requires SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100'
     Write-Step 'saga-happy' 'login customer-happy'
     $cH = Get-AuthHeaders (Invoke-Login $Qa.CustomerHappyEmail $Qa.CustomerPassword)
 
@@ -368,7 +362,6 @@ function Invoke-SagaHappyOrchestrated {
 }
 
 function Invoke-SagaDeclineOrchestrated {
-    Write-Step 'saga-decline' 'requires SAGA_ORCHESTRATOR_ENABLED=true and SAGA_ORCHESTRATOR_PERCENTAGE=100'
     Write-Step 'saga-decline' 'login customer-decline'
     $h = Get-AuthHeaders (Invoke-Login $Qa.CustomerDeclineEmail $Qa.CustomerPassword)
 
