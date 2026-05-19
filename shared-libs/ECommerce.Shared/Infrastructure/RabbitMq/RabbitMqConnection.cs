@@ -4,31 +4,23 @@ namespace ECommerce.Shared.Infrastructure.RabbitMq;
 
 public class RabbitMqConnection : IDisposable, IRabbitMqConnection
 {
-    private IConnection? _connection;
-    private readonly RabbitMqOptions _options;
+    private readonly Lazy<IConnection> _connection;
 
-    public IConnection Connection => _connection!;
+    public IConnection Connection => _connection.Value;
 
     public RabbitMqConnection(RabbitMqOptions options)
     {
-        _options = options;
-
-        InitializeConnection();
-    }
-
-    private void InitializeConnection()
-    {
-        var factory = new ConnectionFactory
-        {
-            HostName = _options.HostName
-        };
-
-        _connection = factory.CreateConnection();
+        _connection = new Lazy<IConnection>(
+            () => new ConnectionFactory { HostName = options.HostName }.CreateConnection(),
+            LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public void Dispose()
     {
-        _connection?.Dispose();
+        if (_connection.IsValueCreated)
+        {
+            _connection.Value.Dispose();
+        }
         GC.SuppressFinalize(this);
     }
 }

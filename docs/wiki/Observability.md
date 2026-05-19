@@ -2,6 +2,8 @@
 
 Every service emits **traces**, **metrics**, and **logs** via OpenTelemetry. Everything funnels through the OTel Collector and is visible in Grafana.
 
+> For the local inner loop, the **.NET Aspire local-dev overlay** offers a single dashboard for traces/metrics/logs/console at `http://localhost:18888`. It is local-only and does not change this OTel/Jaeger/Grafana stack — see the [Aspire local-dev runbook](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/runbooks/aspire-local-dev.md) and [ADR-0011](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0011-aspire-local-dev-overlay.md).
+
 ## Pipeline
 
 ```mermaid

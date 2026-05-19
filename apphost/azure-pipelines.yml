@@ -1,0 +1,86 @@
+# Aspire local-dev AppHost smoke-test pipeline (issue #149).
+#
+# Independent of the per-service build/deploy pipelines: the AppHost is a
+# local-dev overlay (ADR-0011) and never ships to Azure, so this pipeline
+# only builds the graph and runs the AppHost.Tests smoke test. A broken
+# AppHost wiring (missing project reference, broken connection-string
+# handoff, a service that fails to start under Aspire) fails the build.
+#
+# Aspire's DistributedApplicationTestingBuilder boots SQL Server, Redis,
+# RabbitMQ and every service as containers, so the job runs on the
+# Docker-enabled ubuntu-latest hosted agent.
+
+trigger:
+  branches:
+    include:
+      - main
+      - dev
+      - staging
+      - prod
+  paths:
+    include:
+      - apphost/**
+      - shared-libs/*
+      - Directory.Build.props
+      - apphost/azure-pipelines.yml
+
+pr:
+  branches:
+    include:
+      - '*'
+  paths:
+    include:
+      - apphost/**
+      - shared-libs/*
+      - Directory.Build.props
+      - apphost/azure-pipelines.yml
+
+variables:
+  - name: solutionPath
+    value: apphost/AppHost.slnx
+  - name: buildConfiguration
+    value: Release
+
+stages:
+  - stage: SmokeTest
+    displayName: AppHost smoke test
+    jobs:
+      - job: SmokeTest
+        displayName: Boot Aspire graph and assert health
+        timeoutInMinutes: 25
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            displayName: Checkout source
+
+          - task: UseDotNet@2
+            displayName: Use .NET SDK 10.0.x
+            inputs:
+              packageType: sdk
+              version: 10.0.x
+
+          - task: NuGetAuthenticate@1
+            displayName: Authenticate NuGet feeds
+
+          - script: dotnet restore "$(solutionPath)"
+            displayName: Restore NuGet packages
+
+          - script: dotnet build "$(solutionPath)" --configuration $(buildConfiguration) --no-restore
+            displayName: Build AppHost graph
+
+          - script: >-
+              dotnet test apphost/AppHost.Tests/AppHost.Tests.csproj
+              --configuration $(buildConfiguration)
+              --no-build
+              --logger trx
+              --results-directory "$(Agent.TempDirectory)/TestResults"
+            displayName: Run AppHost smoke test
+
+          - task: PublishTestResults@2
+            displayName: Publish test results
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: VSTest
+              testResultsFiles: '$(Agent.TempDirectory)/TestResults/**/*.trx'
+              failTaskOnFailedTests: true

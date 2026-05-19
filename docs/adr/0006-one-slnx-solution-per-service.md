@@ -2,6 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-06
+- **Amended by**: [ADR-0011](0011-aspire-local-dev-overlay.md) — single documented exception for `apphost/AppHost.slnx` (Aspire app model requires cross-service project references); the exception does not generalise.
 
 ## Context
 

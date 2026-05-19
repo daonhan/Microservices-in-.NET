@@ -299,9 +299,11 @@ Every doc, plan, ADR, runbook, and deployment manifest folder in the repo, index
 - [ADR-0008 — Event-driven saga coordination (superseded)](docs/adr/0008-saga-choreography-no-central-orchestrator.md)
 - [ADR-0009 — OTEL + Jaeger + Prometheus + Loki + Grafana](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md)
 - [ADR-0010 — Saga orchestrator (supersedes ADR-0008)](docs/adr/0010-saga-orchestrator-supersedes-choreography.md)
+- [ADR-0011 — .NET Aspire local-dev overlay (amends ADR-0006)](docs/adr/0011-aspire-local-dev-overlay.md)
 
 ### Runbooks ([`docs/runbooks/`](docs/runbooks/))
 
+- [Aspire local-dev overlay](docs/runbooks/aspire-local-dev.md)
 - [Payment smoke test](docs/runbooks/payment-smoke.md)
 - [Provider-agnostic DLQ capture and replay](docs/runbooks/provider-agnostic-dlq.md)
 - [Saga orchestrator strangler](docs/runbooks/saga-orchestrator-strangler.md)

@@ -173,6 +173,16 @@ cd product-microservice/Product.Service
 dotnet run
 ```
 
+### Run with .NET Aspire (local-dev)
+
+For the inner dev loop, a local-only .NET Aspire overlay starts the whole platform with one command and a single dashboard (traces, metrics, logs, console) at `http://localhost:18888`:
+
+```bash
+dotnet run --project apphost/Nhamnhi.AppHost
+```
+
+Aspire is local-only and never runs in Azure; Docker Compose remains the AKS-parity path. See [docs/runbooks/aspire-local-dev.md](docs/runbooks/aspire-local-dev.md) for the AppHost-vs-Compose decision matrix, ports, and troubleshooting ([ADR-0011](docs/adr/0011-aspire-local-dev-overlay.md)). The Jaeger/Grafana stack is unaffected.
+
 ### Verify Services
 
 | Endpoint | URL |
