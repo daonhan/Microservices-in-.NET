@@ -2,6 +2,8 @@
 
 The Saga service is the sole driver of the order and refund sagas. Choreography saga-step handlers were removed on 2026-05-18 (issue #132), and the strangler feature flag `Saga:Orchestrator:Enabled` / `Percentage` / `AllowList` was removed on 2026-05-19 (issue #136). Every `OrderCreatedEvent` opens an `Order` saga; every `RefundRequestedEvent` opens a `Refund` saga.
 
+The pre-cutover choreography code is preserved on the [`saga-choreography`](https://github.com/daonhan/Microservices-in-.NET/tree/saga-choreography) branch. Use it as a read-only reference when investigating legacy traces or comparing handler behaviour; do not merge it back to `main`.
+
 ## Ownership Rule
 
 The Saga service owns the saga state machine and dispatches every command. Participant services (Order, Inventory, Payment, Shipping) only respond to commands and publish reply events. There is no fallback path.

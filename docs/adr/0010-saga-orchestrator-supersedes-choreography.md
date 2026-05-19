@@ -3,6 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-05-17
 - **Supersedes**: ADR-0008
+- **Pre-cutover reference**: branch [`saga-choreography`](https://github.com/daonhan/Microservices-in-.NET/tree/saga-choreography) preserves the last choreography-only state of the repo for historical inspection.
 
 ## Context
 
