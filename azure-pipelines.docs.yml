@@ -51,16 +51,20 @@ steps:
 
   - bash: |
       set -euo pipefail
+      # Enumerate explicitly via find so the link-check step does not depend on
+      # lychee's internal glob expansion or the host shell's globstar setting.
+      # Paths are workspace-relative because lychee runs with -w /workspace.
+      mapfile -d '' DOC_FILES < <(find docs -type f -name '*.md' -print0)
       docker run --rm \
         -v "$(Build.SourcesDirectory):/workspace" \
         -w /workspace \
-        lycheeverse/lychee:latest \
+        lycheeverse/lychee:0.24.2 \
         --offline \
         --no-progress \
         --base /workspace \
-        'README.md' \
-        'CONTEXT.md' \
-        'AGENTS.md' \
-        'docs/**/*.md'
+        README.md \
+        CONTEXT.md \
+        AGENTS.md \
+        "${DOC_FILES[@]}"
     displayName: Verify markdown links
     workingDirectory: $(Build.SourcesDirectory)
