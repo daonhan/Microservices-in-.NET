@@ -1,0 +1,66 @@
+# Documentation gate pipeline. Independent of per-service pipelines.
+#
+# Step 1: Verify documentation drift (scripts/check-doc-drift.sh).
+# Step 2: Verify markdown links via lychee in offline mode (relative paths +
+#         anchors validated; external http(s) links skipped).
+#
+# Either step exiting non-zero fails the build.
+
+trigger:
+  branches:
+    include:
+      - main
+      - dev
+      - staging
+      - prod
+  paths:
+    include:
+      - '**/*.md'
+      - docs/**
+      - docker-compose.yaml
+      - scripts/check-doc-drift.ps1
+      - scripts/check-doc-drift.sh
+      - azure-pipelines.docs.yml
+
+pr:
+  branches:
+    include:
+      - '*'
+  paths:
+    include:
+      - '**/*.md'
+      - docs/**
+      - docker-compose.yaml
+      - scripts/check-doc-drift.ps1
+      - scripts/check-doc-drift.sh
+      - azure-pipelines.docs.yml
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - checkout: self
+    displayName: Checkout source
+
+  - bash: |
+      set -euo pipefail
+      chmod +x scripts/check-doc-drift.sh
+      scripts/check-doc-drift.sh
+    displayName: Verify documentation drift
+    workingDirectory: $(Build.SourcesDirectory)
+
+  - bash: |
+      set -euo pipefail
+      docker run --rm \
+        -v "$(Build.SourcesDirectory):/workspace" \
+        -w /workspace \
+        lycheeverse/lychee:latest \
+        --offline \
+        --no-progress \
+        --base /workspace \
+        'README.md' \
+        'CONTEXT.md' \
+        'AGENTS.md' \
+        'docs/**/*.md'
+    displayName: Verify markdown links
+    workingDirectory: $(Build.SourcesDirectory)
