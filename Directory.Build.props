@@ -14,4 +14,13 @@
     <NoWarn>$(NoWarn);NU1603;NU1902;NU1903;NU5104;CA1711;CA1707;CA1716</NoWarn>
   </PropertyGroup>
 
+  <!-- Docker sandbox (Ralph AFK) builds on a gRPC-FUSE bind mount that throws
+       MSB3248 "No such device" when MSBuild reads back a freshly built DLL.
+       Redirect bin/obj to the container-native filesystem in that env only.
+       Detection: the sandbox SDK runs as user 'agent' (HOME=/home/agent);
+       host Windows / native WSL never have that HOME. -->
+  <PropertyGroup Condition="'$(HOME)' == '/home/agent'">
+    <ArtifactsPath>$(HOME)/.nhamnhi-build</ArtifactsPath>
+  </PropertyGroup>
+
 </Project>

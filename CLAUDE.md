@@ -34,6 +34,8 @@ Activate once: `dotnet tool restore && dotnet husky install`. Hook runs `dotnet 
 
 Known failure: `MSB3248 No such device` on `dotnet build --no-restore` (or on `ECommerce.Shared.Tests` reading a freshly built shared DLL) caused by root-owned or sandbox-created `bin`/`obj`. Not a regression.
 
+`Directory.Build.props` now auto-redirects `ArtifactsPath` to `$HOME/.nhamnhi-build` (off the FUSE mount) when `HOME=/home/agent` (the docker sandbox), so MSB3248 should no longer occur in-sandbox and the manual clean+restore dance below is normally unnecessary. The steps remain the fallback if it still fails.
+
 **Mandatory order before any commit in sandbox:**
 
 1. Clean + restore + rerun hook:
