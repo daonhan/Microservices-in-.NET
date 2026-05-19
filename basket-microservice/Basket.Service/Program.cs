@@ -23,6 +23,7 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
 builder.Services.AddRedisCache(builder.Configuration);
 builder.Services.AddQaSeeding<RedisQaSeederHostedService>(builder.Configuration, builder.Environment);
 
+builder.AddAspireServiceDefaults();
 builder.AddPlatformObservability("Basket",
     customMetrics: m => m.AddView("basket-size",
         new ExplicitBucketHistogramConfiguration { Boundaries = [0, 1, 3, 5, 10, 25] }));

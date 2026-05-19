@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Nhamnhi.AppHost/Nhamnhi.AppHost.csproj" />
+  <Project Path="../basket-microservice/Basket.Service/Basket.Service.csproj" />
+</Solution>
