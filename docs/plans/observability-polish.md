@@ -1,6 +1,6 @@
 # Plan: Observability Polish
 
-> Source PRD: [docs/prd/PRD-Observability.md](../docs/prd/PRD-Observability.md) · [Issue #1](https://github.com/daonhan/Microservices-in-.NET/issues/1)
+> Source PRD: [docs/prd/PRD-Observability.md](../prd/PRD-Observability.md) · [Issue #1](https://github.com/daonhan/Microservices-in-.NET/issues/1)
 
 ## Architectural decisions
 

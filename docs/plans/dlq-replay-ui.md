@@ -1,6 +1,6 @@
 # Plan: Dead-Letter Queue + Replay UI
 
-> Source PRD: [docs/prd/PRD-DLQ-Replay-UI.md](../docs/prd/PRD-DLQ-Replay-UI.md) — GitHub issue [#36](https://github.com/daonhan/Microservices-in-.NET/issues/36)
+> Source PRD: [docs/prd/PRD-DLQ-Replay-UI.md](../prd/PRD-DLQ-Replay-UI.md) — GitHub issue [#36](https://github.com/daonhan/Microservices-in-.NET/issues/36)
 
 ## Architectural decisions
 
