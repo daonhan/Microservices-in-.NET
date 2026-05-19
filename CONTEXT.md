@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 
-> **TL;DR — share-block.** I built this repo to learn and demonstrate microservices in .NET 10 end-to-end, paired with **Claude Code Pro** and **GitHub Copilot Pro+** as my coding partners. It's an eight-business-service e-commerce platform with a YARP/Ocelot-switchable gateway, a transactional outbox, a Saga orchestrator for Order/Inventory/Payment/Shipping, RS256 JWT auth with `/jwks` discovery, an OpenTelemetry stack (Jaeger + Prometheus + Loki + Grafana), Kubernetes manifests, and a full GitHub Wiki sourced from `docs/wiki/`. This file is the single grounded entry point for AI agents, developer friends, and recruiters.
+> **TL;DR — share-block.** I built this repo to learn and demonstrate microservices in .NET 10 end-to-end, designed around an **agentic coding workflow** with **Claude Code Max** and **GitHub Copilot Pro+** as the executing agents. It's an eight-business-service e-commerce platform with a YARP/Ocelot-switchable gateway, a transactional outbox, a Saga orchestrator for Order/Inventory/Payment/Shipping, RS256 JWT auth with `/jwks` discovery, an OpenTelemetry stack (Jaeger + Prometheus + Loki + Grafana), Kubernetes manifests, and a full GitHub Wiki sourced from `docs/wiki/`. This file is the single grounded entry point for AI agents, developer friends, and recruiters.
 
 ### What's interesting here
 
@@ -15,6 +15,7 @@
 - **`ECommerce.Shared` as a real NuGet package** against a local feed (`local-nuget-packages/`) instead of project references — closer to how real shared libraries propagate.
 - **One `.slnx` per service, no root `.sln`.** Each service has an independent build/test boundary; `Directory.Build.props` enforces `TreatWarningsAsErrors`.
 - **AI-first development workflow.** PRDs in `docs/prd/`, plans in `docs/plans/`, and `CLAUDE.md` / `.github/copilot-instructions.md` act as the contract between me and the agents.
+- **Agentic coding workflow as a first-class artifact.** PRDs, plans, and ADRs are the contract; `CLAUDE.md` plus the AFK prompt at [`.github/prompts/afk-task.prompt.md`](.github/prompts/afk-task.prompt.md) are the runtime; Husky.Net pre-commit + `TreatWarningsAsErrors` are the typed feedback loops; a QMD-indexed session store is the memory.
 
 ### Links
 
@@ -32,7 +33,7 @@ I built this repo to teach myself microservices in .NET 10 the way I'd want to b
 
 The second motivation is portfolio: I wanted one repository I can point a recruiter or a future teammate at and say "this is how I think about systems, this is how I work with AI tools, this is the depth I care about." Most of my professional code lives behind NDAs. This one is public on purpose.
 
-The third motivation is the AI-pair-programming workflow itself. I wanted to find out — concretely, on a non-trivial codebase — where Claude Code Pro and GitHub Copilot Pro+ each earn their keep, and where I'm still the one who has to make the call. The whole repo is the answer to that question.
+The third motivation is the AI-pair-programming workflow itself. I wanted to find out — concretely, on a non-trivial codebase — where Claude Code Max and GitHub Copilot Pro+ each earn their keep, and where I'm still the one who has to make the call. The whole repo is the answer to that question.
 
 ## What it is
 
@@ -179,23 +180,27 @@ The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/REA
 9. [ADR-0009](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md) — OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack
 10. [ADR-0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md) — Saga orchestrator owns Order/Inventory/Payment/Shipping (supersedes ADR-0008)
 
-## AI workflow
+## Agentic coding workflow
 
-This repo was built as a deliberate experiment in pair-programming with two AI tools at once. The split that emerged after several months of work:
+This repo is the system I built *around* the AI tools, not just a project I built *with* them. The system is what I want to show; the eight services are the proof that the system works. Six anchors, each one tied to a path in this repo:
 
-- **Claude Code Pro** is my long-running, repo-aware partner. It reads `CLAUDE.md`, the PRDs, and the plans before it touches code, and it owns multi-file work: scaffolding new services, threading a saga step end-to-end, refactoring across all eight business services when `ECommerce.Shared` changes, writing the integration tests that exercise `WebApplicationFactory<Program>` against a real database. AFK-style tasks (`.github/prompts/afk-task.prompt.md`) are written for it — pick an issue, implement the smallest end-to-end slice, run the feedback loops, commit. When I need *judgment* — "is this the right shape for the saga?", "is this `StockItem` aggregate the right boundary?" — that conversation happens with Claude.
-- **GitHub Copilot Pro+** is my in-editor reflex. Inline completions, single-method edits, test scaffolding, the boilerplate of a new endpoint or DTO, the "finish this LINQ query" moments. Copilot Chat is where I do quick, file-local exploration without spinning up a longer Claude session.
+1. **Written contracts, not vibes.** Every non-trivial change starts as a PRD in [docs/prd/](docs/prd/), decomposes into tracer-bullet phases in [docs/plans/](docs/plans/), and — when a load-bearing choice falls out of it — lands an ADR in [docs/adr/](docs/adr/) (10 to date). Agents read the contract before they touch code. When the diff is wrong, the PRD was usually wrong first; fixing the doc fixes the next ten generations.
+2. **Repo-resident guardrails.** [`CLAUDE.md`](CLAUDE.md), [`.claude/CLAUDE.md`](.claude/CLAUDE.md), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md) lay out the conventions both agents must respect — `Given_When_Then` test names, `ApiModels/` vs `Models/` split, `TreatWarningsAsErrors`, the sandbox commit-gate policy. When an agent goes wrong, the file that needs the fix is almost always one of these three.
+3. **Autonomous AFK loop.** [`.github/prompts/afk-task.prompt.md`](.github/prompts/afk-task.prompt.md) is a self-contained loop the agent can run unattended: pick the next AFK-eligible GitHub issue, implement the smallest end-to-end vertical slice, run the feedback loops, commit, update the issue. `hitl` / `human-in-the-loop` / `blocked` labels gate the agent out of work I want to drive myself.
+4. **Typed feedback loops the agent can run alone.** `Directory.Build.props` promotes warnings to errors and enforces `.editorconfig`; Husky.Net runs `dotnet format --verify-no-changes`, `dotnet build`, and the Basket test suite on every commit; the public write-up of why this matters lives at [docs/essential-ai-coding-feedback-loops.md](docs/essential-ai-coding-feedback-loops.md). The strictness isn't for its own sake — an agent without ground truth invents plausible code, and these gates are the ground truth.
+5. **Commit-gate honesty.** Sandbox runs that can't pass the hooks hand off to the host instead of committing with a deferred-validation footer. The prohibitions — no `--no-verify`, no `-c core.hooksPath=`, no `Hooks-Deferred:` footers, no partial commits — are spelled out under "Hard prohibitions" in [`CLAUDE.md`](CLAUDE.md), so neither I nor the agent is tempted to bypass them under time pressure.
+6. **Memory and retrieval.** A `load-session-context` skill backed by a local QMD index pulls relevant prior sessions and curated docs into context before continuing work — saga refactors, DLQ runbooks, gateway tradeoffs are recallable months later instead of re-derived. `MEMORY.md` indexes the durable per-user preferences that should survive across conversations.
 
-The contract between me and either agent is written down, not improvised. PRDs in [docs/prd/](docs/prd/) define *what* a feature is and what its acceptance criteria look like. Plans in [docs/plans/](docs/plans/) decompose a PRD into tracer-bullet phases and explicit feedback loops. ADRs in [docs/adr/](docs/adr/) record the load-bearing choices so neither agent has to re-derive them. `CLAUDE.md` and `.github/copilot-instructions.md` lay out the repo conventions both must respect — `Given_When_Then` test names, DTOs in `ApiModels/` versus domain types in `Models/`, `dotnet format` and `TreatWarningsAsErrors` are non-negotiable. When an agent is wrong, it's almost always because the PRD or the ADR was wrong; fixing the doc fixes the next ten generations.
+The two-tool split inside that workflow: **Claude Code Max** is the long-running, repo-aware partner that reads `CLAUDE.md` plus the PRDs and plans before it touches code — multi-file work, AFK runs, integration tests against `WebApplicationFactory<Program>`, and the judgement conversations ("is this the right saga shape?", "is `StockItem` the right aggregate boundary?"). **GitHub Copilot Pro+** is the in-editor reflex — inline completions, single-method edits, test scaffolding, "finish this LINQ query" moments. The contract is the same for both; only the latency differs.
 
-Some boundaries I kept under direct human control on purpose:
+The other half of the workflow is the boundaries I kept under direct human control, written down so neither side has to negotiate them per-task:
 
 - **Security review.** Anything touching JWT issuance, JWKS publication, role-based authorization at the gateway, or secret handling I read line-by-line before merging. Agents draft; I approve.
 - **Deployment.** Docker Compose, Kubernetes manifests, Azure pipelines. I write or thoroughly review every manifest. Agents are good at scaffolding YAML and bad at noticing when a probe path or a resource limit is quietly wrong.
 - **Schema migrations.** EF Core migrations are generated locally, reviewed, and committed by hand. I never let an agent regenerate or hand-edit a migration that has already been applied.
 - **`git push`, releasing a new `ECommerce.Shared` version, closing issues without a commit reference.** Mechanical-but-irreversible steps stay on me.
 
-The net effect is that AI tools moved me from "can I learn this in my spare time?" to "I can ship a non-trivial system in my spare time and write about every choice." That delta is the actual product of this repo.
+The net effect is that this workflow moved me from "can I learn this in my spare time?" to "I can ship a non-trivial system in my spare time and write about every choice." The workflow is the product; the eight services are the receipts.
 
 ## What I learned
 
@@ -207,7 +212,7 @@ In rough order of how surprising each one was:
 4. **OpenTelemetry wiring is 80% plumbing, 20% taste.** Getting traces, metrics, and logs through a single Collector into Jaeger/Prometheus/Loki is mechanical (ADR-0009). The interesting work is *what* to instrument: outbox lag, DLQ depth, saga step latency, RabbitMQ queue backlog. The dashboards and alerts (`HighHttpErrorRate`, `RabbitMqQueueBacklog`, `LowStockAlert`) are where the platform becomes operable rather than just observable.
 5. **A dual-gateway switch is a cheap insurance policy.** Compiling both YARP and Ocelot behind a `Gateway:Provider` flag (ADR-0001) cost a single afternoon and gave me a non-trivial migration story, an A/B comparison surface, and a rollback plan for free. The lesson generalises: when two stacks both look like "the right answer," make the choice runtime-switchable until production tells you which one wins.
 6. **Distributing a shared library as NuGet — even against a local feed — is qualitatively different from a project reference.** ADR-0005 forced me to think in versions: a breaking change in `ECommerce.Shared` requires a `<Version>` bump, a `dotnet pack`, a push to the local feed, and an explicit consumer upgrade. That ceremony is annoying for a hobby repo and exactly right for a real platform — it surfaces coupling that project references hide.
-7. **AI pair-programming earns its keep when the contract is written down.** The same agent on the same task produces wildly different output depending on whether it has a PRD, a plan, an ADR, and a `CLAUDE.md` to ground it. The quality of the docs is the ceiling of the agent's output. That insight reshaped how I write down anything I expect to revisit.
+7. **The agentic coding workflow is the most reusable thing I built.** More reusable than any single service. Its ceiling is the quality of the contracts (PRDs, plans, ADRs, `CLAUDE.md`) and the strictness of the feedback loops (`TreatWarningsAsErrors`, Husky.Net pre-commit, the commit-gate prohibitions). Raise either, and the next ten generations of agent output get better for free. That insight reshaped how I write down anything I expect to revisit.
 
 The gateway's combined Swagger UI is the fastest way to show the "single front door, many services" shape of the platform without explaining the route table first.
 
