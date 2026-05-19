@@ -15,5 +15,6 @@ New ADRs start from [`0000-template.md`](0000-template.md).
 | [ADR-0005](0005-ecommerce-shared-as-nuget-via-local-feed.md)                 | `ECommerce.Shared` distributed as a NuGet package via a local feed               | Accepted |
 | [ADR-0006](0006-one-slnx-solution-per-service.md)                            | One `.slnx` solution per service; no root `.sln`                                 | Accepted |
 | [ADR-0007](0007-ef-core-database-per-service.md)                             | EF Core with one database per service                                            | Accepted |
-| [ADR-0008](0008-saga-choreography-no-central-orchestrator.md)                | Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping | Accepted |
+| [ADR-0008](0008-saga-choreography-no-central-orchestrator.md)                | Saga choreography (no central orchestrator) for Order/Inventory/Payment/Shipping | Superseded by ADR-0010 |
 | [ADR-0009](0009-otel-jaeger-prometheus-loki-grafana.md)                      | OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack         | Accepted |
+| [ADR-0010](0010-saga-orchestrator-supersedes-choreography.md)                | Saga orchestrator supersedes choreography for Order/Inventory/Payment/Shipping   | Accepted |

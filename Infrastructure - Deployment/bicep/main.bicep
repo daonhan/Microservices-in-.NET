@@ -4,7 +4,7 @@
 //   - VNet (AKS, private-endpoints, agents subnets)
 //   - ACR + AcrPull role assignment
 //   - AKS cluster
-//   - Azure SQL Server + 6 service databases
+//   - Azure SQL Server + 7 service databases
 //   - Azure Cache for Redis
 //   - Azure Key Vault
 //   - Log Analytics Workspace

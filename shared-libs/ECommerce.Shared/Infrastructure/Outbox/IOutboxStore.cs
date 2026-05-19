@@ -13,6 +13,7 @@ public interface IOutboxStore
     Task AddOutboxEvent<T>(T @event) where T : Event;
     Task<List<OutboxEvent>> GetUnpublishedOutboxEvents();
     Task MarkOutboxEventAsPublished(Guid outboxEventId);
+    Task<bool> RequeueOutboxEvent(Guid outboxEventId);
     Task RecordPublishFailure(Guid outboxEventId, string error, int maxAttempts);
     Task<List<OutboxEvent>> GetFailedOutboxEvents();
     IExecutionStrategy CreateExecutionStrategy();

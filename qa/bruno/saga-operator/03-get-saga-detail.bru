@@ -1,0 +1,23 @@
+meta {
+  name: 03-get-saga-detail
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{sagaBaseUrl}}/operator/api/sagas/{{operatorSagaId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{serviceToken}}
+}
+
+tests {
+  test("returns saga detail with transitions", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.sagaId).to.equal(bru.getVar("operatorSagaId"));
+    expect(res.body.transitions).to.be.an("array");
+  });
+}

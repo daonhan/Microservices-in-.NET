@@ -3,6 +3,7 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.Outbox;
+using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
@@ -38,10 +39,9 @@ builder.AddPlatformOpenApi("order");
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<PaymentAuthorizedEvent, PaymentAuthorizedEventHandler>()
-    .AddEventHandler<PaymentFailedEvent, PaymentFailedEventHandler>()
-    .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>()
-    .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>();
+    .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>()
+    .AddEventHandler<ConfirmOrderCommand, ConfirmOrderCommandHandler>()
+    .AddEventHandler<CancelOrderCommand, CancelOrderCommandHandler>();
 
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation(),

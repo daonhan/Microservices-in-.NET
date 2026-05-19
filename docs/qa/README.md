@@ -185,3 +185,4 @@ Scenario pages:
 - [02 Stock Shortage](scenarios/02-stock-shortage.md)
 - [03 Payment Decline](scenarios/03-payment-decline.md)
 - [04 Admin Ops](scenarios/04-admin-ops.md)
+- [05 Saga Operator Abort](scenarios/05-saga-operator-abort.md)

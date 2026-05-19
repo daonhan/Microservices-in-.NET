@@ -1,8 +1,10 @@
 using System.Text;
 using ECommerce.Shared.Infrastructure.DeadLetter;
+using ECommerce.Shared.Infrastructure.DeadLetter.Models;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.RabbitMq;
+using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
@@ -178,6 +180,66 @@ public sealed class RabbitMqDeadLetterIntegrationTests : IAsyncLifetime
         Assert.Equal(correlationId.ToString(), ReadHeaderString(replayed.BasicProperties, RabbitMqTopology.CorrelationIdHeader));
     }
 
+    [Fact]
+    public async Task Given_saga_reserve_stock_command_dead_letters_When_gateway_capture_replays_Then_original_queue_resumes()
+    {
+        var queueName = $"inventory-saga-dlq-{Guid.NewGuid():N}";
+        var command = new ReserveStockCommand(
+            Guid.NewGuid(),
+            "customer-saga",
+            [new ReserveStockItem("MALFORMED", 1, 12.50m)],
+            "USD",
+            Guid.NewGuid(),
+            Guid.NewGuid())
+        {
+            CorrelationId = Guid.NewGuid()
+        };
+
+        await using var captureProvider = BuildDeadLetterProvider();
+        var capturer = captureProvider.GetRequiredService<RabbitMqDeadLetterCapture>();
+        await capturer.StartAsync(CancellationToken.None);
+
+        await using var host = BuildReserveStockHost(queueName, retryCount: 1, handler => handler.FailMalformedCommands = true);
+        await host.StartHostedServiceAsync();
+        await WaitForQueueAsync(queueName);
+        await WaitForQueueAsync(RabbitMqTopology.DeadLetterQueueName);
+
+        PublishWithCorrelationId(command, command.CorrelationId!.Value);
+
+        Assert.True(await host.Handler.WaitForFailuresAsync(2, TimeSpan.FromSeconds(10)));
+
+        var captured = await WaitForCapturedMessageAsync(
+            captureProvider,
+            command.OrderId.ToString(),
+            TimeSpan.FromSeconds(15));
+        Assert.True(
+            captured is not null,
+            $"Expected gateway DLQ capture row. DLQ count: {GetMessageCount(RabbitMqTopology.DeadLetterQueueName)}; captured rows: {await CountCapturedRowsAsync(captureProvider)}.");
+        var message = captured!;
+        Assert.Equal(nameof(ReserveStockCommand), message.EventType);
+        Assert.Equal(queueName, message.OriginalQueue);
+        Assert.Equal(queueName, message.Service);
+        Assert.Equal(DeadLetterOrigin.DeadLetter, message.Origin);
+        Assert.Equal(command.CorrelationId, message.CorrelationId);
+
+        host.Handler.FailMalformedCommands = false;
+        using (var replayScope = captureProvider.CreateScope())
+        {
+            var replayer = replayScope.ServiceProvider.GetRequiredService<IDeadLetterReplayer>();
+            var result = await replayer.ReplayAsync(message.Id, "operator-test");
+            Assert.Equal(DeadLetterReplayOutcome.Success, result.Outcome);
+            Assert.NotNull(result.NewMessageId);
+        }
+
+        Assert.True(await host.Handler.WaitForSuccessesAsync(1, TimeSpan.FromSeconds(10)));
+        Assert.Contains(host.Handler.SuccessfulCommands, c => c.OrderId == command.OrderId);
+
+        var replayed = await WaitForCapturedStatusAsync(captureProvider, message.Id, DeadLetterStatus.Replayed, TimeSpan.FromSeconds(5));
+        Assert.True(replayed, "DLQ row was not marked replayed after successful publish.");
+
+        await capturer.StopAsync(CancellationToken.None);
+    }
+
     private TestHost BuildHost<TEvent, THandler>(string queueName, int retryCount, Action<THandler> configure)
         where TEvent : Event
         where THandler : class, IEventHandler<TEvent>, new()
@@ -200,6 +262,44 @@ public sealed class RabbitMqDeadLetterIntegrationTests : IAsyncLifetime
 
         var provider = services.BuildServiceProvider();
         return new TestHost(provider, provider.GetRequiredService<RabbitMqHostedService>(), handler);
+    }
+
+    private ReserveStockTestHost BuildReserveStockHost(
+        string queueName,
+        int retryCount,
+        Action<ReserveStockReplayHandler> configure)
+    {
+        var handler = new ReserveStockReplayHandler();
+        configure(handler);
+
+        var services = new ServiceCollection();
+
+        services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
+
+        services.Configure<EventBusOptions>(o => o.QueueName = queueName);
+        services.Configure<RabbitMqOptions>(o => o.HandlerRetryCount = retryCount);
+        services.Configure<EventHandlerRegistration>(o => o.EventTypes[typeof(ReserveStockCommand).Name] = typeof(ReserveStockCommand));
+
+        services.AddSingleton<IRabbitMqConnection>(new ExistingConnection(_testConnection!));
+        services.AddSingleton<RabbitMqTelemetry>();
+        services.AddKeyedSingleton<IEventHandler>(typeof(ReserveStockCommand), handler);
+        services.AddSingleton<RabbitMqHostedService>();
+
+        var provider = services.BuildServiceProvider();
+        return new ReserveStockTestHost(provider, provider.GetRequiredService<RabbitMqHostedService>(), handler);
+    }
+
+    private ServiceProvider BuildDeadLetterProvider()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging(b => b.SetMinimumLevel(LogLevel.Warning));
+        services.AddSingleton<GatewayDeadLetterTable>();
+        services.AddSingleton<IDeadLetterStore>(sp => sp.GetRequiredService<GatewayDeadLetterTable>());
+        services.AddSingleton<IRabbitMqConnection>(new ExistingConnection(_testConnection!));
+        services.AddSingleton<IDeadLetterPublisher, RabbitMqDeadLetterPublisher>();
+        services.AddScoped<IDeadLetterReplayer, DeadLetterReplayer>();
+        services.AddSingleton<RabbitMqDeadLetterCapture>();
+        return services.BuildServiceProvider();
     }
 
     private void Publish(Event @event)
@@ -277,6 +377,59 @@ public sealed class RabbitMqDeadLetterIntegrationTests : IAsyncLifetime
         }
 
         return null;
+    }
+
+    private static async Task<DeadLetterMessage?> WaitForCapturedMessageAsync(
+        IServiceProvider provider,
+        string payloadNeedle,
+        TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            var store = provider.GetRequiredService<GatewayDeadLetterTable>();
+            var page = await store.ListAsync(new DeadLetterFilter(PageSize: 200));
+            var message = page.Items
+                .OrderByDescending(m => m.FailedAt)
+                .FirstOrDefault(m => m.Payload.Contains(payloadNeedle, StringComparison.Ordinal));
+            if (message is not null)
+            {
+                return message;
+            }
+
+            await Task.Delay(100);
+        }
+
+        return null;
+    }
+
+    private static async Task<bool> WaitForCapturedStatusAsync(
+        IServiceProvider provider,
+        Guid id,
+        DeadLetterStatus status,
+        TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            var store = provider.GetRequiredService<GatewayDeadLetterTable>();
+            var message = await store.GetAsync(id);
+            if (message?.Status == status)
+            {
+                return true;
+            }
+
+            await Task.Delay(100);
+        }
+
+        return false;
+    }
+
+    private static async Task<int> CountCapturedRowsAsync(IServiceProvider provider)
+    {
+        var store = provider.GetRequiredService<GatewayDeadLetterTable>();
+        var page = await store.ListAsync(new DeadLetterFilter(PageSize: 200));
+        return page.TotalCount;
     }
 
     private static string? ReadHeaderString(IBasicProperties props, string key)
@@ -357,6 +510,32 @@ public sealed class RabbitMqDeadLetterIntegrationTests : IAsyncLifetime
         }
     }
 
+    private sealed class ReserveStockTestHost : IAsyncDisposable
+    {
+        private readonly ServiceProvider _provider;
+        private readonly RabbitMqHostedService _service;
+
+        public ReserveStockTestHost(
+            ServiceProvider provider,
+            RabbitMqHostedService service,
+            ReserveStockReplayHandler handler)
+        {
+            _provider = provider;
+            _service = service;
+            Handler = handler;
+        }
+
+        public ReserveStockReplayHandler Handler { get; }
+
+        public Task StartHostedServiceAsync() => _service.StartAsync(CancellationToken.None);
+
+        public async ValueTask DisposeAsync()
+        {
+            await _service.StopAsync(CancellationToken.None);
+            await _provider.DisposeAsync();
+        }
+    }
+
     public enum HandlerMode
     {
         AlwaysSucceed,
@@ -425,6 +604,200 @@ public sealed class RabbitMqDeadLetterIntegrationTests : IAsyncLifetime
 
             var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout ?? TimeSpan.FromSeconds(5)));
             return completed == tcs.Task;
+        }
+    }
+
+    public sealed class ReserveStockReplayHandler : IEventHandler<ReserveStockCommand>
+    {
+        private int _failures;
+        private int _successes;
+        private readonly object _gate = new();
+        private TaskCompletionSource _failureSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource _successSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _waitForFailures;
+        private int _waitForSuccesses;
+
+        public bool FailMalformedCommands { get; set; }
+
+        public List<ReserveStockCommand> SuccessfulCommands { get; } = [];
+
+        public Task Handle(ReserveStockCommand command)
+        {
+            if (FailMalformedCommands && command.Items.Any(i => i.ProductId == "MALFORMED"))
+            {
+                var failures = Interlocked.Increment(ref _failures);
+                SignalIfReached(failures, isFailure: true);
+                throw new InvalidOperationException("malformed ReserveStockCommand");
+            }
+
+            lock (_gate)
+            {
+                SuccessfulCommands.Add(command);
+            }
+
+            var successes = Interlocked.Increment(ref _successes);
+            SignalIfReached(successes, isFailure: false);
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> WaitForFailuresAsync(int count, TimeSpan timeout) =>
+            WaitForAsync(count, timeout, isFailure: true);
+
+        public Task<bool> WaitForSuccessesAsync(int count, TimeSpan timeout) =>
+            WaitForAsync(count, timeout, isFailure: false);
+
+        private async Task<bool> WaitForAsync(int count, TimeSpan timeout, bool isFailure)
+        {
+            TaskCompletionSource tcs;
+            lock (_gate)
+            {
+                var current = isFailure ? Volatile.Read(ref _failures) : Volatile.Read(ref _successes);
+                if (current >= count)
+                {
+                    return true;
+                }
+
+                if (isFailure)
+                {
+                    _waitForFailures = count;
+                    _failureSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    tcs = _failureSignal;
+                }
+                else
+                {
+                    _waitForSuccesses = count;
+                    _successSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    tcs = _successSignal;
+                }
+            }
+
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
+            return completed == tcs.Task;
+        }
+
+        private void SignalIfReached(int current, bool isFailure)
+        {
+            TaskCompletionSource? toSignal = null;
+            lock (_gate)
+            {
+                if (isFailure && _waitForFailures > 0 && current >= _waitForFailures)
+                {
+                    toSignal = _failureSignal;
+                }
+                else if (!isFailure && _waitForSuccesses > 0 && current >= _waitForSuccesses)
+                {
+                    toSignal = _successSignal;
+                }
+            }
+
+            toSignal?.TrySetResult();
+        }
+    }
+
+    private sealed class GatewayDeadLetterTable : IDeadLetterStore
+    {
+        private readonly object _gate = new();
+        private readonly List<DeadLetterMessage> _messages = [];
+
+        public Task CaptureAsync(DeadLetterMessage message, CancellationToken cancellationToken = default)
+        {
+            lock (_gate)
+            {
+                _messages.Add(message);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task<DeadLetterPage> ListAsync(DeadLetterFilter filter, CancellationToken cancellationToken = default)
+        {
+            lock (_gate)
+            {
+                var query = _messages.AsEnumerable();
+                if (!string.IsNullOrWhiteSpace(filter.Service))
+                {
+                    query = query.Where(m => m.Service == filter.Service);
+                }
+
+                if (!string.IsNullOrWhiteSpace(filter.EventType))
+                {
+                    query = query.Where(m => m.EventType == filter.EventType);
+                }
+
+                if (filter.Status.HasValue)
+                {
+                    query = query.Where(m => m.Status == filter.Status.Value);
+                }
+
+                if (filter.From.HasValue)
+                {
+                    query = query.Where(m => m.FailedAt >= filter.From.Value);
+                }
+
+                if (filter.To.HasValue)
+                {
+                    query = query.Where(m => m.FailedAt <= filter.To.Value);
+                }
+
+                if (filter.Origin.HasValue)
+                {
+                    query = query.Where(m => m.Origin == filter.Origin.Value);
+                }
+
+                var page = Math.Max(1, filter.Page);
+                var pageSize = Math.Clamp(filter.PageSize, 1, 200);
+                var total = query.Count();
+                var items = query
+                    .OrderByDescending(m => m.FailedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToArray();
+
+                return Task.FromResult(new DeadLetterPage(items, page, pageSize, total));
+            }
+        }
+
+        public Task<DeadLetterMessage?> GetAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            lock (_gate)
+            {
+                return Task.FromResult(_messages.FirstOrDefault(m => m.Id == id));
+            }
+        }
+
+        public Task<bool> MarkReplayedAsync(Guid id, string replayedBy, CancellationToken cancellationToken = default)
+        {
+            lock (_gate)
+            {
+                var message = _messages.FirstOrDefault(m => m.Id == id);
+                if (message is null || message.Status != DeadLetterStatus.Pending)
+                {
+                    return Task.FromResult(false);
+                }
+
+                message.Status = DeadLetterStatus.Replayed;
+                message.ReplayedAt = DateTime.UtcNow;
+                message.ReplayedBy = replayedBy;
+                return Task.FromResult(true);
+            }
+        }
+
+        public Task<bool> MarkDiscardedAsync(Guid id, string discardedBy, string discardReason, CancellationToken cancellationToken = default)
+        {
+            lock (_gate)
+            {
+                var message = _messages.FirstOrDefault(m => m.Id == id);
+                if (message is null || message.Status != DeadLetterStatus.Pending)
+                {
+                    return Task.FromResult(false);
+                }
+
+                message.Status = DeadLetterStatus.Discarded;
+                message.DiscardedAt = DateTime.UtcNow;
+                message.DiscardedBy = discardedBy;
+                message.DiscardReason = discardReason;
+                return Task.FromResult(true);
+            }
         }
     }
 }

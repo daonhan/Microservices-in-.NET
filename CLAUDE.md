@@ -2,11 +2,13 @@
 
 Guidance for Claude Code in this repo. See [README.md](README.md), [CONTEXT.md](CONTEXT.md), [.claude/CLAUDE.md](.claude/CLAUDE.md) (behavioral rules).
 
+If prior work may be relevant, use the `load-session-context` skill to search the local QMD index of prior sessions (and, after Phase 4, repo docs) and load only the relevant past context before continuing.
+
 ## Repo shape
 
 .NET microservices monorepo, **net10.0**, no root solution. Each `*-microservice/`, `api-gateway/`, `shared-libs/` is its own `.slnx`.
 
-Services (port, datastore): basket 8000 Redis · order 8001 SQL+Redis · product 8002 SQL · auth 8003 SQL · api-gateway 8004 — · inventory 8005 SQL · shipping 8006 SQL · payment 8007 SQL.
+Services (port, datastore): basket 8000 Redis · order 8001 SQL+Redis · product 8002 SQL · auth 8003 SQL · api-gateway 8004 — · inventory 8005 SQL · shipping 8006 SQL · payment 8007 SQL · saga 8008 SQL.
 
 ## Build / test / run
 
@@ -68,7 +70,7 @@ Consumers see no change until version bump + new `.nupkg` in feed.
 
 Read together: each service's `Program.cs` (composition root, uses `ECommerce.Shared` extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`); `shared-libs/ECommerce.Shared/Infrastructure/` (`EventBus/`, `Messaging/`, `RabbitMq/`, `AzureServiceBus/` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; `Outbox/` — `OutboxBackgroundService`, services that publish need `AddOutbox(...)` + `app.ApplyOutboxMigrations()` in Dev). New cross-cutting concerns belong in `ECommerce.Shared`.
 
-**Saga (no orchestrator):** `OrderCreatedEvent` → Inventory reserves → `StockReserved`/`StockReservationFailed` → Order emits `OrderConfirmed`/`OrderCancelled` → Inventory commits/releases → Payment authorizes/captures (`PaymentAuthorized|Captured|Failed|Refunded`) → Shipping on `StockCommitted` (`ShipmentCreated|Dispatched|Delivered|Cancelled|Returned|Failed`). Touching one leg without the others desyncs the flow. Events: `IntegrationEvents/Events/`; handlers: `IntegrationEvents/EventHandlers/`.
+**Saga (orchestrator-only):** Saga service owns the order saga end-to-end. It starts from `OrderCreatedEvent`, persists saga state, and drives participants exclusively with commands: `ReserveStockCommand`/`CommitStockCommand`/`ReleaseStockCommand` (Inventory), `AuthorizePaymentCommand`/`CapturePaymentCommand`/`VoidPaymentCommand`/`RefundPaymentCommand` (Payment), `ConfirmOrderCommand`/`CancelOrderCommand` (Order), `CreateShipmentCommand`/`CancelShipmentCommand` (Shipping). Participants reply with the existing integration events (`StockReserved|StockReservationFailed|StockCommitted|StockReleased|PaymentAuthorized|Captured|Failed|Voided|Refunded|OrderConfirmed|OrderCancelled|ShipmentCreated|Dispatched|Delivered|Cancelled|Returned|Failed`) carrying `CausationId`/`SagaId`. Cutover from choreography completed 2026-05-18 (issue #132); legacy choreography handlers removed. Runbook: [saga-orchestrator-strangler.md](docs/runbooks/saga-orchestrator-strangler.md). ADR: [0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md). Events: `IntegrationEvents/Events/`; handlers: `IntegrationEvents/EventHandlers/`.
 
 Per-service layout: `Endpoints/` (Minimal API), `ApiModels/` (DTOs), `Models/` (domain), `Infrastructure/Data/`, `IntegrationEvents/`, `Migrations/`. Keep DTOs vs domain split.
 

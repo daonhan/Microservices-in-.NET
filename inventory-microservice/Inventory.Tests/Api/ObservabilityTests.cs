@@ -1,8 +1,8 @@
 using System.Diagnostics.Metrics;
 using System.Net.Http.Json;
+using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.ApiModels;
-using Inventory.Service.IntegrationEvents;
 using Inventory.Service.IntegrationEvents.EventHandlers;
 using Inventory.Service.Models;
 using Microsoft.Extensions.DependencyInjection;
@@ -73,7 +73,7 @@ public class ObservabilityTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task OrderCreatedEventHandler_RecordsReservationLatencyHistogramSample()
+    public async Task ReserveStockCommandHandler_RecordsReservationLatencyHistogramSample()
     {
         // Arrange
         var observed = new List<int>();
@@ -91,10 +91,16 @@ public class ObservabilityTests : IntegrationTestBase
         listener.Start();
 
         using var scope = Factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<OrderCreatedEventHandler>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<ReserveStockCommandHandler>(scope.ServiceProvider);
 
         // Act — empty items exits early but still runs through the try/finally
-        await handler.Handle(new OrderCreatedEvent(Guid.NewGuid(), "customer-1", []));
+        await handler.Handle(new ReserveStockCommand(
+            Guid.NewGuid(),
+            "customer-1",
+            [],
+            "USD",
+            causationId: Guid.NewGuid(),
+            sagaId: Guid.NewGuid()));
 
         // Assert
         Assert.NotEmpty(observed);

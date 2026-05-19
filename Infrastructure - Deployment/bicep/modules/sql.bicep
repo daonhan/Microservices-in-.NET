@@ -1,7 +1,7 @@
 // Azure SQL Server + per-service databases for the e-commerce platform.
 //
 // Creates one logical SQL Server and a database for each service that requires SQL:
-//   auth, order, product, inventory, shipping, payment.
+//   auth, order, product, inventory, shipping, payment, saga.
 //
 // Connection strings are exposed as outputs so callers can feed them to K8s secrets.
 
@@ -26,6 +26,7 @@ param databaseNames array = [
   'inventory'
   'shipping'
   'payment'
+  'saga'
 ]
 
 @description('Database SKU name. Use "Basic" for dev, "S1"/"S2" for staging/prod.')
