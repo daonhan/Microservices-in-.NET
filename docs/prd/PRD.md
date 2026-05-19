@@ -148,3 +148,7 @@ A microservice-based e-commerce platform using .NET 8 / ASP.NET Core Minimal API
 - Shared library versioned via local NuGet packages; production would use a private NuGet feed (Azure Artifacts, GitHub Packages)
 - Each microservice has its own `.slnx` solution file for independent development and CI/CD
 - Course source code also available in `Microservices-Source-Code/` and converted markdown lessons in `Microservice-MD/`
+
+## Related PRDs
+
+- [PRD-Docs-Refresh-2026-05](PRD-Docs-Refresh-2026-05.md) — saga orchestrator cutover + documentation drift gate (2026-05)
