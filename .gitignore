@@ -19,6 +19,7 @@ Infrastructure - Deployment/OVERVIEW.md
 Infrastructure - Deployment/SYSTEM_DESIGN.md
 Infrastructure - Deployment/TECH_STACK.md
 Infrastructure - Deployment/ARCHITECTURE.md
+.ralph-tmp/
 
 # Claude Code local state
 .claude/*
