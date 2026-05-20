@@ -11,6 +11,7 @@ using Shipping.Service.Carriers;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
 using Shipping.Service.IntegrationEvents;
 using Shipping.Service.Models;
+using Shipping.Tests.Authentication;
 
 namespace Shipping.Tests.IntegrationEvents;
 
@@ -21,13 +22,25 @@ namespace Shipping.Tests.IntegrationEvents;
 /// emitted for every aggregate transition, and that the overall ordered event
 /// stream for a shipment matches what downstream consumers rely on.
 /// </summary>
-public class EventStreamConsolidationTests : IntegrationTestBase
+public class EventStreamConsolidationTests
+    : IClassFixture<ShippingNoOutboxPollerWebApplicationFactory>
 {
     private const string GroundSecret = "test-ground-secret";
 
-    public EventStreamConsolidationTests(ShippingWebApplicationFactory webApplicationFactory)
-        : base(webApplicationFactory)
+    // Poller disabled on this fixture so "unpublished" == "all emitted" — the
+    // audit below asserts the canonical historical stream deterministically (#151).
+    internal readonly ShippingNoOutboxPollerWebApplicationFactory Factory;
+
+    public EventStreamConsolidationTests(ShippingNoOutboxPollerWebApplicationFactory webApplicationFactory)
     {
+        Factory = webApplicationFactory;
+    }
+
+    private HttpClient CreateAuthenticatedClient(string role = "Administrator")
+    {
+        var client = Factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, role);
+        return client;
     }
 
     [Fact]
