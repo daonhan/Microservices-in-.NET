@@ -11,6 +11,7 @@ using Order.Service.Features.CancelOrder;
 using Order.Service.Features.ConfirmOrder;
 using Order.Service.Features.CreateOrder;
 using Order.Service.Features.GetOrder;
+using Order.Service.Features.ListOrders;
 using Order.Service.Features.ProductCreated;
 using Order.Service.Infrastructure.Data.EntityFramework;
 using Order.Service.Infrastructure.Outbox;
@@ -29,6 +30,7 @@ builder.Services.AddInfrastructureProviders(builder.Configuration);
 
 builder.Services.AddCreateOrderSlice();
 builder.Services.AddGetOrderSlice();
+builder.Services.AddListOrdersSlice();
 builder.Services.AddConfirmOrderSlice();
 builder.Services.AddCancelOrderSlice();
 builder.Services.AddProductCreatedSlice();
@@ -69,6 +71,7 @@ app.UsePlatformOpenApi();
 
 app.MapCreateOrder();
 app.MapGetOrder();
+app.MapListOrders();
 app.MapCancelOrder();
 app.RegisterInternalOutboxEndpoints();
 
