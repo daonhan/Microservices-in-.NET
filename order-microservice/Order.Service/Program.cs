@@ -12,6 +12,7 @@ using Order.Service.Endpoints;
 using Order.Service.Features.CancelOrder;
 using Order.Service.Features.ConfirmOrder;
 using Order.Service.Features.CreateOrder;
+using Order.Service.Features.GetOrder;
 using Order.Service.Infrastructure.Data.EntityFramework;
 using Order.Service.Infrastructure.Outbox;
 using Order.Service.IntegrationEvents.EventHandlers;
@@ -25,6 +26,7 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddCreateOrderSlice();
+builder.Services.AddGetOrderSlice();
 builder.Services.AddConfirmOrderSlice();
 builder.Services.AddCancelOrderSlice();
 builder.Services.AddScoped<DomainEventOutboxInterceptor>();
@@ -79,6 +81,7 @@ app.UsePlatformOpenApi();
 
 app.RegisterEndpoints();
 app.MapCreateOrder();
+app.MapGetOrder();
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();
