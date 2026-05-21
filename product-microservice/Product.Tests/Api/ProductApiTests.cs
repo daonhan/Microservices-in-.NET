@@ -53,13 +53,7 @@ public class ProductApiTests : IntegrationTestBase
     public async Task GetProduct_WhenProductExists_ThenReturnsProduct()
     {
         // Arrange
-        var product = new Product.Service.Domain.Product
-        {
-            Name = "Integration Test Shoe",
-            Price = 99.99M,
-            ProductTypeId = 1,
-            Description = "Test description"
-        };
+        var product = new Product.Service.Domain.Product("Integration Test Shoe", 99.99M, 1, "Test description");
 
         await ProductContext.CreateProduct(product);
 
@@ -80,12 +74,7 @@ public class ProductApiTests : IntegrationTestBase
     public async Task UpdateProduct_WhenProductExists_ThenUpdatesProduct()
     {
         // Arrange
-        var product = new Product.Service.Domain.Product
-        {
-            Name = "Original Shoe",
-            Price = 50.00M,
-            ProductTypeId = 1
-        };
+        var product = new Product.Service.Domain.Product("Original Shoe", 50.00M, 1);
 
         await ProductContext.CreateProduct(product);
 
@@ -105,12 +94,7 @@ public class ProductApiTests : IntegrationTestBase
     public async Task UpdateProduct_WhenPriceChanges_ThenProductPriceUpdatedEventPublished()
     {
         // Arrange
-        var product = new Product.Service.Domain.Product
-        {
-            Name = "Event Test Shoe",
-            Price = 50.00M,
-            ProductTypeId = 1
-        };
+        var product = new Product.Service.Domain.Product("Event Test Shoe", 50.00M, 1);
 
         await ProductContext.CreateProduct(product);
 

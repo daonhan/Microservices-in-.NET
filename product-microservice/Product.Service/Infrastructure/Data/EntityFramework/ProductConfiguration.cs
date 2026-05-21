@@ -22,7 +22,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Domain.Product>
             .WithMany();
 
         builder.HasData(
-            new Domain.Product
+            new
             {
                 Id = QaPersonas.ProductHappyId,
                 Name = QaPersonas.ProductHappyName,
@@ -30,7 +30,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Domain.Product>
                 Price = QaPersonas.ProductHappyPrice,
                 ProductTypeId = 1
             },
-            new Domain.Product
+            new
             {
                 Id = QaPersonas.ProductDeclineId,
                 Name = QaPersonas.ProductDeclineName,
@@ -38,7 +38,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Domain.Product>
                 Price = QaPersonas.ProductDeclinePrice,
                 ProductTypeId = 1
             },
-            new Domain.Product
+            new
             {
                 Id = QaPersonas.ProductZeroStockId,
                 Name = QaPersonas.ProductZeroStockName,
@@ -46,7 +46,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Domain.Product>
                 Price = QaPersonas.ProductZeroStockPrice,
                 ProductTypeId = 1
             },
-            new Domain.Product
+            new
             {
                 Id = QaPersonas.ProductLowStockId,
                 Name = QaPersonas.ProductLowStockName,
@@ -54,7 +54,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Domain.Product>
                 Price = QaPersonas.ProductLowStockPrice,
                 ProductTypeId = 1
             },
-            new Domain.Product
+            new
             {
                 Id = QaPersonas.ProductRestockTargetId,
                 Name = QaPersonas.ProductRestockTargetName,

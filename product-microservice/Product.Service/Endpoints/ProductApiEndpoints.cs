@@ -27,13 +27,7 @@ public static class ProductApiEndpoints
             [FromServices] MetricFactory metricFactory,
             CreateProductRequest request) =>
         {
-            var product = new Domain.Product
-            {
-                Name = request.Name,
-                Price = request.Price,
-                Description = request.Description,
-                ProductTypeId = request.ProductTypeId
-            };
+            var product = new Domain.Product(request.Name, request.Price, request.ProductTypeId, request.Description);
 
             await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
             {
@@ -65,10 +59,10 @@ public static class ProductApiEndpoints
 
             var existingPrice = product.Price;
 
-            product.Name = request.Name;
-            product.Price = request.Price;
-            product.ProductTypeId = request.ProductTypeId;
-            product.Description = request.Description;
+            product.Rename(request.Name);
+            product.ChangePrice(request.Price);
+            product.ChangeType(request.ProductTypeId);
+            product.ChangeDescription(request.Description);
 
             var priceChanged = !decimal.Equals(existingPrice, request.Price);
 

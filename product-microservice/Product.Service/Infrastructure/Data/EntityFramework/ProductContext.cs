@@ -40,10 +40,6 @@ internal class ProductContext : DbContext, IProductStore
 
         if (existingProduct is not null)
         {
-            existingProduct.Name = product.Name;
-            existingProduct.Price = product.Price;
-            existingProduct.Description = product.Description;
-
             await SaveChangesAsync(acceptAllChangesOnSuccess: false);
         }
     }
