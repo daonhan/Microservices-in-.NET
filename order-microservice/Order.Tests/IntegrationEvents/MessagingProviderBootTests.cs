@@ -59,7 +59,9 @@ public sealed class MessagingProviderBootTests
                 configurationBuilder.AddInMemoryCollection(settings);
                 configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["Outbox:PublishIntervalInSeconds"] = "3600"
+                    ["Outbox:PublishIntervalInSeconds"] = "3600",
+                    ["RabbitMq:HostName"] = "host.docker.internal",
+                    ["Redis:Configuration"] = "host.docker.internal:6379"
                 });
             });
 
