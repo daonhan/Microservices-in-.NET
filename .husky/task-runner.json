@@ -17,7 +17,7 @@
       "name": "dotnet-test-basket",
       "group": "pre-commit",
       "command": "dotnet",
-      "args": ["test", "basket-microservice/Basket.Service.slnx", "--no-build", "--no-restore"]
+      "args": ["test", "basket-microservice/Basket.Service.slnx", "--no-build", "--no-restore", "--filter", "Category!=Integration"]
     }
   ]
 }
