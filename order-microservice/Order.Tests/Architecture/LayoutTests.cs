@@ -4,7 +4,7 @@ namespace Order.Tests.Architecture;
 
 public class LayoutTests
 {
-    private static readonly System.Reflection.Assembly OrderServiceAssembly = typeof(Service.Endpoints.OrderApiEndpoint).Assembly;
+    private static readonly System.Reflection.Assembly OrderServiceAssembly = typeof(Program).Assembly;
 
     [Fact(Skip = "Enabled in phase 8")]
     public void Domain_DoesNotReference_InfrastructureOrFeatures()

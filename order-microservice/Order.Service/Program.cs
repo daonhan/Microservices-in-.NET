@@ -7,7 +7,6 @@ using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
-using Order.Service.Endpoints;
 using Order.Service.Features.CancelOrder;
 using Order.Service.Features.ConfirmOrder;
 using Order.Service.Features.CreateOrder;
@@ -15,6 +14,7 @@ using Order.Service.Features.GetOrder;
 using Order.Service.Features.ProductCreated;
 using Order.Service.Infrastructure.Data.EntityFramework;
 using Order.Service.Infrastructure.Outbox;
+using Order.Service.Infrastructure.Providers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,25 +24,14 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 
 builder.Services.AddOutbox(builder.Configuration);
 
+builder.Services.AddDomainEventOutbox();
+builder.Services.AddInfrastructureProviders(builder.Configuration);
+
 builder.Services.AddCreateOrderSlice();
 builder.Services.AddGetOrderSlice();
 builder.Services.AddConfirmOrderSlice();
 builder.Services.AddCancelOrderSlice();
 builder.Services.AddProductCreatedSlice();
-builder.Services.AddScoped<DomainEventOutboxInterceptor>();
-
-builder.Services.AddStackExchangeRedisCache(options =>
-    options.Configuration = builder.Configuration["Redis:Configuration"] ?? "localhost:6379");
-
-builder.Services.AddHttpClient<Order.Service.Infrastructure.Providers.IProductCatalogClient,
-    Order.Service.Infrastructure.Providers.HttpProductCatalogClient>(client =>
-{
-    var baseUrl = builder.Configuration["ProductService:BaseUrl"]
-        ?? "http://product-clusterip-service:8080";
-    client.BaseAddress = new Uri(baseUrl);
-});
-
-builder.Services.AddScoped<Order.Service.Domain.Abstractions.IProductPriceProvider, Order.Service.Infrastructure.Providers.RedisProductPriceProvider>();
 
 builder.AddPlatformOpenApi("order");
 
@@ -78,9 +67,9 @@ app.SeedQaData();
 
 app.UsePlatformOpenApi();
 
-app.RegisterEndpoints();
 app.MapCreateOrder();
 app.MapGetOrder();
+app.MapCancelOrder();
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();
