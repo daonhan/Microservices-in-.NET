@@ -1,27 +1,24 @@
 using System.Transactions;
-using ECommerce.Shared.Infrastructure.EventBus;
-using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
-using Order.Service.Contracts.Integration;
 using Order.Service.Domain;
 using Order.Service.Domain.Abstractions;
-using Order.Service.Domain.Events;
+using Order.Service.Infrastructure.Outbox;
 
 namespace Order.Service.Infrastructure.Data.EntityFramework;
 
 internal class OrderContext : DbContext, IOrderStore
 {
-    private readonly IOutboxStore? _outboxStore;
+    private readonly DomainEventOutboxInterceptor? _outboxInterceptor;
 
     public OrderContext(DbContextOptions<OrderContext> options)
         : base(options)
     {
     }
 
-    public OrderContext(DbContextOptions<OrderContext> options, IOutboxStore outboxStore)
+    public OrderContext(DbContextOptions<OrderContext> options, DomainEventOutboxInterceptor outboxInterceptor)
         : base(options)
     {
-        _outboxStore = outboxStore;
+        _outboxInterceptor = outboxInterceptor;
     }
 
     public DbSet<Domain.Order> Orders { get; set; } = null!;
@@ -55,10 +52,10 @@ internal class OrderContext : DbContext, IOrderStore
 
     public async Task ExecuteAsync(Func<Task> unitOfWork)
     {
-        if (_outboxStore is null)
+        if (_outboxInterceptor is null)
         {
             throw new InvalidOperationException(
-                "OrderContext was constructed without an IOutboxStore; ExecuteAsync requires the runtime constructor.");
+                "OrderContext was constructed without a DomainEventOutboxInterceptor; ExecuteAsync requires the runtime constructor.");
         }
 
         var strategy = Database.CreateExecutionStrategy();
@@ -74,26 +71,10 @@ internal class OrderContext : DbContext, IOrderStore
 
             await SaveChangesAsync(acceptAllChangesOnSuccess: false);
 
-            foreach (var domainEvent in domainEvents)
-            {
-                await _outboxStore.AddOutboxEvent(Translate(domainEvent));
-            }
+            await _outboxInterceptor.PublishAsync(domainEvents);
 
             ChangeTracker.AcceptAllChanges();
             scope.Complete();
         });
     }
-
-    private static Event Translate(IDomainEvent domainEvent) => domainEvent switch
-    {
-        OrderCreatedDomainEvent e => new OrderCreatedEvent(
-            e.OrderId,
-            e.CustomerId,
-            e.Items.Select(i => new OrderItem(i.ProductId, i.Quantity, i.UnitPrice)).ToList(),
-            e.Currency),
-        OrderConfirmedDomainEvent e => new OrderConfirmedEvent(e.OrderId, e.CustomerId),
-        OrderCancelledDomainEvent e => new OrderCancelledEvent(e.OrderId, e.CustomerId),
-        _ => throw new InvalidOperationException(
-            $"No integration-event translation registered for domain event {domainEvent.GetType().Name}")
-    };
 }

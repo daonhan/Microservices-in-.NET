@@ -11,6 +11,8 @@ using OpenTelemetry.Metrics;
 using Order.Service.Contracts.Integration;
 using Order.Service.Endpoints;
 using Order.Service.Infrastructure.Data.EntityFramework;
+using Order.Service.Infrastructure.Outbox;
+using Order.Service.Infrastructure.Outbox.Mappers;
 using Order.Service.IntegrationEvents.EventHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +22,11 @@ const string serviceName = "Order";
 builder.Services.AddSqlServerDatastore(builder.Configuration);
 
 builder.Services.AddOutbox(builder.Configuration);
+
+builder.Services.AddScoped<IIntegrationMap, OrderCreatedIntegrationMap>();
+builder.Services.AddScoped<IIntegrationMap, OrderConfirmedIntegrationMap>();
+builder.Services.AddScoped<IIntegrationMap, OrderCancelledIntegrationMap>();
+builder.Services.AddScoped<DomainEventOutboxInterceptor>();
 
 builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration["Redis:Configuration"] ?? "localhost:6379");
