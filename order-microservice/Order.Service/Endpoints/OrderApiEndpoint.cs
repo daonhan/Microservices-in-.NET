@@ -1,6 +1,4 @@
-using ECommerce.Shared.Observability.Metrics;
 using Order.Service.ApiModels;
-using Order.Service.Domain;
 using Order.Service.Domain.Abstractions;
 
 namespace Order.Service.Endpoints;
@@ -9,39 +7,8 @@ public static class OrderApiEndpoint
 {
     public static void RegisterEndpoints(this IEndpointRouteBuilder routeBuilder)
     {
-        routeBuilder.MapPost("/{customerId}", CreateOrder);
         routeBuilder.MapGet("/{customerId}/{orderId}", GetOrder);
         routeBuilder.MapPost("/{customerId}/{orderId}/cancel", CancelOrder);
-    }
-
-    internal static async Task<IResult> CreateOrder(
-        IOrderStore orderStore, IProductPriceProvider priceProvider, MetricFactory metricFactory,
-        string customerId, CreateOrderRequest request)
-    {
-        var order = new Domain.Order
-        {
-            CustomerId = customerId
-        };
-
-        foreach (var product in request.OrderProducts)
-        {
-            order.AddOrderProduct(product.ProductId, product.Quantity);
-        }
-
-        var uniqueProductIds = order.OrderProducts.Select(p => p.ProductId).Distinct().ToList();
-        var unitPrices = await priceProvider.GetUnitPricesAsync(uniqueProductIds);
-
-        order.Submit(unitPrices);
-
-        await orderStore.ExecuteAsync(() => orderStore.CreateOrder(order));
-
-        var orderCounter = metricFactory.Counter("total-orders", "Orders");
-        orderCounter.Add(1);
-
-        var productsPerOrderHistogram = metricFactory.Histogram("products-per-order", "Products");
-        productsPerOrderHistogram.Record(order.OrderProducts.DistinctBy(p => p.ProductId).Count());
-
-        return TypedResults.Created($"{order.CustomerId}/{order.OrderId}");
     }
 
     internal static async Task<IResult> GetOrder(IOrderStore orderStore, string customerId, string orderId)

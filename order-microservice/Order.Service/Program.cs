@@ -10,6 +10,7 @@ using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
 using Order.Service.Contracts.Integration;
 using Order.Service.Endpoints;
+using Order.Service.Features.CreateOrder;
 using Order.Service.Infrastructure.Data.EntityFramework;
 using Order.Service.Infrastructure.Outbox;
 using Order.Service.Infrastructure.Outbox.Mappers;
@@ -23,7 +24,7 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 
 builder.Services.AddOutbox(builder.Configuration);
 
-builder.Services.AddScoped<IIntegrationMap, OrderCreatedIntegrationMap>();
+builder.Services.AddCreateOrderSlice();
 builder.Services.AddScoped<IIntegrationMap, OrderConfirmedIntegrationMap>();
 builder.Services.AddScoped<IIntegrationMap, OrderCancelledIntegrationMap>();
 builder.Services.AddScoped<DomainEventOutboxInterceptor>();
@@ -79,6 +80,7 @@ app.SeedQaData();
 app.UsePlatformOpenApi();
 
 app.RegisterEndpoints();
+app.MapCreateOrder();
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();

@@ -1,14 +1,12 @@
 using ECommerce.Shared.Observability.Metrics;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
-using Order.Service.ApiModels;
 using Order.Service.Domain.Abstractions;
 using Order.Service.Domain.Events;
-using Order.Service.Endpoints;
+using Order.Service.Features.CreateOrder;
 
-namespace Order.Tests.Api;
+namespace Order.Tests.Features.CreateOrder;
 
-public class OrderApiEndpointTests
+public class CreateOrderHandlerTests
 {
     private sealed class CapturingOrderStore : IOrderStore
     {
@@ -26,26 +24,27 @@ public class OrderApiEndpointTests
     }
 
     [Fact]
-    public async Task CreateOrder_FetchesPricesFromProvider()
+    public async Task HandleAsync_FetchesPricesFromProvider()
     {
         var orderStore = new CapturingOrderStore();
         var priceProvider = new Mock<IProductPriceProvider>();
         var metricFactory = new MetricFactory("TestMeter");
 
         var request = new CreateOrderRequest([new OrderProductDto("prod1", 2)]);
-        var customerId = "cust1";
+        const string customerId = "cust1";
 
         priceProvider.Setup(p => p.GetUnitPricesAsync(It.IsAny<IEnumerable<string>>()))
             .ReturnsAsync(new Dictionary<string, decimal> { { "prod1", 10.5m } });
 
-        var result = await OrderApiEndpoint.CreateOrder(orderStore, priceProvider.Object, metricFactory, customerId, request);
+        var handler = new CreateOrderHandler(orderStore, priceProvider.Object, metricFactory);
+        var order = await handler.HandleAsync(customerId, request);
 
-        Assert.IsType<Created>(result);
+        Assert.NotNull(order);
         priceProvider.Verify(p => p.GetUnitPricesAsync(It.Is<IEnumerable<string>>(ids => ids.Contains("prod1"))), Times.Once);
     }
 
     [Fact]
-    public async Task CreateOrder_RaisesOrderCreatedDomainEventWithItemsAndPrices()
+    public async Task HandleAsync_RaisesOrderCreatedDomainEventWithItemsAndPrices()
     {
         var orderStore = new CapturingOrderStore();
         var priceProvider = new Mock<IProductPriceProvider>();
@@ -58,7 +57,8 @@ public class OrderApiEndpointTests
             new OrderProductDto("prod2", 1)
         ]);
 
-        await OrderApiEndpoint.CreateOrder(orderStore, priceProvider.Object, metricFactory, "cust1", request);
+        var handler = new CreateOrderHandler(orderStore, priceProvider.Object, metricFactory);
+        await handler.HandleAsync("cust1", request);
 
         Assert.NotNull(orderStore.Captured);
         var domainEvent = Assert.IsType<OrderCreatedDomainEvent>(Assert.Single(orderStore.Captured!.DequeueDomainEvents()));

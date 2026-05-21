@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Order.Service.ApiModels;
 using Order.Service.Contracts.Integration;
+using Order.Service.Features.CreateOrder;
 
 namespace Order.Tests.Api;
 
