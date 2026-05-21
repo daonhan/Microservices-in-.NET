@@ -3,17 +3,17 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
 using Order.Service.Contracts.Integration;
 using Order.Service.Endpoints;
+using Order.Service.Features.CancelOrder;
+using Order.Service.Features.ConfirmOrder;
 using Order.Service.Features.CreateOrder;
 using Order.Service.Infrastructure.Data.EntityFramework;
 using Order.Service.Infrastructure.Outbox;
-using Order.Service.Infrastructure.Outbox.Mappers;
 using Order.Service.IntegrationEvents.EventHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,8 +25,8 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddCreateOrderSlice();
-builder.Services.AddScoped<IIntegrationMap, OrderConfirmedIntegrationMap>();
-builder.Services.AddScoped<IIntegrationMap, OrderCancelledIntegrationMap>();
+builder.Services.AddConfirmOrderSlice();
+builder.Services.AddCancelOrderSlice();
 builder.Services.AddScoped<DomainEventOutboxInterceptor>();
 
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -47,9 +47,7 @@ builder.AddPlatformOpenApi("order");
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>()
-    .AddEventHandler<ConfirmOrderCommand, ConfirmOrderCommandHandler>()
-    .AddEventHandler<CancelOrderCommand, CancelOrderCommandHandler>();
+    .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>();
 
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation(),

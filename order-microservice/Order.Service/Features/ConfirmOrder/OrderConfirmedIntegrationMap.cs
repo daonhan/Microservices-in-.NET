@@ -1,8 +1,9 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using Order.Service.Contracts.Integration;
 using Order.Service.Domain.Events;
+using Order.Service.Infrastructure.Outbox;
 
-namespace Order.Service.Infrastructure.Outbox.Mappers;
+namespace Order.Service.Features.ConfirmOrder;
 
 internal sealed class OrderConfirmedIntegrationMap : IIntegrationMap<OrderConfirmedDomainEvent, OrderConfirmedEvent>
 {

@@ -4,9 +4,10 @@ using ECommerce.Shared.Infrastructure.Outbox.Models;
 using Microsoft.EntityFrameworkCore.Storage;
 using Order.Service.Contracts.Integration;
 using Order.Service.Domain.Events;
+using Order.Service.Features.CancelOrder;
+using Order.Service.Features.ConfirmOrder;
 using Order.Service.Features.CreateOrder;
 using Order.Service.Infrastructure.Outbox;
-using Order.Service.Infrastructure.Outbox.Mappers;
 
 namespace Order.Tests.Infrastructure.Outbox;
 

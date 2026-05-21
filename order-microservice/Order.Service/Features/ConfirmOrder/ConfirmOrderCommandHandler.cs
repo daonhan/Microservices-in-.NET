@@ -6,7 +6,7 @@ using Order.Service.Contracts.Integration;
 using Order.Service.Domain;
 using Order.Service.Infrastructure.Data.EntityFramework;
 
-namespace Order.Service.IntegrationEvents.EventHandlers;
+namespace Order.Service.Features.ConfirmOrder;
 
 internal class ConfirmOrderCommandHandler : IEventHandler<ConfirmOrderCommand>
 {
