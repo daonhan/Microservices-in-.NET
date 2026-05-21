@@ -1,4 +1,5 @@
-using Order.Service.Models;
+using Order.Service.Domain;
+using Order.Service.Domain.Events;
 
 namespace Order.Tests.Domain;
 
@@ -7,7 +8,7 @@ public class OrderTests
     [Fact]
     public void NewOrder_StartsInPendingStockStatus()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
 
         Assert.Equal(OrderStatus.PendingStock, order.Status);
     }
@@ -15,7 +16,7 @@ public class OrderTests
     [Fact]
     public void TryConfirm_FromPending_TransitionsToConfirmed()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
 
         var confirmed = order.TryConfirm();
 
@@ -26,7 +27,7 @@ public class OrderTests
     [Fact]
     public void TryConfirm_WhenAlreadyConfirmed_IsNoOp()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
         order.TryConfirm();
 
         var second = order.TryConfirm();
@@ -38,7 +39,7 @@ public class OrderTests
     [Fact]
     public void TryCancel_FromPending_TransitionsToCancelled()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
 
         var cancelled = order.TryCancel();
 
@@ -49,7 +50,7 @@ public class OrderTests
     [Fact]
     public void TryCancel_WhenAlreadyCancelled_IsNoOp()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
         order.TryCancel();
 
         var second = order.TryCancel();
@@ -61,7 +62,7 @@ public class OrderTests
     [Fact]
     public void TryConfirm_FromCancelled_DoesNotChangeStatus()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
         order.TryCancel();
 
         var result = order.TryConfirm();
@@ -73,7 +74,7 @@ public class OrderTests
     [Fact]
     public void TryConfirm_RaisesOrderConfirmedDomainEvent()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
 
         order.TryConfirm();
         var events = order.DequeueDomainEvents();
@@ -86,7 +87,7 @@ public class OrderTests
     [Fact]
     public void TryCancel_RaisesOrderCancelledDomainEvent()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
 
         order.TryCancel();
         var events = order.DequeueDomainEvents();
@@ -99,7 +100,7 @@ public class OrderTests
     [Fact]
     public void TryConfirm_WhenNoOp_DoesNotRaiseDomainEvent()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
         order.TryConfirm();
         order.DequeueDomainEvents();
 
@@ -111,7 +112,7 @@ public class OrderTests
     [Fact]
     public void Submit_RaisesOrderCreatedDomainEventWithItemsAndCurrency()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
         order.AddOrderProduct("p-1", 3);
         order.AddOrderProduct("p-2", 1);
 
@@ -129,7 +130,7 @@ public class OrderTests
     [Fact]
     public void DequeueDomainEvents_ClearsTheQueue()
     {
-        var order = new Service.Models.Order { CustomerId = "c-1" };
+        var order = new Service.Domain.Order { CustomerId = "c-1" };
         order.TryConfirm();
 
         order.DequeueDomainEvents();

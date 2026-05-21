@@ -2,8 +2,10 @@ using System.Transactions;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
-using Order.Service.IntegrationEvents.Events;
-using Order.Service.Models;
+using Order.Service.Contracts.Integration;
+using Order.Service.Domain;
+using Order.Service.Domain.Abstractions;
+using Order.Service.Domain.Events;
 
 namespace Order.Service.Infrastructure.Data.EntityFramework;
 
@@ -22,8 +24,8 @@ internal class OrderContext : DbContext, IOrderStore
         _outboxStore = outboxStore;
     }
 
-    public DbSet<Models.Order> Orders { get; set; } = null!;
-    public DbSet<Models.OrderProduct> OrderProducts { get; set; } = null!;
+    public DbSet<Domain.Order> Orders { get; set; } = null!;
+    public DbSet<Domain.OrderProduct> OrderProducts { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,20 +33,20 @@ internal class OrderContext : DbContext, IOrderStore
         modelBuilder.ApplyConfiguration(new OrderProductConfiguration());
     }
 
-    public Task CreateOrder(Models.Order order)
+    public Task CreateOrder(Domain.Order order)
     {
         Orders.Add(order);
         return Task.CompletedTask;
     }
 
-    public async Task<Models.Order?> GetCustomerOrderById(string customerId, string orderId)
+    public async Task<Domain.Order?> GetCustomerOrderById(string customerId, string orderId)
     {
         return await Orders
             .Include(o => o.OrderProducts)
             .FirstOrDefaultAsync(o => o.OrderId == Guid.Parse(orderId) && o.CustomerId == customerId);
     }
 
-    public async Task<Models.Order?> GetOrderById(Guid orderId)
+    public async Task<Domain.Order?> GetOrderById(Guid orderId)
     {
         return await Orders
             .Include(o => o.OrderProducts)

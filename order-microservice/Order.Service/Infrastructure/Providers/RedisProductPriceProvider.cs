@@ -1,6 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Caching.Distributed;
-using Order.Service.Models;
+using Order.Service.Domain.Abstractions;
 
 namespace Order.Service.Infrastructure.Providers;
 

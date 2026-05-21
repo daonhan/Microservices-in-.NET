@@ -1,11 +1,10 @@
-using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
+using Order.Service.Contracts.Integration;
+using Order.Service.Domain;
 using Order.Service.Infrastructure.Data.EntityFramework;
-using Order.Service.IntegrationEvents.Events;
-using Order.Service.Models;
 
 namespace Order.Service.IntegrationEvents.EventHandlers;
 
@@ -52,7 +51,7 @@ internal class ConfirmOrderCommandHandler : IEventHandler<ConfirmOrderCommand>
         });
     }
 
-    private static OrderConfirmedEvent BuildReply(Models.Order order, ConfirmOrderCommand command) =>
+    private static OrderConfirmedEvent BuildReply(Domain.Order order, ConfirmOrderCommand command) =>
         new(order.OrderId, order.CustomerId)
         {
             CorrelationId = command.CorrelationId,

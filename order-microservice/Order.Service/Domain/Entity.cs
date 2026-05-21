@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using Order.Service.Domain.Events;
 
-namespace Order.Service.Models;
+namespace Order.Service.Domain;
 
 internal abstract class Entity
 {

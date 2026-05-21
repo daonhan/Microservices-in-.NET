@@ -22,7 +22,7 @@ namespace Order.Service.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Order.Service.Models.Order", b =>
+            modelBuilder.Entity("Order.Service.Domain.Order", b =>
                 {
                     b.Property<Guid>("OrderId")
                         .ValueGeneratedOnAdd()
@@ -60,7 +60,7 @@ namespace Order.Service.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Order.Service.Models.OrderProduct", b =>
+            modelBuilder.Entity("Order.Service.Domain.OrderProduct", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -102,16 +102,16 @@ namespace Order.Service.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Order.Service.Models.OrderProduct", b =>
+            modelBuilder.Entity("Order.Service.Domain.OrderProduct", b =>
                 {
-                    b.HasOne("Order.Service.Models.Order", null)
+                    b.HasOne("Order.Service.Domain.Order", null)
                         .WithMany("OrderProducts")
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Order.Service.Models.Order", b =>
+            modelBuilder.Entity("Order.Service.Domain.Order", b =>
                 {
                     b.Navigation("OrderProducts");
                 });

@@ -1,4 +1,6 @@
-namespace Order.Service.Models;
+using Order.Service.Domain.Events;
+
+namespace Order.Service.Domain;
 
 internal class Order : Entity
 {

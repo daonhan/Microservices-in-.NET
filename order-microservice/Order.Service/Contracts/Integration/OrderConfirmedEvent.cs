@@ -1,5 +1,5 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Order.Service.IntegrationEvents.Events;
+namespace Order.Service.Contracts.Integration;
 
 public record OrderConfirmedEvent(Guid OrderId, string CustomerId) : Event;

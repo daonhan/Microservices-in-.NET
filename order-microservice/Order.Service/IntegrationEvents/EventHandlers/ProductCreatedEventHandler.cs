@@ -1,7 +1,7 @@
 using System.Globalization;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using Microsoft.Extensions.Caching.Distributed;
-using Order.Service.IntegrationEvents.Events;
+using Order.Service.Contracts.Integration;
 
 namespace Order.Service.IntegrationEvents.EventHandlers;
 

@@ -8,10 +8,10 @@ using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
+using Order.Service.Contracts.Integration;
 using Order.Service.Endpoints;
 using Order.Service.Infrastructure.Data.EntityFramework;
 using Order.Service.IntegrationEvents.EventHandlers;
-using Order.Service.IntegrationEvents.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,7 +32,7 @@ builder.Services.AddHttpClient<Order.Service.Infrastructure.Providers.IProductCa
     client.BaseAddress = new Uri(baseUrl);
 });
 
-builder.Services.AddScoped<Order.Service.Models.IProductPriceProvider, Order.Service.Infrastructure.Providers.RedisProductPriceProvider>();
+builder.Services.AddScoped<Order.Service.Domain.Abstractions.IProductPriceProvider, Order.Service.Infrastructure.Providers.RedisProductPriceProvider>();
 
 builder.AddPlatformOpenApi("order");
 

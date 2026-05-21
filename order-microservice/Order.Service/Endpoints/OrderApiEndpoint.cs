@@ -1,7 +1,7 @@
 using ECommerce.Shared.Observability.Metrics;
 using Order.Service.ApiModels;
-using Order.Service.Infrastructure.Data;
-using Order.Service.Models;
+using Order.Service.Domain;
+using Order.Service.Domain.Abstractions;
 
 namespace Order.Service.Endpoints;
 
@@ -18,7 +18,7 @@ public static class OrderApiEndpoint
         IOrderStore orderStore, IProductPriceProvider priceProvider, MetricFactory metricFactory,
         string customerId, CreateOrderRequest request)
     {
-        var order = new Models.Order
+        var order = new Domain.Order
         {
             CustomerId = customerId
         };

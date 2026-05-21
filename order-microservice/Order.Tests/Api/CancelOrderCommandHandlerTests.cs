@@ -2,9 +2,9 @@ using System.Text.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
+using Order.Service.Contracts.Integration;
+using Order.Service.Domain;
 using Order.Service.IntegrationEvents.EventHandlers;
-using Order.Service.IntegrationEvents.Events;
-using Order.Service.Models;
 
 namespace Order.Tests.Api;
 
@@ -18,7 +18,7 @@ public class CancelOrderCommandHandlerTests : IntegrationTestBase
     [Fact]
     public async Task Given_PendingOrder_When_CancelCommandHandled_Then_TransitionsToCancelledAndEmitsReply()
     {
-        var order = new Service.Models.Order { CustomerId = $"cust-{Guid.NewGuid():N}" };
+        var order = new Service.Domain.Order { CustomerId = $"cust-{Guid.NewGuid():N}" };
         order.AddOrderProduct("101", 2);
         OrderContext.Orders.Add(order);
         await OrderContext.SaveChangesAsync();
@@ -41,7 +41,7 @@ public class CancelOrderCommandHandlerTests : IntegrationTestBase
     [Fact]
     public async Task Given_AlreadyCancelledOrder_When_CancelCommandReplayed_Then_EmitsReplyIdempotently()
     {
-        var order = new Service.Models.Order { CustomerId = $"cust-{Guid.NewGuid():N}" };
+        var order = new Service.Domain.Order { CustomerId = $"cust-{Guid.NewGuid():N}" };
         order.AddOrderProduct("101", 2);
         order.TryCancel();
         order.DequeueDomainEvents();

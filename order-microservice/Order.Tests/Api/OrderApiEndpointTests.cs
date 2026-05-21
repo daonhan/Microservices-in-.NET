@@ -2,9 +2,9 @@ using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
 using Order.Service.ApiModels;
+using Order.Service.Domain.Abstractions;
+using Order.Service.Domain.Events;
 using Order.Service.Endpoints;
-using Order.Service.Infrastructure.Data;
-using Order.Service.Models;
 
 namespace Order.Tests.Api;
 
@@ -12,16 +12,16 @@ public class OrderApiEndpointTests
 {
     private sealed class CapturingOrderStore : IOrderStore
     {
-        public Service.Models.Order? Captured { get; private set; }
+        public Service.Domain.Order? Captured { get; private set; }
 
-        public Task CreateOrder(Service.Models.Order order)
+        public Task CreateOrder(Service.Domain.Order order)
         {
             Captured = order;
             return Task.CompletedTask;
         }
 
-        public Task<Service.Models.Order?> GetCustomerOrderById(string customerId, string orderId) => Task.FromResult<Service.Models.Order?>(null);
-        public Task<Service.Models.Order?> GetOrderById(Guid orderId) => Task.FromResult<Service.Models.Order?>(null);
+        public Task<Service.Domain.Order?> GetCustomerOrderById(string customerId, string orderId) => Task.FromResult<Service.Domain.Order?>(null);
+        public Task<Service.Domain.Order?> GetOrderById(Guid orderId) => Task.FromResult<Service.Domain.Order?>(null);
         public Task ExecuteAsync(Func<Task> unitOfWork) => unitOfWork();
     }
 

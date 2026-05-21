@@ -1,11 +1,10 @@
-using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
+using Order.Service.Contracts.Integration;
+using Order.Service.Domain;
 using Order.Service.Infrastructure.Data.EntityFramework;
-using Order.Service.IntegrationEvents.Events;
-using Order.Service.Models;
 
 namespace Order.Service.IntegrationEvents.EventHandlers;
 
@@ -50,7 +49,7 @@ internal class CancelOrderCommandHandler : IEventHandler<CancelOrderCommand>
         });
     }
 
-    private static OrderCancelledEvent BuildReply(Models.Order order, CancelOrderCommand command) =>
+    private static OrderCancelledEvent BuildReply(Domain.Order order, CancelOrderCommand command) =>
         new(order.OrderId, order.CustomerId)
         {
             CorrelationId = command.CorrelationId,

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Order.Service.ApiModels;
-using Order.Service.IntegrationEvents.Events;
+using Order.Service.Contracts.Integration;
 
 namespace Order.Tests.Api;
 
@@ -30,7 +30,7 @@ public class OrderApiTests : IntegrationTestBase
     public async Task GetOrder_WhenOrderExists_ThenReturnsOrder()
     {
         // Arrange
-        var order = new Service.Models.Order { CustomerId = "1" };
+        var order = new Service.Domain.Order { CustomerId = "1" };
         await OrderContext.CreateOrder(order);
         await OrderContext.SaveChangesAsync();
 

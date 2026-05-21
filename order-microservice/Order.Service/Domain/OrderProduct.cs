@@ -1,4 +1,4 @@
-namespace Order.Service.Models;
+namespace Order.Service.Domain;
 
 internal class OrderProduct
 {

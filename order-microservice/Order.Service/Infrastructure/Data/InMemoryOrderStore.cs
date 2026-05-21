@@ -1,19 +1,21 @@
+using Order.Service.Domain.Abstractions;
+
 namespace Order.Service.Infrastructure.Data;
 
 internal class InMemoryOrderStore : IOrderStore
 {
-    private static readonly Dictionary<string, Models.Order> Orders = [];
+    private static readonly Dictionary<string, Domain.Order> Orders = [];
 
-    public Task CreateOrder(Models.Order order)
+    public Task CreateOrder(Domain.Order order)
     {
         Orders[$"{order.CustomerId}-{order.OrderId}"] = order;
         return Task.CompletedTask;
     }
 
-    public Task<Models.Order?> GetCustomerOrderById(string customerId, string orderId) =>
+    public Task<Domain.Order?> GetCustomerOrderById(string customerId, string orderId) =>
         Task.FromResult(Orders.TryGetValue($"{customerId}-{orderId}", out var order) ? order : null);
 
-    public Task<Models.Order?> GetOrderById(Guid orderId) =>
+    public Task<Domain.Order?> GetOrderById(Guid orderId) =>
         Task.FromResult(Orders.Values.FirstOrDefault(o => o.OrderId == orderId));
 
     public Task ExecuteAsync(Func<Task> unitOfWork) => unitOfWork();

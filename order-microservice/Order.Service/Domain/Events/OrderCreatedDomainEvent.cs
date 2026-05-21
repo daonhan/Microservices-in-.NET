@@ -1,4 +1,4 @@
-namespace Order.Service.Models;
+namespace Order.Service.Domain.Events;
 
 internal sealed record OrderCreatedDomainEvent(
     Guid OrderId,
