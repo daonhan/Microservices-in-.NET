@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Product.Service.Models;
+using Product.Service.Domain;
 
 namespace Product.Service.Infrastructure.Data.EntityFramework;
 

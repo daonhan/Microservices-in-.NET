@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Product.Service.Models;
+using Product.Service.Domain;
+using Product.Service.Domain.Abstractions;
 
 namespace Product.Service.Infrastructure.Data.EntityFramework;
 
@@ -10,7 +11,7 @@ internal class ProductContext : DbContext, IProductStore
     {
     }
 
-    public DbSet<Models.Product> Products { get; set; } = null!;
+    public DbSet<Domain.Product> Products { get; set; } = null!;
     public DbSet<ProductType> ProductTypes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -19,23 +20,23 @@ internal class ProductContext : DbContext, IProductStore
         modelBuilder.ApplyConfiguration(new ProductTypeConfiguration());
     }
 
-    public async Task<Models.Product?> GetById(int id)
+    public async Task<Domain.Product?> GetById(int id)
     {
         return await Products
             .Include(p => p.ProductType)
             .FirstOrDefaultAsync(p => p.Id == id);
     }
 
-    public async Task CreateProduct(Models.Product product)
+    public async Task CreateProduct(Domain.Product product)
     {
         Products.Add(product);
 
         await SaveChangesAsync();
     }
 
-    public async Task UpdateProduct(Models.Product product)
+    public async Task UpdateProduct(Domain.Product product)
     {
-        var existingProduct = await FindAsync<Models.Product>(product.Id);
+        var existingProduct = await FindAsync<Domain.Product>(product.Id);
 
         if (existingProduct is not null)
         {

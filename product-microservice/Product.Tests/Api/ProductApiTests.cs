@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Product.Service.ApiModels;
-using Product.Service.IntegrationEvents;
+using Product.Service.Contracts.Integration;
 
 namespace Product.Tests.Api;
 
@@ -53,7 +53,7 @@ public class ProductApiTests : IntegrationTestBase
     public async Task GetProduct_WhenProductExists_ThenReturnsProduct()
     {
         // Arrange
-        var product = new Product.Service.Models.Product
+        var product = new Product.Service.Domain.Product
         {
             Name = "Integration Test Shoe",
             Price = 99.99M,
@@ -80,7 +80,7 @@ public class ProductApiTests : IntegrationTestBase
     public async Task UpdateProduct_WhenProductExists_ThenUpdatesProduct()
     {
         // Arrange
-        var product = new Product.Service.Models.Product
+        var product = new Product.Service.Domain.Product
         {
             Name = "Original Shoe",
             Price = 50.00M,
@@ -105,7 +105,7 @@ public class ProductApiTests : IntegrationTestBase
     public async Task UpdateProduct_WhenPriceChanges_ThenProductPriceUpdatedEventPublished()
     {
         // Arrange
-        var product = new Product.Service.Models.Product
+        var product = new Product.Service.Domain.Product
         {
             Name = "Event Test Shoe",
             Price = 50.00M,

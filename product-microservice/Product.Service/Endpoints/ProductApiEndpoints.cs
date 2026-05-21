@@ -4,8 +4,8 @@ using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Product.Service.ApiModels;
-using Product.Service.Infrastructure.Data;
-using Product.Service.IntegrationEvents;
+using Product.Service.Contracts.Integration;
+using Product.Service.Domain.Abstractions;
 
 namespace Product.Service.Endpoints;
 
@@ -27,7 +27,7 @@ public static class ProductApiEndpoints
             [FromServices] MetricFactory metricFactory,
             CreateProductRequest request) =>
         {
-            var product = new Models.Product
+            var product = new Domain.Product
             {
                 Name = request.Name,
                 Price = request.Price,

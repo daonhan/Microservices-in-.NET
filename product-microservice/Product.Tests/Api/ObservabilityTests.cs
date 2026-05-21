@@ -35,7 +35,7 @@ public class ObservabilityTests : IntegrationTestBase
     public async Task UpdateProduct_WhenPriceChanges_IncrementsProductPriceUpdatesCounter_ExposedOnMetrics()
     {
         // Arrange
-        var product = new Product.Service.Models.Product
+        var product = new Product.Service.Domain.Product
         {
             Name = "Price Counter Shoe",
             Price = 10.00M,

@@ -1,4 +1,4 @@
-namespace Product.Service.Models;
+namespace Product.Service.Domain;
 
 internal class ProductType
 {

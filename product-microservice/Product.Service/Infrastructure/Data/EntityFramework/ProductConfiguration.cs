@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Product.Service.Infrastructure.Data.EntityFramework;
 
-internal class ProductConfiguration : IEntityTypeConfiguration<Models.Product>
+internal class ProductConfiguration : IEntityTypeConfiguration<Domain.Product>
 {
-    public void Configure(EntityTypeBuilder<Models.Product> builder)
+    public void Configure(EntityTypeBuilder<Domain.Product> builder)
     {
         builder.HasKey(p => p.Id);
 
@@ -22,7 +22,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Models.Product>
             .WithMany();
 
         builder.HasData(
-            new Models.Product
+            new Domain.Product
             {
                 Id = QaPersonas.ProductHappyId,
                 Name = QaPersonas.ProductHappyName,
@@ -30,7 +30,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Models.Product>
                 Price = QaPersonas.ProductHappyPrice,
                 ProductTypeId = 1
             },
-            new Models.Product
+            new Domain.Product
             {
                 Id = QaPersonas.ProductDeclineId,
                 Name = QaPersonas.ProductDeclineName,
@@ -38,7 +38,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Models.Product>
                 Price = QaPersonas.ProductDeclinePrice,
                 ProductTypeId = 1
             },
-            new Models.Product
+            new Domain.Product
             {
                 Id = QaPersonas.ProductZeroStockId,
                 Name = QaPersonas.ProductZeroStockName,
@@ -46,7 +46,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Models.Product>
                 Price = QaPersonas.ProductZeroStockPrice,
                 ProductTypeId = 1
             },
-            new Models.Product
+            new Domain.Product
             {
                 Id = QaPersonas.ProductLowStockId,
                 Name = QaPersonas.ProductLowStockName,
@@ -54,7 +54,7 @@ internal class ProductConfiguration : IEntityTypeConfiguration<Models.Product>
                 Price = QaPersonas.ProductLowStockPrice,
                 ProductTypeId = 1
             },
-            new Models.Product
+            new Domain.Product
             {
                 Id = QaPersonas.ProductRestockTargetId,
                 Name = QaPersonas.ProductRestockTargetName,
