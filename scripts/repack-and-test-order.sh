@@ -23,7 +23,7 @@ dotnet build --no-restore
 
 echo ""
 echo "=== Running Order tests ==="
-dotnet test --no-build --logger "trx;LogFileName=test-results.trx" || true
+dotnet test --no-build --logger "trx;LogFileName=test-results.trx"
 
 echo ""
 echo "=== Done — check test-results.trx for details ==="

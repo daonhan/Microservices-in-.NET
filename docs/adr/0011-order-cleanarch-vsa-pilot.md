@@ -16,7 +16,7 @@ Reorganize `Order.Service` into a Clean Architecture + Vertical Slice (VSA) layo
 ### Pilot scope
 
 - The pilot is `Order.Service` only. No other service changes in this ADR. Propagation to basket, product, auth, inventory, shipping, payment, saga is **out of scope here** and will be decided in a separate ADR informed by pilot learnings.
-- `ECommerce.Shared` is not modified. No nupkg version bump. No consumer impact.
+- `ECommerce.Shared` public API is unchanged. One incidental fix landed during Phase 5 (commit `dcbc29c`): `RabbitMqStartupExtensions` switched eager `AddSingleton<IRabbitMqConnection>(new RabbitMqConnection(...))` to lazy `AddSingleton<IRabbitMqConnection>(_ => new RabbitMqConnection(...))` so the test host does not eagerly open a RabbitMQ connection during `WebApplicationFactory<Program>` boot. Package version bumped 2.23.0 → 2.24.0; no consumer behavior change in production.
 
 ### Project shape — single csproj
 

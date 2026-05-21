@@ -41,7 +41,7 @@ Slice handlers are invoked through plain DI (constructor injection of the handle
 16. As an Order service contributor, I want `InternalOutboxEndpoints` (DLQ-poller ops surface) to live under `Infrastructure/Outbox/`, not under `Features/`, so that operational plumbing does not pollute the feature manifest.
 17. As a reviewer, I want the pilot to land as staged commits on one branch and a single PR, with each commit building and tests passing, so that the refactor is bisectable and reviewable end-to-end.
 18. As a reviewer, I want zero behavior change from the pilot—every existing Order test passes unchanged—so that the layout migration cannot regress functional behavior.
-19. As a release engineer, I want the pilot to leave `ECommerce.Shared` untouched (no nupkg version bump), so that other services are not forced to consume a new shared package version.
+19. As a release engineer, I want the pilot to leave `ECommerce.Shared` public API unchanged, so that other services are not forced to consume a breaking shared package version.
 20. As a release engineer, I want the pre-commit hook (`dotnet format`, `dotnet build`, `dotnet test`) to gate every commit on the refactor branch, so that the branch cannot accumulate partial-validation commits.
 21. As an architect, I want an ADR (0011) describing the layout and a runbook describing how to add a new slice, so that the pattern is documented before it propagates and the rationale is preserved.
 22. As an architect, I want the decision to propagate the pattern to other services (basket, product, auth, inventory, shipping, payment, saga) to be a separate ADR after the pilot lands, so that propagation is informed by what we learned from the pilot.
@@ -126,7 +126,7 @@ Slice handlers are invoked through plain DI (constructor injection of the handle
 
 ### Shared library
 
-- `ECommerce.Shared` is not modified. No nupkg version bump. No consumer impact.
+- `ECommerce.Shared` public API is unchanged. One incidental fix landed during Phase 5 (commit `dcbc29c`): `RabbitMqStartupExtensions` switched to a lazy `IRabbitMqConnection` singleton factory so the test host does not eagerly open a RabbitMQ connection during `WebApplicationFactory<Program>` boot. Package version bumped 2.23.0 → 2.24.0; no production behavior change.
 
 ### Validation
 

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -71,16 +70,6 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
 
         foreach (var usingDirective in root.DescendantNodes().OfType<UsingDirectiveSyntax>())
         {
-            if (usingDirective.StaticKeyword.IsKind(SyntaxKind.StaticKeyword))
-            {
-                continue;
-            }
-
-            if (usingDirective.Alias is not null)
-            {
-                continue;
-            }
-
             var target = usingDirective.Name?.ToString();
             if (target is null || !StartsWith(target, "Order.Service"))
             {
