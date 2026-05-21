@@ -10,6 +10,7 @@ local-nuget-packages/
 # Local tools
 ralph/
 .codex/
+.ralph-tmp/
 Infrastructure - Deployment/kube/
 Infrastructure - Deployment/azure-pipelines.yml
 Infrastructure - Deployment/Devops Agent Setup.md
