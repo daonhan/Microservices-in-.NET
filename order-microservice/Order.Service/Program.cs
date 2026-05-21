@@ -7,15 +7,14 @@ using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
-using Order.Service.Contracts.Integration;
 using Order.Service.Endpoints;
 using Order.Service.Features.CancelOrder;
 using Order.Service.Features.ConfirmOrder;
 using Order.Service.Features.CreateOrder;
 using Order.Service.Features.GetOrder;
+using Order.Service.Features.ProductCreated;
 using Order.Service.Infrastructure.Data.EntityFramework;
 using Order.Service.Infrastructure.Outbox;
-using Order.Service.IntegrationEvents.EventHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +28,7 @@ builder.Services.AddCreateOrderSlice();
 builder.Services.AddGetOrderSlice();
 builder.Services.AddConfirmOrderSlice();
 builder.Services.AddCancelOrderSlice();
+builder.Services.AddProductCreatedSlice();
 builder.Services.AddScoped<DomainEventOutboxInterceptor>();
 
 builder.Services.AddStackExchangeRedisCache(options =>
@@ -48,8 +48,7 @@ builder.AddPlatformOpenApi("order");
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
-    .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>();
+    .AddPlatformSubscriberService(builder.Configuration);
 
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation(),

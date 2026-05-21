@@ -3,7 +3,7 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using Microsoft.Extensions.Caching.Distributed;
 using Order.Service.Contracts.Integration;
 
-namespace Order.Service.IntegrationEvents.EventHandlers;
+namespace Order.Service.Features.ProductCreated;
 
 internal class ProductCreatedEventHandler : IEventHandler<ProductCreatedEvent>
 {
