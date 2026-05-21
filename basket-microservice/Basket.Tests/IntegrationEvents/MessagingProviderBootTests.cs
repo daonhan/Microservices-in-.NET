@@ -15,6 +15,7 @@ namespace Basket.Tests.IntegrationEvents;
 public sealed class MessagingProviderBootTests
 {
     [Fact]
+    [Trait("Category", "Integration")]
     public void Given_default_provider_When_Basket_host_boots_Then_RabbitMq_subscriber_adapter_resolves()
     {
         using var factory = new BasketMessagingProviderFactory([]);
@@ -26,6 +27,7 @@ public sealed class MessagingProviderBootTests
     }
 
     [Fact]
+    [Trait("Category", "Integration")]
     public void Given_AzureServiceBus_provider_When_Basket_host_boots_Then_Azure_subscriber_adapter_resolves()
     {
         using var factory = new BasketMessagingProviderFactory(new Dictionary<string, string?>

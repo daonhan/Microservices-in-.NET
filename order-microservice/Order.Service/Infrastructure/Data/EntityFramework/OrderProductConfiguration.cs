@@ -2,12 +2,13 @@ using System.Globalization;
 using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Order.Service.Domain;
 
 namespace Order.Service.Infrastructure.Data.EntityFramework;
 
-internal class OrderProductConfiguration : IEntityTypeConfiguration<Models.OrderProduct>
+internal class OrderProductConfiguration : IEntityTypeConfiguration<Domain.OrderProduct>
 {
-    public void Configure(EntityTypeBuilder<Models.OrderProduct> builder)
+    public void Configure(EntityTypeBuilder<Domain.OrderProduct> builder)
     {
         builder.HasKey(op => op.Id);
 

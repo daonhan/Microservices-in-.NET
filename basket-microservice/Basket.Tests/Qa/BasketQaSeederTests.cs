@@ -22,6 +22,7 @@ public class BasketQaSeederTests : IAsyncLifetime
     [InlineData(nameof(QaPersonas.CustomerHappyId))]
     [InlineData(nameof(QaPersonas.CustomerDeclineId))]
     [InlineData(nameof(QaPersonas.CustomerCancelId))]
+    [Trait("Category", "Integration")]
     public async Task GivenQaSeedingEnabled_WhenRequestingSeededBasket_ThenExpectedProductIsReturned(string personaKey)
     {
         var (customerId, productId, productName, productPrice, quantity) = personaKey switch

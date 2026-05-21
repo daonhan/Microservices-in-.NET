@@ -2,8 +2,8 @@ using System.Globalization;
 using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Order.Service.Domain;
 using Order.Service.Infrastructure.Data.EntityFramework;
-using Order.Service.Models;
 
 namespace Order.Tests.Api;
 

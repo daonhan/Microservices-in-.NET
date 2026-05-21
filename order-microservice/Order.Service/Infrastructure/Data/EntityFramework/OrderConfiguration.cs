@@ -1,14 +1,15 @@
 using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Order.Service.Domain;
 
 namespace Order.Service.Infrastructure.Data.EntityFramework;
 
-internal class OrderConfiguration : IEntityTypeConfiguration<Models.Order>
+internal class OrderConfiguration : IEntityTypeConfiguration<Domain.Order>
 {
     private static readonly DateTime SeedEpoch = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    public void Configure(EntityTypeBuilder<Models.Order> builder)
+    public void Configure(EntityTypeBuilder<Domain.Order> builder)
     {
         builder.HasKey(o => o.OrderId);
 
@@ -31,14 +32,14 @@ internal class OrderConfiguration : IEntityTypeConfiguration<Models.Order>
             {
                 OrderId = QaPersonas.OrderAuthorizedId,
                 CustomerId = QaPersonas.CustomerHappyId.ToString(),
-                Status = Models.OrderStatus.Confirmed,
+                Status = OrderStatus.Confirmed,
                 OrderDate = SeedEpoch,
             },
             new
             {
                 OrderId = QaPersonas.OrderCapturedId,
                 CustomerId = QaPersonas.CustomerHappyId.ToString(),
-                Status = Models.OrderStatus.Confirmed,
+                Status = OrderStatus.Confirmed,
                 OrderDate = SeedEpoch,
             });
     }

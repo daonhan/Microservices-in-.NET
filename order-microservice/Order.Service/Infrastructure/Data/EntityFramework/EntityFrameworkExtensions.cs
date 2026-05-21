@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Order.Service.Domain.Abstractions;
 
 namespace Order.Service.Infrastructure.Data.EntityFramework;
 

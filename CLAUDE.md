@@ -74,6 +74,8 @@ Read together: each service's `Program.cs` (composition root, uses `ECommerce.Sh
 
 Per-service layout: `Endpoints/` (Minimal API), `ApiModels/` (DTOs), `Models/` (domain), `Infrastructure/Data/`, `IntegrationEvents/`, `Migrations/`. Keep DTOs vs domain split.
 
+**Order service exception** — pilots Clean Architecture + Vertical Slices: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Order.Tests/Architecture/LayoutTests.cs`) and the Roslyn `LayoutAnalyzer`. ADR: [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md). Runbook for new slices: [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md). Propagation to other services is a separate ADR.
+
 ## API Gateway provider switch
 
 Gateway compiles both YARP and Ocelot. `Gateway:Provider` (env `Gateway__Provider`) = `Yarp` (default) or `Ocelot`; unknown values fail fast. Routes/port/auth/health/metrics identical across both.
