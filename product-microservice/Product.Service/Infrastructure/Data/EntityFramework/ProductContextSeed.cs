@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Product.Service.Models;
 
 namespace Product.Service.Infrastructure.Data.EntityFramework;
 

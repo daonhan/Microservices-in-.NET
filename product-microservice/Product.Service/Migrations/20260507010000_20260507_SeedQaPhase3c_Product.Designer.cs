@@ -24,7 +24,7 @@ namespace Product.Service.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Product.Service.Models.Product", b =>
+            modelBuilder.Entity("Product.Service.Domain.Product", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -95,7 +95,7 @@ namespace Product.Service.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Product.Service.Models.ProductType", b =>
+            modelBuilder.Entity("Product.Service.Domain.ProductType", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -125,9 +125,9 @@ namespace Product.Service.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Product.Service.Models.Product", b =>
+            modelBuilder.Entity("Product.Service.Domain.Product", b =>
                 {
-                    b.HasOne("Product.Service.Models.ProductType", "ProductType")
+                    b.HasOne("Product.Service.Domain.ProductType", "ProductType")
                         .WithMany()
                         .HasForeignKey("ProductTypeId")
                         .OnDelete(DeleteBehavior.Cascade)

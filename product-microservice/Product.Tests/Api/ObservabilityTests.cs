@@ -1,7 +1,8 @@
 using System.Net.Http.Json;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.Extensions.DependencyInjection;
-using Product.Service.ApiModels;
+using Product.Service.Features.CreateProduct;
+using Product.Service.Features.UpdateProduct;
 
 namespace Product.Tests.Api;
 
@@ -35,13 +36,9 @@ public class ObservabilityTests : IntegrationTestBase
     public async Task UpdateProduct_WhenPriceChanges_IncrementsProductPriceUpdatesCounter_ExposedOnMetrics()
     {
         // Arrange
-        var product = new Product.Service.Models.Product
-        {
-            Name = "Price Counter Shoe",
-            Price = 10.00M,
-            ProductTypeId = 1
-        };
-        await ProductContext.CreateProduct(product);
+        var product = new Product.Service.Domain.Product("Price Counter Shoe", 10.00M, 1);
+        ProductContext.Products.Add(product);
+        await ProductContext.SaveChangesAsync();
 
         var client = CreateAuthenticatedClient();
         var updateRequest = new UpdateProductRequest("Price Counter Shoe", 20.00M, 1);
