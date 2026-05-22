@@ -1,4 +1,3 @@
-using Basket.Service.Domain.Abstractions;
 using Basket.Service.Features.AddBasketProduct;
 using Basket.Service.Features.CreateBasket;
 using Basket.Service.Features.DeleteBasket;
@@ -6,6 +5,7 @@ using Basket.Service.Features.DeleteBasketProduct;
 using Basket.Service.Features.GetBasket;
 using Basket.Service.Features.OrderCreated;
 using Basket.Service.Features.ProductPriceUpdated;
+using Basket.Service.Infrastructure;
 using Basket.Service.Infrastructure.Data.Redis;
 using Basket.Service.Infrastructure.Seeding;
 using ECommerce.Shared.HealthChecks;
@@ -17,7 +17,7 @@ using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddScoped<IBasketStore, RedisBasketStore>();
+builder.Services.AddBasketInfrastructure();
 
 builder.Services.AddGetBasketSlice()
     .AddCreateBasketSlice()
