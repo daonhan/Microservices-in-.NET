@@ -22,7 +22,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
         "Domain may not reference Infrastructure or Features",
         "File in '{0}' may not 'using {1}': Domain has no infrastructure or feature dependencies",
         Category,
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor FeatureSliceRule = new(
@@ -30,7 +30,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
         "Feature slice may not reference another feature slice",
         "File in slice '{0}' may not 'using {1}': feature slices are isolated; duplicate or extract to Domain/Shared on the third use",
         Category,
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor InfrastructureRule = new(
@@ -38,7 +38,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
         "Infrastructure may not reference Features",
         "File in '{0}' may not 'using {1}': Infrastructure implements abstractions from Domain only",
         Category,
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor ContractsRule = new(
@@ -46,7 +46,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
         "Contracts may not reference any other internal Product.Service.* namespace",
         "File in '{0}' may not 'using {1}': cross-service contracts must depend only on framework types",
         Category,
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
@@ -112,8 +112,8 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        if (StartsWith(fileNamespace, "Product.Service.Features.")
-            && StartsWith(targetNamespace, "Product.Service.Features."))
+        if (StartsWith(fileNamespace, "Product.Service.Features")
+            && StartsWith(targetNamespace, "Product.Service.Features"))
         {
             var fileSlice = GetSliceSegment(fileNamespace);
             var targetSlice = GetSliceSegment(targetNamespace);

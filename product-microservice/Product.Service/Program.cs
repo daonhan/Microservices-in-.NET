@@ -5,7 +5,6 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
-using Product.Service.Endpoints;
 using Product.Service.Features.CreateProduct;
 using Product.Service.Features.GetProduct;
 using Product.Service.Features.ListProducts;

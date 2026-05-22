@@ -5,7 +5,7 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
-PRDLAY001 | Layout | Warning | Domain may not reference Infrastructure or Features
-PRDLAY002 | Layout | Warning | Feature slice may not reference another feature slice
-PRDLAY003 | Layout | Warning | Infrastructure may not reference Features
-PRDLAY004 | Layout | Warning | Contracts may not reference any other internal Product.Service.* namespace
+PRDLAY001 | Layout | Error | Domain may not reference Infrastructure or Features
+PRDLAY002 | Layout | Error | Feature slice may not reference another feature slice
+PRDLAY003 | Layout | Error | Infrastructure may not reference Features
+PRDLAY004 | Layout | Error | Contracts may not reference any other internal Product.Service.* namespace
