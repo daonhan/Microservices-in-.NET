@@ -6,7 +6,7 @@ using ECommerce.Shared.Authentication;
 using Microsoft.IdentityModel.Tokens;
 using NSubstitute;
 
-namespace Auth.Tests;
+namespace Auth.Tests.Domain.Tokens;
 
 public class ServiceTokenServiceTests
 {

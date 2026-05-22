@@ -8,7 +8,7 @@ using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;
 
-namespace Auth.Tests;
+namespace Auth.Tests.Features.Login;
 
 public class LoginHandlerTests : IDisposable
 {

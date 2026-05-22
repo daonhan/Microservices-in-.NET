@@ -6,9 +6,9 @@ using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using NSubstitute;
 
-namespace Auth.Tests;
+namespace Auth.Tests.Features.IssueServiceToken;
 
-public class ServiceTokenEndpointTests : IDisposable
+public class IssueServiceTokenEndpointTests : IDisposable
 {
     private readonly IServiceTokenService _serviceTokenService = Substitute.For<IServiceTokenService>();
     private readonly MetricFactory _metricFactory = new("Auth.Tests");

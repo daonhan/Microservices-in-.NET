@@ -6,9 +6,9 @@ using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Auth.Tests;
+namespace Auth.Tests.Features.GetJwks;
 
-public class JwksEndpointTests : IDisposable
+public class GetJwksEndpointTests : IDisposable
 {
     private readonly MetricFactory _metricFactory = new("Auth.Tests");
 

@@ -10,11 +10,13 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;
 
-namespace Auth.Tests;
+namespace Auth.Tests.Features.Login;
 
-public class AuthApiEndpointsTests : IDisposable
+public class LoginEndpointTests : IDisposable
 {
-    private readonly MetricFactory _metricFactory = new("Auth.Tests.AuthApiEndpointsTests");
+    private const string MeterName = "Auth.Tests.Features.Login.LoginEndpointTests";
+
+    private readonly MetricFactory _metricFactory = new(MeterName);
     private readonly RSA _rsa = RSA.Create(2048);
 
     public void Dispose()
@@ -89,7 +91,7 @@ public class AuthApiEndpointsTests : IDisposable
         {
             InstrumentPublished = (instrument, l) =>
             {
-                if (instrument.Meter.Name == "Auth.Tests.AuthApiEndpointsTests")
+                if (instrument.Meter.Name == MeterName)
                 {
                     l.EnableMeasurementEvents(instrument);
                 }
