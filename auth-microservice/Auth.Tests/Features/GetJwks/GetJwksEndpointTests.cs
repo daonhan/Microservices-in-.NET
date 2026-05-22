@@ -1,4 +1,6 @@
 using System.Diagnostics.Metrics;
+using System.Net;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using Auth.Service.Domain.Abstractions;
 using Auth.Service.Features.GetJwks;
@@ -8,14 +10,35 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Auth.Tests.Features.GetJwks;
 
-public class GetJwksEndpointTests : IDisposable
+public class GetJwksEndpointTests : IClassFixture<AuthWebApplicationFactory>, IDisposable
 {
+    private readonly AuthWebApplicationFactory _factory;
     private readonly MetricFactory _metricFactory = new("Auth.Tests");
+
+    public GetJwksEndpointTests(AuthWebApplicationFactory factory)
+    {
+        _factory = factory;
+    }
 
     public void Dispose()
     {
         _metricFactory.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public async Task GetJwks_WhenRequestedOverHttp_ThenReturnsJsonWithCacheControl()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/.well-known/jwks.json");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("public, max-age=300", response.Headers.CacheControl?.ToString());
+        var document = await response.Content.ReadFromJsonAsync<JwksDocument>();
+        Assert.NotNull(document);
+        Assert.Single(document!.keys);
+        Assert.Equal(AuthWebApplicationFactory.ActiveKeyId, document.keys[0].kid);
     }
 
     [Fact]

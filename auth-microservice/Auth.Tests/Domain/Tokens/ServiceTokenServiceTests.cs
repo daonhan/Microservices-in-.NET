@@ -27,7 +27,7 @@ public class ServiceTokenServiceTests
         var (service, rsa) = BuildService();
 
         // Act
-        var token = service.GenerateServiceToken("api-gateway");
+        var token = service.GenerateServiceToken("api-gateway", "s3cret");
 
         // Assert
         var handler = new JwtSecurityTokenHandler();
@@ -59,7 +59,7 @@ public class ServiceTokenServiceTests
     {
         var (service, rsa) = BuildService();
 
-        var token = service.GenerateServiceToken("api-gateway");
+        var token = service.GenerateServiceToken("api-gateway", "s3cret");
 
         var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token.Token);
         Assert.Equal("RS256", jwt.Header.Alg);

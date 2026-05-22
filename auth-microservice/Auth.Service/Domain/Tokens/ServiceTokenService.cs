@@ -22,8 +22,10 @@ public class ServiceTokenService : IServiceTokenService
         _issuer = options.AuthMicroserviceBaseAddress;
     }
 
-    public AuthToken GenerateServiceToken(string clientId)
+    public AuthToken GenerateServiceToken(string clientId, string clientSecret)
     {
+        _ = clientSecret;
+
         var signingCredentials = new SigningCredentials(
             new RsaSecurityKey(_rsaKeyProvider.GetActivePrivateKey())
             {

@@ -1,4 +1,6 @@
 using System.Diagnostics.Metrics;
+using System.Net;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using Auth.Service.Domain;
 using Auth.Service.Domain.Abstractions;
@@ -12,18 +14,42 @@ using NSubstitute;
 
 namespace Auth.Tests.Features.Login;
 
-public class LoginEndpointTests : IDisposable
+public class LoginEndpointTests : IClassFixture<AuthWebApplicationFactory>, IDisposable
 {
     private const string MeterName = "Auth.Tests.Features.Login.LoginEndpointTests";
 
+    private readonly AuthWebApplicationFactory _factory;
     private readonly MetricFactory _metricFactory = new(MeterName);
     private readonly RSA _rsa = RSA.Create(2048);
+
+    public LoginEndpointTests(AuthWebApplicationFactory factory)
+    {
+        _factory = factory;
+    }
 
     public void Dispose()
     {
         _metricFactory.Dispose();
         _rsa.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public async Task Login_WhenPostedOverHttp_ThenBindsJsonAndReturnsToken()
+    {
+        using var client = _factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/login", new
+        {
+            Username = AuthWebApplicationFactory.LoginUsername,
+            Password = AuthWebApplicationFactory.LoginPassword
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var token = await response.Content.ReadFromJsonAsync<AuthToken>();
+        Assert.NotNull(token);
+        Assert.False(string.IsNullOrWhiteSpace(token.Token));
+        Assert.True(token.ExpiresIn > 0);
     }
 
     private LoginHandler BuildLoginHandler(IAuthStore authStore, IPasswordHasher<User> hasher)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -19,7 +20,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor DomainRule = new(
         DomainRuleId,
         "Domain may not reference Infrastructure or Features",
-        "File in '{0}' may not 'using {1}': Domain has no infrastructure or feature dependencies",
+        "File in '{0}' may not reference '{1}': Domain has no infrastructure or feature dependencies",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -27,7 +28,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor FeatureSliceRule = new(
         FeatureSliceRuleId,
         "Feature slice may not reference another feature slice",
-        "File in slice '{0}' may not 'using {1}': feature slices are isolated; duplicate or extract to Domain/Shared on the third use",
+        "File in slice '{0}' may not reference '{1}': feature slices are isolated; duplicate or extract to Domain/Shared on the third use",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -35,7 +36,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
     private static readonly DiagnosticDescriptor InfrastructureRule = new(
         InfrastructureRuleId,
         "Infrastructure may not reference Features",
-        "File in '{0}' may not 'using {1}': Infrastructure implements abstractions from Domain only",
+        "File in '{0}' may not reference '{1}': Infrastructure implements abstractions from Domain only",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -47,28 +48,81 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxTreeAction(AnalyzeSyntaxTree);
+        context.RegisterSyntaxNodeAction(AnalyzeUsingDirective, SyntaxKind.UsingDirective);
+        context.RegisterSyntaxNodeAction(AnalyzeSymbolReference,
+            SyntaxKind.IdentifierName,
+            SyntaxKind.GenericName,
+            SyntaxKind.QualifiedName,
+            SyntaxKind.SimpleMemberAccessExpression);
     }
 
-    private static void AnalyzeSyntaxTree(SyntaxTreeAnalysisContext context)
+    private static void AnalyzeUsingDirective(SyntaxNodeAnalysisContext context)
     {
-        var root = context.Tree.GetRoot(context.CancellationToken);
+        var root = context.Node.SyntaxTree.GetRoot(context.CancellationToken);
         var fileNamespace = GetFileNamespace(root);
         if (fileNamespace is null || !StartsWith(fileNamespace, "Auth.Service"))
         {
             return;
         }
 
-        foreach (var usingDirective in root.DescendantNodes().OfType<UsingDirectiveSyntax>())
+        var usingDirective = (UsingDirectiveSyntax)context.Node;
+        var target = usingDirective.Name?.ToString();
+        if (target is null || !StartsWith(target, "Auth.Service"))
         {
-            var target = usingDirective.Name?.ToString();
-            if (target is null || !StartsWith(target, "Auth.Service"))
-            {
-                continue;
-            }
-
-            CheckRules(context, usingDirective, fileNamespace, target);
+            return;
         }
+
+        var reference = usingDirective.Name is null
+            ? (SyntaxNode)usingDirective
+            : usingDirective.Name;
+        CheckRules(context, reference, fileNamespace, target);
+    }
+
+    private static void AnalyzeSymbolReference(SyntaxNodeAnalysisContext context)
+    {
+        if (context.Node.Parent is UsingDirectiveSyntax)
+        {
+            return;
+        }
+
+        if (context.Node.Parent is QualifiedNameSyntax or MemberAccessExpressionSyntax)
+        {
+            return;
+        }
+
+        var root = context.Node.SyntaxTree.GetRoot(context.CancellationToken);
+        var fileNamespace = GetFileNamespace(root);
+        if (fileNamespace is null || !StartsWith(fileNamespace, "Auth.Service"))
+        {
+            return;
+        }
+
+        var targetNamespace = GetTargetNamespace(context);
+        if (targetNamespace is null || !StartsWith(targetNamespace, "Auth.Service"))
+        {
+            return;
+        }
+
+        CheckRules(context, context.Node, fileNamespace, targetNamespace);
+    }
+
+    private static string? GetTargetNamespace(SyntaxNodeAnalysisContext context)
+    {
+        var symbolInfo = context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken);
+        var symbol = symbolInfo.Symbol ?? symbolInfo.CandidateSymbols.FirstOrDefault();
+
+        var ns = symbol switch
+        {
+            INamespaceSymbol namespaceSymbol => namespaceSymbol.ToDisplayString(),
+            INamedTypeSymbol typeSymbol => typeSymbol.ContainingNamespace.ToDisplayString(),
+            IMethodSymbol methodSymbol => methodSymbol.ContainingType?.ContainingNamespace.ToDisplayString(),
+            IPropertySymbol propertySymbol => propertySymbol.ContainingType?.ContainingNamespace.ToDisplayString(),
+            IFieldSymbol fieldSymbol => fieldSymbol.ContainingType?.ContainingNamespace.ToDisplayString(),
+            IEventSymbol eventSymbol => eventSymbol.ContainingType?.ContainingNamespace.ToDisplayString(),
+            _ => symbol?.ContainingNamespace?.ToDisplayString()
+        };
+
+        return string.IsNullOrEmpty(ns) ? null : ns;
     }
 
     private static string? GetFileNamespace(SyntaxNode root)
@@ -88,12 +142,12 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
     }
 
     private static void CheckRules(
-        SyntaxTreeAnalysisContext context,
-        UsingDirectiveSyntax directive,
+        SyntaxNodeAnalysisContext context,
+        SyntaxNode reference,
         string fileNamespace,
         string targetNamespace)
     {
-        var location = (directive.Name ?? (SyntaxNode)directive).GetLocation();
+        var location = reference.GetLocation();
 
         if (StartsWith(fileNamespace, "Auth.Service.Domain")
             && (StartsWith(targetNamespace, "Auth.Service.Infrastructure")

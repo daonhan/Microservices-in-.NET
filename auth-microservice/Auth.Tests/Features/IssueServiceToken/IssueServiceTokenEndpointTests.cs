@@ -1,4 +1,6 @@
 using System.Diagnostics.Metrics;
+using System.Net;
+using System.Net.Http.Json;
 using Auth.Service.Domain;
 using Auth.Service.Domain.Tokens;
 using Auth.Service.Features.IssueServiceToken;
@@ -8,15 +10,41 @@ using NSubstitute;
 
 namespace Auth.Tests.Features.IssueServiceToken;
 
-public class IssueServiceTokenEndpointTests : IDisposable
+public class IssueServiceTokenEndpointTests : IClassFixture<AuthWebApplicationFactory>, IDisposable
 {
+    private readonly AuthWebApplicationFactory _factory;
     private readonly IServiceTokenService _serviceTokenService = Substitute.For<IServiceTokenService>();
     private readonly MetricFactory _metricFactory = new("Auth.Tests");
+
+    public IssueServiceTokenEndpointTests(AuthWebApplicationFactory factory)
+    {
+        _factory = factory;
+    }
 
     public void Dispose()
     {
         _metricFactory.Dispose();
         GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public async Task Given_valid_form_request_When_posted_over_http_Then_binds_form_and_returns_token()
+    {
+        using var client = _factory.CreateClient();
+        using var form = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["grant_type"] = "client_credentials",
+            ["client_id"] = AuthWebApplicationFactory.ServiceClientId,
+            ["client_secret"] = AuthWebApplicationFactory.ServiceClientSecret
+        });
+
+        var response = await client.PostAsync("/token", form);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var token = await response.Content.ReadFromJsonAsync<AuthToken>();
+        Assert.NotNull(token);
+        Assert.False(string.IsNullOrWhiteSpace(token.Token));
+        Assert.Equal(900, token.ExpiresIn);
     }
 
     private IssueServiceTokenHandler BuildHandler() => new(
@@ -31,7 +59,7 @@ public class IssueServiceTokenEndpointTests : IDisposable
     public void Given_valid_client_credentials_When_issuing_token_Then_returns_ok_and_emits_success_counter()
     {
         // Arrange
-        _serviceTokenService.GenerateServiceToken("api-gateway")
+        _serviceTokenService.GenerateServiceToken("api-gateway", "s3cret")
             .Returns(new AuthToken("token", 900));
         var observed = CaptureCounters();
 
@@ -68,7 +96,7 @@ public class IssueServiceTokenEndpointTests : IDisposable
             BuildHandler(), _metricFactory, "client_credentials", null, "s3cret");
 
         Assert.IsType<UnauthorizedHttpResult>(result.Result);
-        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!);
+        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!, default!);
     }
 
     [Fact]
@@ -78,7 +106,7 @@ public class IssueServiceTokenEndpointTests : IDisposable
             BuildHandler(), _metricFactory, "client_credentials", "api-gateway", null);
 
         Assert.IsType<UnauthorizedHttpResult>(result.Result);
-        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!);
+        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!, default!);
     }
 
     [Fact]
@@ -89,7 +117,7 @@ public class IssueServiceTokenEndpointTests : IDisposable
 
         var badRequest = Assert.IsType<BadRequest<string>>(result.Result);
         Assert.Equal("unsupported_grant_type", badRequest.Value);
-        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!);
+        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!, default!);
     }
 
     [Fact]
@@ -99,7 +127,7 @@ public class IssueServiceTokenEndpointTests : IDisposable
             BuildHandler(), _metricFactory, null, "api-gateway", "s3cret");
 
         Assert.IsType<BadRequest<string>>(result.Result);
-        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!);
+        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!, default!);
     }
 
     private static List<string> CaptureCounters()

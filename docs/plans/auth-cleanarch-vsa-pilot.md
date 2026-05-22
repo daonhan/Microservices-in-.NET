@@ -43,7 +43,7 @@ Durable across all phases:
     4. **Not applicable**: no `Contracts/` folder. Rule (4) from Order/Basket layout tests omitted; absence documented in the PR description.
   - Roslyn `Auth.Service.LayoutAnalyzer` sub-project (port-paste from `Basket.Service.LayoutAnalyzer`) raises the same three rules as compile-time errors.
   - Both guardrails must fail on an intentional cross-boundary spike before phase 8 is marked done. Spike-and-revert recorded in PR description.
-- **Composition root as manifest**: `Program.cs` becomes a fluent chain — `builder.Services.AddAuthDatastore(...).AddSigningInfrastructure(...).AddLoginSlice(...).AddIssueServiceTokenSlice(...).AddGetJwksSlice().AddGetOpenIdConfigurationSlice()` plus the existing `AddPlatformObservability` / `AddPlatformHealthChecks` / `AddPlatformOpenApi` calls unchanged. `RegisterTokenService` is deleted (decomposed into `AddSigningInfrastructure` + slice extensions). The `app.UsePrometheusExporter() / MapPlatformHealthChecks / UsePlatformOpenApi`, `MigrateDatabase()`, `SeedQaData()` calls are unchanged; endpoint registration becomes `app.MapLogin(); app.MapIssueServiceToken(); app.MapGetJwks(); app.MapGetOpenIdConfiguration();`.
+- **Composition root as manifest**: `Program.cs` becomes a fluent chain — `builder.Services.AddAuthDatastore(...).AddSigningInfrastructure(...).AddLoginSlice().AddIssueServiceTokenSlice(...).AddGetJwksSlice().AddGetOpenIdConfigurationSlice()` plus the existing `AddPlatformObservability` / `AddPlatformHealthChecks` / `AddPlatformOpenApi` calls unchanged. `RegisterTokenService` is deleted (decomposed into `AddSigningInfrastructure` + slice extensions). The `app.UsePrometheusExporter() / MapPlatformHealthChecks / UsePlatformOpenApi`, `MigrateDatabase()`, `SeedQaData()` calls are unchanged; endpoint registration becomes `app.MapLogin(); app.MapIssueServiceToken(); app.MapGetJwks(); app.MapGetOpenIdConfiguration();`.
 - **`AddSqlServerDatastore` rename**: Auth's local extension is named `AddSqlServerDatastore` (in `Auth.Service.Infrastructure.Data.EntityFramework`). Renamed to `AddAuthDatastore` per the PRD. Each microservice in the repo has its own same-named local extension; the rename gives Auth a service-specific name aligned with the new layout. Behavior unchanged.
 - **Routes / contracts / payloads**: unchanged. `POST /login`, `POST /token`, `GET /.well-known/jwks.json`, `GET /.well-known/openid-configuration` keep identical status codes, response shapes, `Cache-Control: public, max-age=300` headers on discovery endpoints, RS256 signing, 15-minute token lifetimes, issuer derivation, and metric counter names (`login-success`, `login-failure`, `service-token-success`, `service-token-failure`, `jwks-served`).
 - **QA seeder**: location unchanged. `AuthQaSeedTests` at `Auth.Tests/Qa/AuthQaSeedTests.cs` stays modulo namespace updates.
@@ -181,7 +181,7 @@ Extract the four HTTP routes into self-contained vertical slices. For each slice
 
 #### Login (`POST /login`)
 
-`Features/Login/` contains: `LoginRequest` (moved from `ApiModels/LoginRequest.cs`, namespace `Auth.Service.Features.Login`), `LoginEndpoint.cs` exposing `MapLogin(this IEndpointRouteBuilder)` registering `POST /login` with `.AllowAnonymous()` (current posture), `LoginHandler.cs` (moved from `Services/`, kept internal sealed, namespace `Auth.Service.Features.Login`) — composes `IAuthStore` + `IPasswordHasher<User>` + `JwtTokenService` + the dummy-hash timing defense exactly as in phase 3, and `LoginSliceExtensions.cs` with `AddLoginSlice(this IServiceCollection, IConfiguration)` registering `LoginHandler` (scoped) and binding `AuthOptions` from configuration (moved out of `TokenStartupExtensions`). The endpoint method delegates to `LoginHandler.HandleAsync(request.Username, request.Password)`. Metric counters `login-success` / `login-failure` are incremented inside `LoginHandler` (where they live today via `MetricFactory` in `AuthApiEndpoints` — moved into the handler as part of slice ownership).
+`Features/Login/` contains: `LoginRequest` (moved from `ApiModels/LoginRequest.cs`, namespace `Auth.Service.Features.Login`), `LoginEndpoint.cs` exposing `MapLogin(this IEndpointRouteBuilder)` registering `POST /login` with `.AllowAnonymous()` (current posture), `LoginHandler.cs` (moved from `Services/`, kept internal sealed, namespace `Auth.Service.Features.Login`) — composes `IAuthStore` + `IPasswordHasher<User>` + `JwtTokenService` + the dummy-hash timing defense exactly as in phase 3, and `LoginSliceExtensions.cs` with `AddLoginSlice(this IServiceCollection)` registering `LoginHandler` (scoped). Shared `AuthOptions` binding lives in `AddSigningInfrastructure` so token-issuing slices do not depend on each other. The endpoint method delegates to `LoginHandler.HandleAsync(request.Username, request.Password)`. Metric counters `login-success` / `login-failure` are incremented inside `LoginHandler` (where they live today via `MetricFactory` in `AuthApiEndpoints` — moved into the handler as part of slice ownership).
 
 #### IssueServiceToken (`POST /token`)
 
@@ -202,7 +202,7 @@ Extract the four HTTP routes into self-contained vertical slices. For each slice
 ```
 builder.Services.AddAuthDatastore(builder.Configuration)
                 .AddSigningInfrastructure(builder.Configuration)
-                .AddLoginSlice(builder.Configuration)
+                .AddLoginSlice()
                 .AddIssueServiceTokenSlice(builder.Configuration)
                 .AddGetJwksSlice()
                 .AddGetOpenIdConfigurationSlice();
@@ -222,7 +222,7 @@ app.MapGetOpenIdConfiguration();
 
 #### Login
 - [ ] `Features/Login/` contains `LoginRequest`, `LoginEndpoint`, `LoginHandler`, `LoginSliceExtensions` with namespace `Auth.Service.Features.Login`.
-- [ ] `Program.cs` chains `.AddLoginSlice(builder.Configuration)` and calls `app.MapLogin()`. Route `/login`, status codes, response shape, and `login-success` / `login-failure` counters preserved byte-identically.
+- [ ] `Program.cs` chains `.AddLoginSlice()` and calls `app.MapLogin()`. Route `/login`, status codes, response shape, and `login-success` / `login-failure` counters preserved byte-identically.
 - [ ] Dummy-hash timing-defense constant and call shape in `LoginHandler` byte-identical to the value used in `AuthContext` before phase 3.
 
 #### IssueServiceToken

@@ -16,7 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddAuthDatastore(builder.Configuration)
                 .AddSigningInfrastructure(builder.Configuration)
-                .AddLoginSlice(builder.Configuration)
+                .AddLoginSlice()
                 .AddIssueServiceTokenSlice(builder.Configuration)
                 .AddGetJwksSlice()
                 .AddGetOpenIdConfigurationSlice();

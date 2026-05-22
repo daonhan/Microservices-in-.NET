@@ -32,7 +32,7 @@ public class IssueServiceTokenHandlerTests : IDisposable
         var result = BuildHandler().Handle("unknown-client", "s3cret");
 
         Assert.Null(result);
-        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!);
+        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!, default!);
     }
 
     [Fact]
@@ -41,13 +41,13 @@ public class IssueServiceTokenHandlerTests : IDisposable
         var result = BuildHandler().Handle("api-gateway", "wrong");
 
         Assert.Null(result);
-        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!);
+        _serviceTokenService.DidNotReceiveWithAnyArgs().GenerateServiceToken(default!, default!);
     }
 
     [Fact]
     public void Given_valid_client_credentials_When_handling_Then_returns_auth_token()
     {
-        _serviceTokenService.GenerateServiceToken("api-gateway")
+        _serviceTokenService.GenerateServiceToken("api-gateway", "s3cret")
             .Returns(new AuthToken("token", 900));
 
         var result = BuildHandler().Handle("api-gateway", "s3cret");

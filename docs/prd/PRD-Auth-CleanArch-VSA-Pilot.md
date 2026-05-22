@@ -91,7 +91,7 @@ Slice handlers are invoked via plain DI (no MediatR). Password verification move
 ```
 builder.Services.AddAuthDatastore(builder.Configuration)
                 .AddSigningInfrastructure(builder.Configuration)
-                .AddLoginSlice(builder.Configuration)
+                .AddLoginSlice()
                 .AddIssueServiceTokenSlice(builder.Configuration)
                 .AddGetJwksSlice()
                 .AddGetOpenIdConfigurationSlice();

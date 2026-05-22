@@ -31,7 +31,7 @@ internal sealed class IssueServiceTokenHandler
             return null;
         }
 
-        var token = _serviceTokenService.GenerateServiceToken(client.ClientId);
+        var token = _serviceTokenService.GenerateServiceToken(client.ClientId, clientSecret);
         _metricFactory.Counter("service-token-success", "tokens").Add(1);
         return token;
     }
