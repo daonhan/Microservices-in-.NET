@@ -1,6 +1,6 @@
 using Auth.Service.Domain;
 
-namespace Auth.Service.Services;
+namespace Auth.Service.Domain.Tokens;
 
 public interface ITokenService
 {

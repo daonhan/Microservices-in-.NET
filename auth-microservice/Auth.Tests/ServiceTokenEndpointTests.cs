@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using Auth.Service.Domain;
+using Auth.Service.Domain.Tokens;
 using Auth.Service.Endpoints;
-using Auth.Service.Services;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using NSubstitute;

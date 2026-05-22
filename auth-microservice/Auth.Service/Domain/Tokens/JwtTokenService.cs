@@ -6,7 +6,7 @@ using Auth.Service.Services.Signing;
 using ECommerce.Shared.Authentication;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Auth.Service.Services;
+namespace Auth.Service.Domain.Tokens;
 
 public class JwtTokenService : ITokenService
 {

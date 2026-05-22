@@ -1,5 +1,6 @@
 using Auth.Service.Domain;
 using Auth.Service.Domain.Abstractions;
+using Auth.Service.Domain.Tokens;
 using Microsoft.AspNetCore.Identity;
 
 namespace Auth.Service.Services;

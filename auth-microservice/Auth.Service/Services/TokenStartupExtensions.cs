@@ -1,3 +1,4 @@
+using Auth.Service.Domain.Tokens;
 using Auth.Service.Services.Signing;
 using ECommerce.Shared.Authentication;
 

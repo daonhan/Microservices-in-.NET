@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using Auth.Service.ApiModels;
 using Auth.Service.Domain;
 using Auth.Service.Domain.Abstractions;
+using Auth.Service.Domain.Tokens;
 using Auth.Service.Endpoints;
 using Auth.Service.Services;
 using Auth.Service.Services.Signing;

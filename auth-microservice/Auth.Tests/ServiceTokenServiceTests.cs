@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
+using Auth.Service.Domain.Tokens;
 using Auth.Service.Models;
 using Auth.Service.Services;
 using Auth.Service.Services.Signing;
