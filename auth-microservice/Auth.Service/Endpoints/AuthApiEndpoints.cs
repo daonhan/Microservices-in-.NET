@@ -13,11 +13,11 @@ public static class AuthApiEndpoints
     }
 
     internal static async Task<Results<Ok<Domain.AuthToken>, UnauthorizedHttpResult>> Login(
-        ITokenService tokenService,
+        LoginHandler loginHandler,
         MetricFactory metricFactory,
         LoginRequest loginRequest)
     {
-        var loginResult = await tokenService.GenerateAuthenticationToken(loginRequest.Username,
+        var loginResult = await loginHandler.HandleAsync(loginRequest.Username,
             loginRequest.Password);
 
         if (loginResult is null)

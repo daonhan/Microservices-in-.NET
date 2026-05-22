@@ -1,7 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using Auth.Service.Domain;
-using Auth.Service.Infrastructure.Data;
 using Auth.Service.Services;
 using Auth.Service.Services.Signing;
 using ECommerce.Shared.Authentication;
@@ -16,9 +15,7 @@ public class JwtTokenServiceTests
     public async Task GenerateAuthenticationToken_ProducesRs256TokenWithCorrectClaims()
     {
         // Arrange
-        var authStore = Substitute.For<IAuthStore>();
-        authStore.VerifyUserLogin("alice", "password")
-            .Returns(Task.FromResult<User?>(new User { Username = "alice", Role = "User", PasswordHash = "hash" }));
+        var user = new User { Username = "alice", Role = "User", PasswordHash = "hash" };
 
         var rsaKeyProvider = Substitute.For<IRsaKeyProvider>();
         using var rsa = RSA.Create(2048);
@@ -26,10 +23,10 @@ public class JwtTokenServiceTests
         rsaKeyProvider.ActiveKeyId.Returns("test-kid");
 
         var options = new AuthOptions { AuthMicroserviceBaseAddress = "http://localhost" };
-        var service = new JwtTokenService(authStore, rsaKeyProvider, options);
+        var service = new JwtTokenService(rsaKeyProvider, options);
 
         // Act
-        var token = await service.GenerateAuthenticationToken("alice", "password");
+        var token = await service.GenerateAuthenticationToken(user);
 
         // Assert
         Assert.NotNull(token);

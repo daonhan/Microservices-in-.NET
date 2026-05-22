@@ -4,5 +4,5 @@ namespace Auth.Service.Services;
 
 public interface ITokenService
 {
-    Task<AuthToken?> GenerateAuthenticationToken(string username, string password);
+    Task<AuthToken?> GenerateAuthenticationToken(User user);
 }

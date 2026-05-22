@@ -17,7 +17,8 @@ public static class TokenStartupExtensions
         services.AddSingleton(signingOptions);
         services.AddSingleton<IRsaKeyProvider, PemFileRsaKeyProvider>();
 
-        services.AddScoped<ITokenService, JwtTokenService>();
+        services.AddScoped<JwtTokenService>();
+        services.AddScoped<LoginHandler>();
 
         var serviceClientOptions = new ServiceClientOptions();
         configuration.GetSection(ServiceClientOptions.SectionName).Bind(serviceClientOptions);

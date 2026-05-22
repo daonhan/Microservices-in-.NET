@@ -2,7 +2,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Auth.Service.Domain;
-using Auth.Service.Infrastructure.Data;
 using Auth.Service.Services.Signing;
 using ECommerce.Shared.Authentication;
 using Microsoft.IdentityModel.Tokens;
@@ -13,26 +12,17 @@ public class JwtTokenService : ITokenService
 {
     private const string SigningAlgorithm = SecurityAlgorithms.RsaSha256;
 
-    private readonly IAuthStore _authStore;
     private readonly IRsaKeyProvider _rsaKeyProvider;
     private readonly string _issuer;
 
-    public JwtTokenService(IAuthStore authStore, IRsaKeyProvider rsaKeyProvider, AuthOptions options)
+    public JwtTokenService(IRsaKeyProvider rsaKeyProvider, AuthOptions options)
     {
-        _authStore = authStore;
         _rsaKeyProvider = rsaKeyProvider;
         _issuer = options.AuthMicroserviceBaseAddress;
     }
 
-    public async Task<AuthToken?> GenerateAuthenticationToken(string username, string password)
+    public Task<AuthToken?> GenerateAuthenticationToken(User user)
     {
-        var user = await _authStore.VerifyUserLogin(username, password);
-
-        if (user is null)
-        {
-            return null;
-        }
-
         var signingCredentials = BuildSigningCredentials();
 
         var expirationTimeStamp = DateTime.Now.AddMinutes(15);
@@ -52,7 +42,8 @@ public class JwtTokenService : ITokenService
 
         var tokenString = new JwtSecurityTokenHandler().WriteToken(tokenOptions);
 
-        return new AuthToken(tokenString, (int)expirationTimeStamp.Subtract(DateTime.Now).TotalSeconds);
+        return Task.FromResult<AuthToken?>(
+            new AuthToken(tokenString, (int)expirationTimeStamp.Subtract(DateTime.Now).TotalSeconds));
     }
 
     private SigningCredentials BuildSigningCredentials() => SigningAlgorithm switch
