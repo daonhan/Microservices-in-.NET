@@ -4,8 +4,9 @@ using ECommerce.Shared.Infrastructure.Outbox.Models;
 using Microsoft.EntityFrameworkCore.Storage;
 using Product.Service.Contracts.Integration;
 using Product.Service.Domain.Events;
+using Product.Service.Features.CreateProduct;
+using Product.Service.Features.UpdateProduct;
 using Product.Service.Infrastructure.Outbox;
-using Product.Service.Infrastructure.Outbox.Mappers;
 
 namespace Product.Tests.Infrastructure.Outbox;
 

@@ -1,8 +1,9 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using Product.Service.Contracts.Integration;
 using Product.Service.Domain.Events;
+using Product.Service.Infrastructure.Outbox;
 
-namespace Product.Service.Infrastructure.Outbox.Mappers;
+namespace Product.Service.Features.UpdateProduct;
 
 internal sealed class ProductPriceUpdatedIntegrationMap : IIntegrationMap<ProductPriceChangedDomainEvent, ProductPriceUpdatedEvent>
 {

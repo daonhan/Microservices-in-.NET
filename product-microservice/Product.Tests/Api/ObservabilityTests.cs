@@ -1,7 +1,8 @@
 using System.Net.Http.Json;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.Extensions.DependencyInjection;
-using Product.Service.ApiModels;
+using Product.Service.Features.CreateProduct;
+using Product.Service.Features.UpdateProduct;
 
 namespace Product.Tests.Api;
 

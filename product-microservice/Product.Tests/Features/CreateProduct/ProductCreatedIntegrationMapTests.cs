@@ -1,7 +1,7 @@
 using Product.Service.Domain.Events;
-using Product.Service.Infrastructure.Outbox.Mappers;
+using Product.Service.Features.CreateProduct;
 
-namespace Product.Tests.Infrastructure.Outbox.Mappers;
+namespace Product.Tests.Features.CreateProduct;
 
 public class ProductCreatedIntegrationMapTests
 {

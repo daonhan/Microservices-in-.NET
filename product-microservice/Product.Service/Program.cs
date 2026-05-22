@@ -6,6 +6,9 @@ using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using Product.Service.Endpoints;
+using Product.Service.Features.CreateProduct;
+using Product.Service.Features.GetProduct;
+using Product.Service.Features.UpdateProduct;
 using Product.Service.Infrastructure.Data.EntityFramework;
 using Product.Service.Infrastructure.Outbox;
 
@@ -16,6 +19,10 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddProductOutbox();
+
+builder.Services.AddCreateProductSlice()
+    .AddGetProductSlice()
+    .AddUpdateProductSlice();
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration);
@@ -46,7 +53,9 @@ if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 
 app.SeedQaData();
 
-app.RegisterEndpoints();
+app.MapCreateProduct();
+app.MapGetProduct();
+app.MapUpdateProduct();
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();
