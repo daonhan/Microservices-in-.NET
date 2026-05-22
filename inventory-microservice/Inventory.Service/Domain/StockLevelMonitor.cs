@@ -1,10 +1,8 @@
-using Inventory.Service.Contracts.Integration;
-
-namespace Inventory.Service.Models;
+namespace Inventory.Service.Domain;
 
 internal static class StockLevelMonitor
 {
-    public static LowStockEvent? TryLowStockCrossing(
+    public static LowStockCrossing? TryLowStockCrossing(
         int productId,
         int warehouseId,
         int availableBefore,
@@ -16,18 +14,18 @@ internal static class StockLevelMonitor
         var isLowStock = thresholdAfter > 0 && availableAfter <= thresholdAfter;
 
         return !wasLowStock && isLowStock
-            ? new LowStockEvent(productId, warehouseId, availableAfter, thresholdAfter)
+            ? new LowStockCrossing(productId, warehouseId, availableAfter, thresholdAfter)
             : null;
     }
 
-    public static StockDepletedEvent? TryDepletedCrossing(
+    public static StockDepletion? TryDepletedCrossing(
         int productId,
         int warehouseId,
         int availableBefore,
         int availableAfter)
     {
         return availableBefore > 0 && availableAfter == 0
-            ? new StockDepletedEvent(productId, warehouseId)
+            ? new StockDepletion(productId, warehouseId)
             : null;
     }
 }

@@ -3,8 +3,8 @@ using System.Net.Http.Json;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.ApiModels;
+using Inventory.Service.Domain;
 using Inventory.Service.IntegrationEvents.EventHandlers;
-using Inventory.Service.Models;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Inventory.Tests.Api;

@@ -3,8 +3,8 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.ApiModels;
 using Inventory.Service.Contracts.Integration;
+using Inventory.Service.Domain;
 using Inventory.Service.Infrastructure.Data;
-using Inventory.Service.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -125,7 +125,11 @@ public static class InventoryApiEndpoints
                     result.Threshold);
                 if (lowStock is not null)
                 {
-                    events.Add(lowStock);
+                    events.Add(new LowStockEvent(
+                        lowStock.ProductId,
+                        lowStock.WarehouseId,
+                        lowStock.AvailableAfter,
+                        lowStock.ThresholdAfter));
                 }
 
                 var depleted = StockLevelMonitor.TryDepletedCrossing(
@@ -135,7 +139,7 @@ public static class InventoryApiEndpoints
                     result.AvailableAfter);
                 if (depleted is not null)
                 {
-                    events.Add(depleted);
+                    events.Add(new StockDepletedEvent(depleted.ProductId, depleted.WarehouseId));
                     metricFactory.Counter("stock-depleted", "events").Add(1);
                 }
 
@@ -185,7 +189,14 @@ public static class InventoryApiEndpoints
                     return [];
                 }
 
-                return new List<Event> { lowStock };
+                return new List<Event>
+                {
+                    new LowStockEvent(
+                        lowStock.ProductId,
+                        lowStock.WarehouseId,
+                        lowStock.AvailableAfter,
+                        lowStock.ThresholdAfter),
+                };
             });
 
             if (result is null)

@@ -1,4 +1,4 @@
-using Inventory.Service.Models;
+using Inventory.Service.Domain;
 
 namespace Inventory.Tests.Domain;
 
@@ -18,8 +18,8 @@ public class StockLevelMonitorTests
         Assert.NotNull(result);
         Assert.Equal(1, result.ProductId);
         Assert.Equal(1, result.WarehouseId);
-        Assert.Equal(5, result.Available);
-        Assert.Equal(10, result.Threshold);
+        Assert.Equal(5, result.AvailableAfter);
+        Assert.Equal(10, result.ThresholdAfter);
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public class StockLevelMonitorTests
             thresholdAfter: 10);
 
         Assert.NotNull(result);
-        Assert.Equal(10, result.Available);
+        Assert.Equal(10, result.AvailableAfter);
     }
 
     [Fact]

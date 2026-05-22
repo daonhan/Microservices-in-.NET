@@ -3,8 +3,8 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.Contracts.Integration;
+using Inventory.Service.Domain;
 using Inventory.Service.Infrastructure.Data;
-using Inventory.Service.Models;
 
 namespace Inventory.Service.IntegrationEvents.EventHandlers;
 

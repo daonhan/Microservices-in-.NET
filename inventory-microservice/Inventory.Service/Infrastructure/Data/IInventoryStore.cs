@@ -1,4 +1,4 @@
-using Inventory.Service.Models;
+using Inventory.Service.Domain;
 
 namespace Inventory.Service.Infrastructure.Data;
 

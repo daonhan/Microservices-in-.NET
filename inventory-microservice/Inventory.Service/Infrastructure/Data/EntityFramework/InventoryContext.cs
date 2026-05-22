@@ -1,5 +1,5 @@
 using ECommerce.Shared.Observability.Metrics;
-using Inventory.Service.Models;
+using Inventory.Service.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.Service.Infrastructure.Data.EntityFramework;

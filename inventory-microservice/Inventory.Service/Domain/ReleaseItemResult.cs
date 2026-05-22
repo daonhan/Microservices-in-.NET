@@ -1,4 +1,4 @@
-namespace Inventory.Service.Models;
+namespace Inventory.Service.Domain;
 
 internal enum ReleaseOutcome
 {
