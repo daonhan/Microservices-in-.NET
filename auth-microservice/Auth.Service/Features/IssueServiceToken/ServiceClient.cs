@@ -1,4 +1,4 @@
-namespace Auth.Service.Models;
+namespace Auth.Service.Features.IssueServiceToken;
 
 public class ServiceClient
 {

@@ -1,22 +1,22 @@
 using Auth.Service.Domain;
-using Auth.Service.Domain.Tokens;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Auth.Service.Endpoints;
+namespace Auth.Service.Features.IssueServiceToken;
 
-public static class ServiceTokenEndpoint
+internal static class IssueServiceTokenEndpoint
 {
     private const string ClientCredentialsGrant = "client_credentials";
 
-    public static void RegisterServiceTokenEndpoint(this IEndpointRouteBuilder routeBuilder)
+    public static IEndpointRouteBuilder MapIssueServiceToken(this IEndpointRouteBuilder routeBuilder)
     {
-        routeBuilder.MapPost("/token", IssueToken).DisableAntiforgery();
+        routeBuilder.MapPost("/token", Handle).DisableAntiforgery();
+        return routeBuilder;
     }
 
-    internal static Results<Ok<AuthToken>, BadRequest<string>, UnauthorizedHttpResult> IssueToken(
-        IServiceTokenService serviceTokenService,
+    internal static Results<Ok<AuthToken>, BadRequest<string>, UnauthorizedHttpResult> Handle(
+        IssueServiceTokenHandler handler,
         MetricFactory metricFactory,
         [FromForm(Name = "grant_type")] string? grantType,
         [FromForm(Name = "client_id")] string? clientId,
@@ -34,15 +34,10 @@ public static class ServiceTokenEndpoint
             return TypedResults.Unauthorized();
         }
 
-        var token = serviceTokenService.GenerateServiceToken(clientId, clientSecret);
+        var token = handler.Handle(clientId, clientSecret);
 
-        if (token is null)
-        {
-            metricFactory.Counter("service-token-failure", "tokens").Add(1);
-            return TypedResults.Unauthorized();
-        }
-
-        metricFactory.Counter("service-token-success", "tokens").Add(1);
-        return TypedResults.Ok(token);
+        return token is null
+            ? TypedResults.Unauthorized()
+            : TypedResults.Ok(token);
     }
 }

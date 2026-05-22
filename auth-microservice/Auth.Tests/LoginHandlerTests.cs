@@ -2,16 +2,25 @@ using System.Security.Cryptography;
 using Auth.Service.Domain;
 using Auth.Service.Domain.Abstractions;
 using Auth.Service.Domain.Tokens;
-using Auth.Service.Services;
+using Auth.Service.Features.Login;
 using ECommerce.Shared.Authentication;
+using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;
 
 namespace Auth.Tests;
 
-public class LoginHandlerTests
+public class LoginHandlerTests : IDisposable
 {
     private const string DummyHash = "AQAAAAIAAYagAAAAEKiv9rLYG18wXY3D3K6RrWw65epqos2a30M1T6sBEdTj+G08XttZqsgurhQYE5QUdQ==";
+
+    private readonly MetricFactory _metricFactory = new("Auth.Tests");
+
+    public void Dispose()
+    {
+        _metricFactory.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     private static JwtTokenService BuildTokenService(RSA rsa)
     {
@@ -30,7 +39,7 @@ public class LoginHandlerTests
         authStore.FindByUsernameAsync("ghost").Returns(Task.FromResult<User?>(null));
         var hasher = Substitute.For<IPasswordHasher<User>>();
         using var rsa = RSA.Create(2048);
-        var handler = new LoginHandler(authStore, hasher, BuildTokenService(rsa));
+        var handler = new LoginHandler(authStore, hasher, BuildTokenService(rsa), _metricFactory);
 
         // Act
         var result = await handler.HandleAsync("ghost", "any-password");
@@ -58,7 +67,7 @@ public class LoginHandlerTests
         var authStore = Substitute.For<IAuthStore>();
         authStore.FindByUsernameAsync("alice").Returns(Task.FromResult<User?>(user));
         using var rsa = RSA.Create(2048);
-        var handler = new LoginHandler(authStore, hasher, BuildTokenService(rsa));
+        var handler = new LoginHandler(authStore, hasher, BuildTokenService(rsa), _metricFactory);
 
         // Act
         var result = await handler.HandleAsync("alice", "wrong-password");
@@ -82,7 +91,7 @@ public class LoginHandlerTests
         var authStore = Substitute.For<IAuthStore>();
         authStore.FindByUsernameAsync("alice").Returns(Task.FromResult<User?>(user));
         using var rsa = RSA.Create(2048);
-        var handler = new LoginHandler(authStore, hasher, BuildTokenService(rsa));
+        var handler = new LoginHandler(authStore, hasher, BuildTokenService(rsa), _metricFactory);
 
         // Act
         var result = await handler.HandleAsync("alice", "correct-password");

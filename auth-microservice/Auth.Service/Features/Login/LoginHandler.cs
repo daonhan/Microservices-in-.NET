@@ -1,9 +1,10 @@
 using Auth.Service.Domain;
 using Auth.Service.Domain.Abstractions;
 using Auth.Service.Domain.Tokens;
+using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Identity;
 
-namespace Auth.Service.Services;
+namespace Auth.Service.Features.Login;
 
 internal sealed class LoginHandler
 {
@@ -12,15 +13,27 @@ internal sealed class LoginHandler
     private readonly IAuthStore _authStore;
     private readonly IPasswordHasher<User> _hasher;
     private readonly JwtTokenService _tokenService;
+    private readonly MetricFactory _metricFactory;
 
-    public LoginHandler(IAuthStore authStore, IPasswordHasher<User> hasher, JwtTokenService tokenService)
+    public LoginHandler(IAuthStore authStore, IPasswordHasher<User> hasher,
+        JwtTokenService tokenService, MetricFactory metricFactory)
     {
         _authStore = authStore;
         _hasher = hasher;
         _tokenService = tokenService;
+        _metricFactory = metricFactory;
     }
 
     public async Task<AuthToken?> HandleAsync(string username, string password)
+    {
+        var token = await AuthenticateAsync(username, password);
+
+        _metricFactory.Counter(token is null ? "login-failure" : "login-success", "logins").Add(1);
+
+        return token;
+    }
+
+    private async Task<AuthToken?> AuthenticateAsync(string username, string password)
     {
         var user = await _authStore.FindByUsernameAsync(username);
 

@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using System.Security.Cryptography;
 using Auth.Service.Domain.Abstractions;
-using Auth.Service.Endpoints;
+using Auth.Service.Features.GetJwks;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;
@@ -27,7 +27,7 @@ public class JwksEndpointTests : IDisposable
         var httpContext = new DefaultHttpContext();
 
         // Act
-        var result = JwksEndpoint.GetJwks(provider, _metricFactory, httpContext);
+        var result = GetJwksEndpoint.Handle(new GetJwksHandler(provider, _metricFactory), httpContext);
 
         // Assert
         Assert.Equal("public, max-age=300", httpContext.Response.Headers.CacheControl.ToString());
@@ -68,7 +68,7 @@ public class JwksEndpointTests : IDisposable
         var httpContext = new DefaultHttpContext();
 
         // Act
-        var result = JwksEndpoint.GetJwks(provider, _metricFactory, httpContext);
+        var result = GetJwksEndpoint.Handle(new GetJwksHandler(provider, _metricFactory), httpContext);
 
         // Assert
         Assert.NotNull(result.Value);
@@ -101,7 +101,7 @@ public class JwksEndpointTests : IDisposable
         listener.Start();
 
         // Act
-        JwksEndpoint.GetJwks(provider, _metricFactory, httpContext);
+        GetJwksEndpoint.Handle(new GetJwksHandler(provider, _metricFactory), httpContext);
 
         // Assert
         Assert.Contains("jwks-served", observed);

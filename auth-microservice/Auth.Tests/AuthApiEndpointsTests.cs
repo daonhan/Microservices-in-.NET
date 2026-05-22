@@ -1,11 +1,9 @@
 using System.Diagnostics.Metrics;
 using System.Security.Cryptography;
-using Auth.Service.ApiModels;
 using Auth.Service.Domain;
 using Auth.Service.Domain.Abstractions;
 using Auth.Service.Domain.Tokens;
-using Auth.Service.Endpoints;
-using Auth.Service.Services;
+using Auth.Service.Features.Login;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -16,7 +14,7 @@ namespace Auth.Tests;
 
 public class AuthApiEndpointsTests : IDisposable
 {
-    private readonly MetricFactory _metricFactory = new("Auth.Tests");
+    private readonly MetricFactory _metricFactory = new("Auth.Tests.AuthApiEndpointsTests");
     private readonly RSA _rsa = RSA.Create(2048);
 
     public void Dispose()
@@ -33,7 +31,7 @@ public class AuthApiEndpointsTests : IDisposable
         rsaKeyProvider.ActiveKeyId.Returns("test-kid");
         var tokenService = new JwtTokenService(rsaKeyProvider,
             new AuthOptions { AuthMicroserviceBaseAddress = "http://localhost" });
-        return new LoginHandler(authStore, hasher, tokenService);
+        return new LoginHandler(authStore, hasher, tokenService, _metricFactory);
     }
 
     [Fact]
@@ -56,7 +54,7 @@ public class AuthApiEndpointsTests : IDisposable
         var observed = CaptureCounters();
 
         // Act
-        var result = await AuthApiEndpoints.Login(loginHandler, _metricFactory, loginRequest);
+        var result = await LoginEndpoint.HandleAsync(loginHandler, loginRequest);
 
         // Assert
         Assert.IsType<Ok<AuthToken>>(result.Result);
@@ -76,7 +74,7 @@ public class AuthApiEndpointsTests : IDisposable
         var observed = CaptureCounters();
 
         // Act
-        var result = await AuthApiEndpoints.Login(loginHandler, _metricFactory, loginRequest);
+        var result = await LoginEndpoint.HandleAsync(loginHandler, loginRequest);
 
         // Assert
         Assert.IsType<UnauthorizedHttpResult>(result.Result);
@@ -91,7 +89,7 @@ public class AuthApiEndpointsTests : IDisposable
         {
             InstrumentPublished = (instrument, l) =>
             {
-                if (instrument.Meter.Name == "Auth.Tests")
+                if (instrument.Meter.Name == "Auth.Tests.AuthApiEndpointsTests")
                 {
                     l.EnableMeasurementEvents(instrument);
                 }

@@ -1,6 +1,4 @@
-using Auth.Service.Models;
-
-namespace Auth.Service.Services;
+namespace Auth.Service.Features.IssueServiceToken;
 
 public class ServiceClientOptions
 {

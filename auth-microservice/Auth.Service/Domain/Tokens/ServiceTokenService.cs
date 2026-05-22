@@ -1,10 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using Auth.Service.Domain;
 using Auth.Service.Domain.Abstractions;
-using Auth.Service.Services;
 using ECommerce.Shared.Authentication;
 using Microsoft.IdentityModel.Tokens;
 
@@ -16,30 +13,17 @@ public class ServiceTokenService : IServiceTokenService
     private const string RoleClaimType = "user_role";
     private static readonly TimeSpan TokenLifetime = TimeSpan.FromMinutes(15);
 
-    private readonly ServiceClientOptions _serviceClients;
     private readonly IRsaKeyProvider _rsaKeyProvider;
     private readonly string _issuer;
 
-    public ServiceTokenService(
-        ServiceClientOptions serviceClients,
-        IRsaKeyProvider rsaKeyProvider,
-        AuthOptions options)
+    public ServiceTokenService(IRsaKeyProvider rsaKeyProvider, AuthOptions options)
     {
-        _serviceClients = serviceClients;
         _rsaKeyProvider = rsaKeyProvider;
         _issuer = options.AuthMicroserviceBaseAddress;
     }
 
-    public AuthToken? GenerateServiceToken(string clientId, string clientSecret)
+    public AuthToken GenerateServiceToken(string clientId)
     {
-        var client = _serviceClients.Clients
-            .FirstOrDefault(c => string.Equals(c.ClientId, clientId, StringComparison.Ordinal));
-
-        if (client is null || !SecretsMatch(client.ClientSecret, clientSecret))
-        {
-            return null;
-        }
-
         var signingCredentials = new SigningCredentials(
             new RsaSecurityKey(_rsaKeyProvider.GetActivePrivateKey())
             {
@@ -51,7 +35,7 @@ public class ServiceTokenService : IServiceTokenService
 
         var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, client.ClientId),
+            new Claim(JwtRegisteredClaimNames.Sub, clientId),
             new Claim(RoleClaimType, ServiceRole)
         };
 
@@ -64,12 +48,5 @@ public class ServiceTokenService : IServiceTokenService
         var tokenString = new JwtSecurityTokenHandler().WriteToken(jwt);
 
         return new AuthToken(tokenString, (int)TokenLifetime.TotalSeconds);
-    }
-
-    private static bool SecretsMatch(string expected, string provided)
-    {
-        var expectedBytes = Encoding.UTF8.GetBytes(expected);
-        var providedBytes = Encoding.UTF8.GetBytes(provided);
-        return CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes);
     }
 }
