@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
-namespace Basket.Tests.IntegrationEvents;
+namespace Basket.Tests.Infrastructure;
 
 public sealed class MessagingProviderBootTests
 {
