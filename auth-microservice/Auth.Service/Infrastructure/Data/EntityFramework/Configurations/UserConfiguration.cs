@@ -1,4 +1,4 @@
-using Auth.Service.Models;
+using Auth.Service.Domain;
 using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;

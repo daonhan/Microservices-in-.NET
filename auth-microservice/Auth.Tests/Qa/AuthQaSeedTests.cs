@@ -1,5 +1,5 @@
+using Auth.Service.Domain;
 using Auth.Service.Infrastructure.Data.EntityFramework;
-using Auth.Service.Models;
 using ECommerce.Shared.Qa;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +15,7 @@ public class AuthQaSeedTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        await using var context = new AuthContext(options, new PasswordHasher<User>());
+        await using var context = new AuthContext(options);
         await context.Database.EnsureCreatedAsync();
 
         var users = await context.Users.OrderBy(u => u.Username).ToListAsync();
@@ -37,12 +37,16 @@ public class AuthQaSeedTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        await using var context = new AuthContext(options, new PasswordHasher<User>());
+        await using var context = new AuthContext(options);
         await context.Database.EnsureCreatedAsync();
 
-        var user = await context.VerifyUserLogin(username, QaPersonas.CustomerPassword);
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Username == username);
 
         Assert.NotNull(user);
-        Assert.Equal(QaPersonas.CustomerRole, user!.Role);
+        var verification = new PasswordHasher<User>()
+            .VerifyHashedPassword(user, user.PasswordHash, QaPersonas.CustomerPassword);
+        Assert.True(verification is PasswordVerificationResult.Success
+                                 or PasswordVerificationResult.SuccessRehashNeeded);
+        Assert.Equal(QaPersonas.CustomerRole, user.Role);
     }
 }
