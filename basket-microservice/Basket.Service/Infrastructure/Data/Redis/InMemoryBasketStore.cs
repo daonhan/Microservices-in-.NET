@@ -1,7 +1,7 @@
 using Basket.Service.Domain;
 using Basket.Service.Domain.Abstractions;
 
-namespace Basket.Service.Infrastructure.Data;
+namespace Basket.Service.Infrastructure.Data.Redis;
 
 internal class InMemoryBasketStore : IBasketStore
 {
