@@ -3,7 +3,6 @@ using Auth.Service.Domain;
 using Auth.Service.Domain.Abstractions;
 using Auth.Service.Domain.Tokens;
 using Auth.Service.Services;
-using Auth.Service.Services.Signing;
 using ECommerce.Shared.Authentication;
 using Microsoft.AspNetCore.Identity;
 using NSubstitute;

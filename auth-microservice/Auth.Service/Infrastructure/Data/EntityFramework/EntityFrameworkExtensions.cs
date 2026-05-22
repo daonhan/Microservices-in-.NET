@@ -5,7 +5,7 @@ namespace Auth.Service.Infrastructure.Data.EntityFramework;
 
 public static class EntityFrameworkExtensions
 {
-    public static void AddSqlServerDatastore(this IServiceCollection services,
+    public static IServiceCollection AddAuthDatastore(this IServiceCollection services,
         IConfigurationManager configuration)
     {
         services.AddDbContext<AuthContext>(options =>
@@ -19,5 +19,7 @@ public static class EntityFrameworkExtensions
                 }));
 
         services.AddScoped<IAuthStore, EfAuthStore>();
+
+        return services;
     }
 }

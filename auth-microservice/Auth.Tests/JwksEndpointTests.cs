@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using System.Security.Cryptography;
+using Auth.Service.Domain.Abstractions;
 using Auth.Service.Endpoints;
-using Auth.Service.Services.Signing;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.IdentityModel.Tokens;

@@ -2,7 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Auth.Service.Domain;
-using Auth.Service.Services.Signing;
+using Auth.Service.Domain.Abstractions;
 using ECommerce.Shared.Authentication;
 using Microsoft.IdentityModel.Tokens;
 

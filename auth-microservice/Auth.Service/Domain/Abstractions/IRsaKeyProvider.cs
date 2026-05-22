@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 
-namespace Auth.Service.Services.Signing;
+namespace Auth.Service.Domain.Abstractions;
 
 public interface IRsaKeyProvider
 {

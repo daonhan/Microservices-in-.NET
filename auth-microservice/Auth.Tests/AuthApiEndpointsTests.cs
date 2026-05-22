@@ -6,7 +6,6 @@ using Auth.Service.Domain.Abstractions;
 using Auth.Service.Domain.Tokens;
 using Auth.Service.Endpoints;
 using Auth.Service.Services;
-using Auth.Service.Services.Signing;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;

@@ -1,4 +1,4 @@
-using Auth.Service.Services.Signing;
+using Auth.Service.Domain.Abstractions;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.IdentityModel.Tokens;

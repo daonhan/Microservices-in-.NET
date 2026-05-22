@@ -1,4 +1,4 @@
-namespace Auth.Service.Services.Signing;
+namespace Auth.Service.Infrastructure.Signing;
 
 public class SigningOptions
 {

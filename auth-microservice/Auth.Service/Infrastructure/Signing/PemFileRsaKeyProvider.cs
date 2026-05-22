@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
+using Auth.Service.Domain.Abstractions;
 
-namespace Auth.Service.Services.Signing;
+namespace Auth.Service.Infrastructure.Signing;
 
 public class PemFileRsaKeyProvider : IRsaKeyProvider, IDisposable
 {
