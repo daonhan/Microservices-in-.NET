@@ -55,7 +55,8 @@ public class ProductApiTests : IntegrationTestBase
         // Arrange
         var product = new Product.Service.Domain.Product("Integration Test Shoe", 99.99M, 1, "Test description");
 
-        await ProductContext.CreateProduct(product);
+        ProductContext.Products.Add(product);
+        await ProductContext.SaveChangesAsync();
 
         // Act
         var response = await HttpClient.GetAsync($"/{product.Id}");
@@ -76,7 +77,8 @@ public class ProductApiTests : IntegrationTestBase
         // Arrange
         var product = new Product.Service.Domain.Product("Original Shoe", 50.00M, 1);
 
-        await ProductContext.CreateProduct(product);
+        ProductContext.Products.Add(product);
+        await ProductContext.SaveChangesAsync();
 
         var updateRequest = new UpdateProductRequest("Updated Shoe", 75.00M, 1, "Updated description");
 
@@ -96,7 +98,8 @@ public class ProductApiTests : IntegrationTestBase
         // Arrange
         var product = new Product.Service.Domain.Product("Event Test Shoe", 50.00M, 1);
 
-        await ProductContext.CreateProduct(product);
+        ProductContext.Products.Add(product);
+        await ProductContext.SaveChangesAsync();
 
         Subscribe<ProductPriceUpdatedEvent>();
 

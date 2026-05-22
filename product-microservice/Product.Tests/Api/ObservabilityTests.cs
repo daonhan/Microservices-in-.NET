@@ -36,7 +36,8 @@ public class ObservabilityTests : IntegrationTestBase
     {
         // Arrange
         var product = new Product.Service.Domain.Product("Price Counter Shoe", 10.00M, 1);
-        await ProductContext.CreateProduct(product);
+        ProductContext.Products.Add(product);
+        await ProductContext.SaveChangesAsync();
 
         var client = CreateAuthenticatedClient();
         var updateRequest = new UpdateProductRequest("Price Counter Shoe", 20.00M, 1);

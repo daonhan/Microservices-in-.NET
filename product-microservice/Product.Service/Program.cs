@@ -7,12 +7,15 @@ using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using Product.Service.Endpoints;
 using Product.Service.Infrastructure.Data.EntityFramework;
+using Product.Service.Infrastructure.Outbox;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSqlServerDatastore(builder.Configuration);
 
 builder.Services.AddOutbox(builder.Configuration);
+
+builder.Services.AddProductOutbox();
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration);

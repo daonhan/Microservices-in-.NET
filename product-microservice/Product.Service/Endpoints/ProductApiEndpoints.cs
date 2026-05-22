@@ -1,10 +1,6 @@
-using System.Transactions;
-using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Product.Service.ApiModels;
-using Product.Service.Contracts.Integration;
 using Product.Service.Domain.Abstractions;
 
 namespace Product.Service.Endpoints;
@@ -23,22 +19,12 @@ public static class ProductApiEndpoints
         });
 
         routeBuilder.MapPost("/", async ([FromServices] IProductStore productStore,
-            [FromServices] IOutboxStore outboxStore,
             [FromServices] MetricFactory metricFactory,
             CreateProductRequest request) =>
         {
             var product = new Domain.Product(request.Name, request.Price, request.ProductTypeId, request.Description);
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
-            {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
-                await productStore.CreateProduct(product);
-
-                await outboxStore.AddOutboxEvent(new ProductCreatedEvent(product.Id, product.Name, product.Price));
-
-                scope.Complete();
-            });
+            await productStore.CreateProduct(product);
 
             metricFactory.Counter("products-created", "products").Add(1);
 
@@ -46,7 +32,6 @@ public static class ProductApiEndpoints
         }).RequireAuthorization();
 
         routeBuilder.MapPut("/{productId}", async Task<IResult> ([FromServices] IProductStore productStore,
-            [FromServices] IOutboxStore outboxStore,
             [FromServices] MetricFactory metricFactory,
             int productId, UpdateProductRequest request) =>
         {
@@ -66,19 +51,7 @@ public static class ProductApiEndpoints
 
             var priceChanged = !decimal.Equals(existingPrice, request.Price);
 
-            await outboxStore.CreateExecutionStrategy().ExecuteAsync(async () =>
-            {
-                using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-
-                await productStore.UpdateProduct(product);
-
-                if (priceChanged)
-                {
-                    await outboxStore.AddOutboxEvent(new ProductPriceUpdatedEvent(productId, request.Price));
-                }
-
-                scope.Complete();
-            });
+            await productStore.UpdateProduct(product);
 
             if (priceChanged)
             {
