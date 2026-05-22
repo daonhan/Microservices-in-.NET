@@ -2,14 +2,14 @@ using Basket.Service.Contracts.Integration;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using Microsoft.Extensions.Caching.Distributed;
 
-namespace Basket.Service.IntegrationEvents.EventHandlers;
+namespace Basket.Service.Features.ProductPriceUpdated;
 
-public class ProductPriceUpdatedEventHandler : IEventHandler<ProductPriceUpdatedEvent>
+internal sealed class ProductPriceUpdatedHandler : IEventHandler<ProductPriceUpdatedEvent>
 {
     private readonly IDistributedCache _cache;
     private readonly DistributedCacheEntryOptions _cacheEntryOptions;
 
-    public ProductPriceUpdatedEventHandler(IDistributedCache cache)
+    public ProductPriceUpdatedHandler(IDistributedCache cache)
     {
         _cache = cache;
         _cacheEntryOptions = new DistributedCacheEntryOptions

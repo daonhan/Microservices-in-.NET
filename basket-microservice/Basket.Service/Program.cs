@@ -1,15 +1,14 @@
-using Basket.Service.Contracts.Integration;
 using Basket.Service.Domain.Abstractions;
 using Basket.Service.Features.AddBasketProduct;
 using Basket.Service.Features.CreateBasket;
 using Basket.Service.Features.DeleteBasket;
 using Basket.Service.Features.DeleteBasketProduct;
 using Basket.Service.Features.GetBasket;
+using Basket.Service.Features.OrderCreated;
+using Basket.Service.Features.ProductPriceUpdated;
 using Basket.Service.Infrastructure.Data.Redis;
 using Basket.Service.Infrastructure.Seeding;
-using Basket.Service.IntegrationEvents.EventHandlers;
 using ECommerce.Shared.HealthChecks;
-using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
@@ -28,8 +27,8 @@ builder.Services.AddGetBasketSlice()
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
-    .AddEventHandler<ProductPriceUpdatedEvent, ProductPriceUpdatedEventHandler>();
+    .AddOrderCreatedSlice()
+    .AddProductPriceUpdatedSlice();
 
 builder.Services.AddRedisCache(builder.Configuration);
 builder.Services.AddQaSeeding<RedisQaSeederHostedService>(builder.Configuration, builder.Environment);

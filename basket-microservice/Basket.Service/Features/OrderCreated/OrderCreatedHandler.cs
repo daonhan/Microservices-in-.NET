@@ -2,13 +2,13 @@ using Basket.Service.Contracts.Integration;
 using Basket.Service.Domain.Abstractions;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 
-namespace Basket.Service.IntegrationEvents.EventHandlers;
+namespace Basket.Service.Features.OrderCreated;
 
-internal class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
+internal sealed class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
 {
     private readonly IBasketStore _basketStore;
 
-    public OrderCreatedEventHandler(IBasketStore basketStore)
+    public OrderCreatedHandler(IBasketStore basketStore)
     {
         _basketStore = basketStore;
     }
