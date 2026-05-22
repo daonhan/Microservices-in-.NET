@@ -1,6 +1,6 @@
-using Basket.Service.Models;
+using Basket.Service.Domain;
 
-namespace Basket.Service.Infrastructure.Data;
+namespace Basket.Service.Domain.Abstractions;
 
 internal interface IBasketStore
 {

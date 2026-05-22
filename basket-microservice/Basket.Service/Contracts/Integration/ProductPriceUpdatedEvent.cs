@@ -1,5 +1,5 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Basket.Service.IntegrationEvents;
+namespace Basket.Service.Contracts.Integration;
 
 public record ProductPriceUpdatedEvent(int ProductId, decimal NewPrice) : Event;

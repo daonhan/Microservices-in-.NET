@@ -1,4 +1,4 @@
-namespace Basket.Service.Models;
+namespace Basket.Service.Domain;
 
 internal class CustomerBasket
 {

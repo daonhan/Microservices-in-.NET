@@ -1,4 +1,4 @@
-using Basket.Service.Models;
+using Basket.Service.Domain;
 
 namespace Basket.Service.Infrastructure.Data;
 

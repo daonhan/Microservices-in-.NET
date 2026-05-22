@@ -1,6 +1,6 @@
 using System.Globalization;
-using Basket.Service.Infrastructure.Data;
-using Basket.Service.Models;
+using Basket.Service.Domain;
+using Basket.Service.Domain.Abstractions;
 using ECommerce.Shared.Qa;
 using Microsoft.Extensions.Caching.Distributed;
 

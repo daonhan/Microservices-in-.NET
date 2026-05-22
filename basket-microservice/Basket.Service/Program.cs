@@ -1,8 +1,8 @@
+using Basket.Service.Contracts.Integration;
+using Basket.Service.Domain.Abstractions;
 using Basket.Service.Endpoints;
-using Basket.Service.Infrastructure.Data;
 using Basket.Service.Infrastructure.Data.Redis;
 using Basket.Service.Infrastructure.Seeding;
-using Basket.Service.IntegrationEvents;
 using Basket.Service.IntegrationEvents.EventHandlers;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;

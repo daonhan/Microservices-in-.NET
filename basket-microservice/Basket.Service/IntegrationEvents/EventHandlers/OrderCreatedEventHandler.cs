@@ -1,4 +1,5 @@
-using Basket.Service.Infrastructure.Data;
+using Basket.Service.Contracts.Integration;
+using Basket.Service.Domain.Abstractions;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 
 namespace Basket.Service.IntegrationEvents.EventHandlers;

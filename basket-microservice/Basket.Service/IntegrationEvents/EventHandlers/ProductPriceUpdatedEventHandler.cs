@@ -1,3 +1,4 @@
+using Basket.Service.Contracts.Integration;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using Microsoft.Extensions.Caching.Distributed;
 

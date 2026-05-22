@@ -1,9 +1,9 @@
 using System.Diagnostics.Metrics;
 using System.Text;
 using Basket.Service.ApiModels;
+using Basket.Service.Domain;
+using Basket.Service.Domain.Abstractions;
 using Basket.Service.Endpoints;
-using Basket.Service.Infrastructure.Data;
-using Basket.Service.Models;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Caching.Distributed;

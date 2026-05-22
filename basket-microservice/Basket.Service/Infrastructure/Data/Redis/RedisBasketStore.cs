@@ -1,5 +1,6 @@
 using System.Text.Json;
-using Basket.Service.Models;
+using Basket.Service.Domain;
+using Basket.Service.Domain.Abstractions;
 using Microsoft.Extensions.Caching.Distributed;
 
 namespace Basket.Service.Infrastructure.Data.Redis;

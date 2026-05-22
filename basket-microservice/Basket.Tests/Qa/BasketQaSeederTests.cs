@@ -1,10 +1,10 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using Basket.Service.Domain;
+using Basket.Service.Domain.Abstractions;
 using Basket.Service.Endpoints;
-using Basket.Service.Infrastructure.Data;
 using Basket.Service.Infrastructure.Data.Redis;
 using Basket.Service.Infrastructure.Seeding;
-using Basket.Service.Models;
 using ECommerce.Shared.Qa;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
