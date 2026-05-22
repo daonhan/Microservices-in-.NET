@@ -6,7 +6,7 @@ public class LayoutTests
 {
     private static readonly System.Reflection.Assembly BasketServiceAssembly = typeof(Program).Assembly;
 
-    [Fact(Skip = "Enabled in phase 8")]
+    [Fact]
     public void Domain_DoesNotReference_InfrastructureOrFeatures()
     {
         var result = Types.InAssembly(BasketServiceAssembly)
@@ -21,7 +21,7 @@ public class LayoutTests
             + string.Join(", ", result.FailingTypeNames ?? []));
     }
 
-    [Fact(Skip = "Enabled in phase 8")]
+    [Fact]
     public void Features_DoNotReference_OtherFeatureSlices()
     {
         var featureTypes = Types.InAssembly(BasketServiceAssembly)
@@ -40,8 +40,10 @@ public class LayoutTests
         var offenders = new List<string>();
         foreach (var slice in slices)
         {
+            // Trailing '.' so the dependency match stops at a namespace boundary:
+            // without it "DeleteBasket" would also match the "DeleteBasketProduct" slice.
             var otherSlices = slices.Where(s => !string.Equals(s, slice, StringComparison.Ordinal))
-                .Select(s => $"Basket.Service.Features.{s}")
+                .Select(s => $"Basket.Service.Features.{s}.")
                 .ToArray();
 
             if (otherSlices.Length == 0)
@@ -49,9 +51,10 @@ public class LayoutTests
                 continue;
             }
 
+            // Anchored regex for the same boundary reason on the selector side.
             var result = Types.InAssembly(BasketServiceAssembly)
                 .That()
-                .ResideInNamespaceStartingWith($"Basket.Service.Features.{slice}")
+                .ResideInNamespaceMatching($@"^Basket\.Service\.Features\.{slice}(\.|$)")
                 .ShouldNot()
                 .HaveDependencyOnAny(otherSlices)
                 .GetResult();
@@ -66,7 +69,7 @@ public class LayoutTests
             "Features.<X> may not reference Features.<Y> for X != Y: " + string.Join(", ", offenders));
     }
 
-    [Fact(Skip = "Enabled in phase 8")]
+    [Fact]
     public void Infrastructure_DoesNotReference_Features()
     {
         var result = Types.InAssembly(BasketServiceAssembly)
@@ -81,7 +84,7 @@ public class LayoutTests
             + string.Join(", ", result.FailingTypeNames ?? []));
     }
 
-    [Fact(Skip = "Enabled in phase 8")]
+    [Fact]
     public void Contracts_DoNotReference_OtherBasketServiceNamespaces()
     {
         var result = Types.InAssembly(BasketServiceAssembly)
