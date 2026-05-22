@@ -1,10 +1,10 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using Basket.Service.Endpoints;
-using Basket.Service.Infrastructure.Data;
+using Basket.Service.Domain;
+using Basket.Service.Domain.Abstractions;
+using Basket.Service.Features.GetBasket;
 using Basket.Service.Infrastructure.Data.Redis;
 using Basket.Service.Infrastructure.Seeding;
-using Basket.Service.Models;
 using ECommerce.Shared.Qa;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -54,11 +54,12 @@ public class BasketQaSeederTests : IAsyncLifetime
         builder.Configuration["Redis:Configuration"] = _redis.GetConnectionString();
 
         builder.Services.AddScoped<IBasketStore, RedisBasketStore>();
+        builder.Services.AddGetBasketSlice();
         builder.Services.AddRedisCache(builder.Configuration);
         builder.Services.AddQaSeeding<RedisQaSeederHostedService>(builder.Configuration, builder.Environment);
 
         await using var app = builder.Build();
-        app.RegisterEndpoints();
+        app.MapGetBasket();
 
         await app.StartAsync();
 

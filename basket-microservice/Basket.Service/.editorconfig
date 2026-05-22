@@ -1,0 +1,7 @@
+# Basket.Service.LayoutAnalyzer boundary rules.
+# Promoted to error in phase 8 (issue #180): cross-boundary references fail the build.
+[*.cs]
+dotnet_diagnostic.BSKLAY001.severity = error
+dotnet_diagnostic.BSKLAY002.severity = error
+dotnet_diagnostic.BSKLAY003.severity = error
+dotnet_diagnostic.BSKLAY004.severity = error
