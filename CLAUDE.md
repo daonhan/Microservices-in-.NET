@@ -78,6 +78,8 @@ Per-service layout: `Endpoints/` (Minimal API), `ApiModels/` (DTOs), `Models/` (
 
 **Product service exception** — second Clean Architecture + Vertical Slices pilot, same layout as Order: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Product.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Product.Service.LayoutAnalyzer`. Composes ADR [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses the [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md) runbook unchanged. Propagation to remaining services is a separate ADR.
 
+**Basket service exception** — third Clean Architecture + Vertical Slices pilot, same layout as Order/Product: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Basket.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Basket.Service.LayoutAnalyzer`. Composes ADR [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses the [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md) runbook unchanged. **Diverges from Order/Product: no outbox seam (Basket emits no integration events); no CQRS-lite read split (one read, no projection benefit).** Propagation to remaining services is a separate ADR.
+
 ## API Gateway provider switch
 
 Gateway compiles both YARP and Ocelot. `Gateway:Provider` (env `Gateway__Provider`) = `Yarp` (default) or `Ocelot`; unknown values fail fast. Routes/port/auth/health/metrics identical across both.
