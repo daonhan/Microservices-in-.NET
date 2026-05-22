@@ -1,0 +1,7 @@
+# Auth.Service.LayoutAnalyzer boundary rules.
+# Warning-only for the pilot scaffolding phase (issue #184);
+# promoted to error in phase 8 (issue #191) once the layout is in place.
+[*.cs]
+dotnet_diagnostic.AUTLAY001.severity = warning
+dotnet_diagnostic.AUTLAY002.severity = warning
+dotnet_diagnostic.AUTLAY003.severity = warning
