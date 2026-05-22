@@ -23,4 +23,10 @@
     <InternalsVisibleTo Include="Inventory.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Inventory.Service.LayoutAnalyzer\Inventory.Service.LayoutAnalyzer.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,7 @@
+# Inventory.Service.LayoutAnalyzer boundary rules.
+# Phase 1 scaffold (issue #195): rules are off (hidden); the analyzer has no detection logic yet.
+# Promoted to error in Phase 9 (issue #206) once the VSA layout is in place.
+[*.cs]
+dotnet_diagnostic.INVLAY001.severity = silent
+dotnet_diagnostic.INVLAY002.severity = silent
+dotnet_diagnostic.INVLAY003.severity = silent
