@@ -1,0 +1,7 @@
+# Basket.Service.LayoutAnalyzer boundary rules.
+# Warning-only during the VSA migration; phase 8 (issue #180) promotes these to error.
+[*.cs]
+dotnet_diagnostic.BSKLAY001.severity = warning
+dotnet_diagnostic.BSKLAY002.severity = warning
+dotnet_diagnostic.BSKLAY003.severity = warning
+dotnet_diagnostic.BSKLAY004.severity = warning
