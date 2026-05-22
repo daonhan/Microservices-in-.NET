@@ -6,7 +6,7 @@ public class LayoutTests
 {
     private static readonly System.Reflection.Assembly AuthServiceAssembly = typeof(Program).Assembly;
 
-    [Fact(Skip = "Enabled in phase 8")]
+    [Fact]
     public void Domain_DoesNotReference_InfrastructureOrFeatures()
     {
         var result = Types.InAssembly(AuthServiceAssembly)
@@ -21,7 +21,7 @@ public class LayoutTests
             + string.Join(", ", result.FailingTypeNames ?? []));
     }
 
-    [Fact(Skip = "Enabled in phase 8")]
+    [Fact]
     public void Features_DoNotReference_OtherFeatureSlices()
     {
         var featureTypes = Types.InAssembly(AuthServiceAssembly)
@@ -69,7 +69,7 @@ public class LayoutTests
             "Features.<X> may not reference Features.<Y> for X != Y: " + string.Join(", ", offenders));
     }
 
-    [Fact(Skip = "Enabled in phase 8")]
+    [Fact]
     public void Infrastructure_DoesNotReference_Features()
     {
         var result = Types.InAssembly(AuthServiceAssembly)

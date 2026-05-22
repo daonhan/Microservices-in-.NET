@@ -1,7 +1,6 @@
 # Auth.Service.LayoutAnalyzer boundary rules.
-# Warning-only for the pilot scaffolding phase (issue #184);
-# promoted to error in phase 8 (issue #191) once the layout is in place.
+# Promoted to error in phase 8 (issue #191): cross-boundary references fail the build.
 [*.cs]
-dotnet_diagnostic.AUTLAY001.severity = warning
-dotnet_diagnostic.AUTLAY002.severity = warning
-dotnet_diagnostic.AUTLAY003.severity = warning
+dotnet_diagnostic.AUTLAY001.severity = error
+dotnet_diagnostic.AUTLAY002.severity = error
+dotnet_diagnostic.AUTLAY003.severity = error
