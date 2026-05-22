@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
-using Inventory.Service.IntegrationEvents;
+using Inventory.Service.Contracts.Integration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Inventory.Tests.Api;

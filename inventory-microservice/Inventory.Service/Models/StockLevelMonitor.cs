@@ -1,4 +1,4 @@
-using Inventory.Service.IntegrationEvents;
+using Inventory.Service.Contracts.Integration;
 
 namespace Inventory.Service.Models;
 

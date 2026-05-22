@@ -1,4 +1,5 @@
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
+using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Infrastructure.Data;
 
 namespace Inventory.Service.IntegrationEvents.EventHandlers;

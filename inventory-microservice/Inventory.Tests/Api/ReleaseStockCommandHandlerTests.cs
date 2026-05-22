@@ -1,7 +1,7 @@
 using System.Text.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
-using Inventory.Service.IntegrationEvents;
+using Inventory.Service.Contracts.Integration;
 using Inventory.Service.IntegrationEvents.EventHandlers;
 using Inventory.Service.Models;
 using Microsoft.Extensions.DependencyInjection;

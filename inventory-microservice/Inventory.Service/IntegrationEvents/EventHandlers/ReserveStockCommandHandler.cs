@@ -4,6 +4,7 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability.Metrics;
+using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Infrastructure.Data;
 using Inventory.Service.Models;
 

@@ -7,9 +7,9 @@ using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
+using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Endpoints;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
-using Inventory.Service.IntegrationEvents;
 using Inventory.Service.IntegrationEvents.EventHandlers;
 using OpenTelemetry.Metrics;
 

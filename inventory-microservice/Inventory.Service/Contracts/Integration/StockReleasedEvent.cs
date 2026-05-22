@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Inventory.Service.IntegrationEvents;
+namespace Inventory.Service.Contracts.Integration;
 
 public record ReleasedItem(int ProductId, int WarehouseId, int Quantity);
 

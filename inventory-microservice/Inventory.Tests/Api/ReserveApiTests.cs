@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Inventory.Service.ApiModels;
-using Inventory.Service.IntegrationEvents;
+using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Models;
 
 namespace Inventory.Tests.Api;
