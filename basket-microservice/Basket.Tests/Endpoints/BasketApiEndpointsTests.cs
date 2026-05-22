@@ -1,9 +1,12 @@
 using System.Diagnostics.Metrics;
 using System.Text;
-using Basket.Service.ApiModels;
 using Basket.Service.Domain;
 using Basket.Service.Domain.Abstractions;
-using Basket.Service.Endpoints;
+using Basket.Service.Features.AddBasketProduct;
+using Basket.Service.Features.CreateBasket;
+using Basket.Service.Features.DeleteBasket;
+using Basket.Service.Features.DeleteBasketProduct;
+using Basket.Service.Features.GetBasket;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Caching.Distributed;
@@ -34,7 +37,7 @@ public class BasketApiEndpointsTests : IDisposable
             .Returns(customerBasket);
 
         // Act
-        var result = await BasketApiEndpoints.GetBasket(_basketStore, customerId);
+        var result = await new GetBasketHandler(_basketStore).HandleAsync(customerId);
 
         // Assert
         Assert.NotNull(result);
@@ -53,8 +56,8 @@ public class BasketApiEndpointsTests : IDisposable
             .Returns(Encoding.UTF8.GetBytes("1.00"));
 
         // Act
-        var result = await BasketApiEndpoints.CreateBasket(_basketStore, _cache, _metricFactory,
-            customerId, createBasketRequest);
+        var result = await new CreateBasketHandler(_basketStore, _cache, _metricFactory)
+            .HandleAsync(customerId, createBasketRequest);
 
         // Assert
         Assert.NotNull(result);
@@ -78,8 +81,8 @@ public class BasketApiEndpointsTests : IDisposable
             .Returns(Encoding.UTF8.GetBytes("9.99"));
 
         // Act
-        var result = await BasketApiEndpoints.AddBasketProduct(_basketStore, _cache, _metricFactory,
-            customerId, addProductRequest);
+        var result = await new AddBasketProductHandler(_basketStore, _cache, _metricFactory)
+            .HandleAsync(customerId, addProductRequest);
 
         // Assert
         Assert.NotNull(result);
@@ -100,7 +103,8 @@ public class BasketApiEndpointsTests : IDisposable
             .Returns(customerBasket);
 
         // Act
-        var result = await BasketApiEndpoints.DeleteBasketProduct(_basketStore, _metricFactory, customerId, productId);
+        var result = await new DeleteBasketProductHandler(_basketStore, _metricFactory)
+            .HandleAsync(customerId, productId);
 
         // Assert
         Assert.NotNull(result);
@@ -115,7 +119,7 @@ public class BasketApiEndpointsTests : IDisposable
         const string customerId = "1";
 
         // Act
-        var result = await BasketApiEndpoints.DeleteBasket(_basketStore, customerId);
+        var result = await new DeleteBasketHandler(_basketStore).HandleAsync(customerId);
 
         // Assert
         Assert.NotNull(result);
@@ -150,8 +154,8 @@ public class BasketApiEndpointsTests : IDisposable
         listener.Start();
 
         // Act
-        await BasketApiEndpoints.CreateBasket(_basketStore, _cache, _metricFactory,
-            customerId, createBasketRequest);
+        await new CreateBasketHandler(_basketStore, _cache, _metricFactory)
+            .HandleAsync(customerId, createBasketRequest);
 
         // Assert
         Assert.Contains(observed, o => o.instrument == "basket-updates" && o.value == 1);
@@ -187,7 +191,8 @@ public class BasketApiEndpointsTests : IDisposable
         listener.Start();
 
         // Act
-        await BasketApiEndpoints.DeleteBasketProduct(_basketStore, _metricFactory, customerId, productId);
+        await new DeleteBasketProductHandler(_basketStore, _metricFactory)
+            .HandleAsync(customerId, productId);
 
         // Assert
         Assert.Contains("basket-products-removed", observed);

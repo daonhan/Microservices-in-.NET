@@ -1,6 +1,10 @@
 using Basket.Service.Contracts.Integration;
 using Basket.Service.Domain.Abstractions;
-using Basket.Service.Endpoints;
+using Basket.Service.Features.AddBasketProduct;
+using Basket.Service.Features.CreateBasket;
+using Basket.Service.Features.DeleteBasket;
+using Basket.Service.Features.DeleteBasketProduct;
+using Basket.Service.Features.GetBasket;
 using Basket.Service.Infrastructure.Data.Redis;
 using Basket.Service.Infrastructure.Seeding;
 using Basket.Service.IntegrationEvents.EventHandlers;
@@ -15,6 +19,13 @@ using OpenTelemetry.Metrics;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<IBasketStore, RedisBasketStore>();
+
+builder.Services.AddGetBasketSlice()
+    .AddCreateBasketSlice()
+    .AddAddBasketProductSlice()
+    .AddDeleteBasketProductSlice()
+    .AddDeleteBasketSlice();
+
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
     .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
@@ -40,7 +51,11 @@ app.UsePlatformOpenApi();
 
 app.SeedQaData();
 
-app.RegisterEndpoints();
+app.MapGetBasket();
+app.MapCreateBasket();
+app.MapAddBasketProduct();
+app.MapDeleteBasketProduct();
+app.MapDeleteBasket();
 
 app.UseHttpsRedirection();
 
