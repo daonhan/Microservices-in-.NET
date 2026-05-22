@@ -9,7 +9,8 @@ namespace Auth.Tests.Features.IssueServiceToken;
 public class IssueServiceTokenHandlerTests : IDisposable
 {
     private readonly IServiceTokenService _serviceTokenService = Substitute.For<IServiceTokenService>();
-    private readonly MetricFactory _metricFactory = new("Auth.Tests");
+    private readonly MetricFactory _metricFactory =
+        new("Auth.Tests.Features.IssueServiceToken.IssueServiceTokenHandlerTests");
 
     public void Dispose()
     {
