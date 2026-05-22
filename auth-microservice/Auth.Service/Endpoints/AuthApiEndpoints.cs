@@ -12,7 +12,7 @@ public static class AuthApiEndpoints
         routeBuilder.MapPost("/login", Login);
     }
 
-    internal static async Task<Results<Ok<Models.AuthToken>, UnauthorizedHttpResult>> Login(
+    internal static async Task<Results<Ok<Domain.AuthToken>, UnauthorizedHttpResult>> Login(
         ITokenService tokenService,
         MetricFactory metricFactory,
         LoginRequest loginRequest)

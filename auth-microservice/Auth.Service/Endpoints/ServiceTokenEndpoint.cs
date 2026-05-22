@@ -1,4 +1,4 @@
-using Auth.Service.Models;
+using Auth.Service.Domain;
 using Auth.Service.Services;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;

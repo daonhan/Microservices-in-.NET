@@ -1,4 +1,4 @@
-using Auth.Service.Models;
+using Auth.Service.Domain;
 
 namespace Auth.Service.Infrastructure.Data;
 

@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
+using Auth.Service.Domain;
 using Auth.Service.Endpoints;
-using Auth.Service.Models;
 using Auth.Service.Services;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Http.HttpResults;

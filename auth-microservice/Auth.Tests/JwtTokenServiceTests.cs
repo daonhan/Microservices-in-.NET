@@ -1,7 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
+using Auth.Service.Domain;
 using Auth.Service.Infrastructure.Data;
-using Auth.Service.Models;
 using Auth.Service.Services;
 using Auth.Service.Services.Signing;
 using ECommerce.Shared.Authentication;

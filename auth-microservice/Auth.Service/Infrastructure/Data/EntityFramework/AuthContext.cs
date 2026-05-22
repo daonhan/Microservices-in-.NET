@@ -1,5 +1,5 @@
+using Auth.Service.Domain;
 using Auth.Service.Infrastructure.Data.EntityFramework.Configurations;
-using Auth.Service.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 

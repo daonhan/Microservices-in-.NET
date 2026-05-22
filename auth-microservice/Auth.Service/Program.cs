@@ -8,7 +8,7 @@ using ECommerce.Shared.Qa;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.IPasswordHasher<Auth.Service.Models.User>, Microsoft.AspNetCore.Identity.PasswordHasher<Auth.Service.Models.User>>();
+builder.Services.AddSingleton<Microsoft.AspNetCore.Identity.IPasswordHasher<Auth.Service.Domain.User>, Microsoft.AspNetCore.Identity.PasswordHasher<Auth.Service.Domain.User>>();
 builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.RegisterTokenService(builder.Configuration);
 

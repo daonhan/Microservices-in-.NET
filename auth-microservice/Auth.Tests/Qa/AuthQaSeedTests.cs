@@ -1,5 +1,5 @@
+using Auth.Service.Domain;
 using Auth.Service.Infrastructure.Data.EntityFramework;
-using Auth.Service.Models;
 using ECommerce.Shared.Qa;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
