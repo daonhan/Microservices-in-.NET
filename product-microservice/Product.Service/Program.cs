@@ -8,6 +8,7 @@ using ECommerce.Shared.Qa;
 using Product.Service.Endpoints;
 using Product.Service.Features.CreateProduct;
 using Product.Service.Features.GetProduct;
+using Product.Service.Features.ListProducts;
 using Product.Service.Features.UpdateProduct;
 using Product.Service.Infrastructure.Data.EntityFramework;
 using Product.Service.Infrastructure.Outbox;
@@ -22,6 +23,7 @@ builder.Services.AddProductOutbox();
 
 builder.Services.AddCreateProductSlice()
     .AddGetProductSlice()
+    .AddListProductsSlice()
     .AddUpdateProductSlice();
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
@@ -55,6 +57,7 @@ app.SeedQaData();
 
 app.MapCreateProduct();
 app.MapGetProduct();
+app.MapListProducts();
 app.MapUpdateProduct();
 app.RegisterInternalOutboxEndpoints();
 
