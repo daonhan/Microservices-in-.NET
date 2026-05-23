@@ -5,7 +5,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Inventory.Service.Contracts.Integration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Infrastructure.Outbox;
 
 public class InternalOutboxEndpointsTests : IntegrationTestBase
 {

@@ -6,7 +6,7 @@ using Inventory.Service.Domain;
 using Inventory.Service.Features.ReleaseStock;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.ReleaseStock;
 
 public class ReleaseStockCommandHandlerTests : IntegrationTestBase
 {

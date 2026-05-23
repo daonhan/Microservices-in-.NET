@@ -5,7 +5,7 @@ using Inventory.Service.Domain;
 using Inventory.Service.Features.ReserveStock;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.ReserveStock;
 
 public class ReserveStockCommandHandlerTests : IntegrationTestBase
 {

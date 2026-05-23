@@ -8,7 +8,7 @@ using Inventory.Service.Features.CommitStock;
 using Inventory.Service.Features.ReserveStock;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.CommitStock;
 
 public class CommitStockCommandHandlerTests : IntegrationTestBase
 {

@@ -3,11 +3,11 @@ using System.Net.Http.Json;
 using Inventory.Service.Domain;
 using Inventory.Service.Features.GetStockMovements;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.GetStockMovements;
 
-public class MovementsApiTests : IntegrationTestBase
+public class GetStockMovementsEndpointTests : IntegrationTestBase
 {
-    public MovementsApiTests(InventoryWebApplicationFactory webApplicationFactory)
+    public GetStockMovementsEndpointTests(InventoryWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }

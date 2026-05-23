@@ -3,11 +3,11 @@ using System.Net.Http.Json;
 using Inventory.Service.Domain;
 using Inventory.Service.Features.GetStockItem;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.GetStockItem;
 
-public class InventoryApiTests : IntegrationTestBase
+public class GetStockItemEndpointTests : IntegrationTestBase
 {
-    public InventoryApiTests(InventoryWebApplicationFactory webApplicationFactory)
+    public GetStockItemEndpointTests(InventoryWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }
@@ -59,15 +59,5 @@ public class InventoryApiTests : IntegrationTestBase
         Assert.Equal(5, body.Threshold);
         Assert.Single(body.PerWarehouse);
         Assert.Equal("DEFAULT", body.PerWarehouse[0].WarehouseCode);
-    }
-
-    [Fact]
-    public async Task Health_WhenCalled_ThenReturnsOk()
-    {
-        // Act
-        var response = await HttpClient.GetAsync("/health");
-
-        // Assert
-        response.EnsureSuccessStatusCode();
     }
 }

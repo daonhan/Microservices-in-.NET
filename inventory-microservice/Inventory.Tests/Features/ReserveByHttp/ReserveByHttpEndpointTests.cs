@@ -4,11 +4,11 @@ using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
 using Inventory.Service.Features.ReserveByHttp;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.ReserveByHttp;
 
-public class ReserveApiTests : IntegrationTestBase
+public class ReserveByHttpEndpointTests : IntegrationTestBase
 {
-    public ReserveApiTests(InventoryWebApplicationFactory webApplicationFactory)
+    public ReserveByHttpEndpointTests(InventoryWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }

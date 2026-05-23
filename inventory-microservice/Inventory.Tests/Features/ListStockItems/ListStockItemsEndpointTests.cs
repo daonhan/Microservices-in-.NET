@@ -3,11 +3,11 @@ using System.Net.Http.Json;
 using Inventory.Service.Domain;
 using Inventory.Service.Features.ListStockItems;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.ListStockItems;
 
-public class InventoryListApiTests : IntegrationTestBase
+public class ListStockItemsEndpointTests : IntegrationTestBase
 {
-    public InventoryListApiTests(InventoryWebApplicationFactory webApplicationFactory)
+    public ListStockItemsEndpointTests(InventoryWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }

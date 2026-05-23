@@ -4,11 +4,11 @@ using Inventory.Service.Domain;
 using Inventory.Service.Features.CreateBackorder;
 using Inventory.Service.Features.Restock;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.CreateBackorder;
 
-public class BackorderApiTests : IntegrationTestBase
+public class CreateBackorderEndpointTests : IntegrationTestBase
 {
-    public BackorderApiTests(InventoryWebApplicationFactory webApplicationFactory)
+    public CreateBackorderEndpointTests(InventoryWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }

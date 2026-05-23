@@ -4,11 +4,11 @@ using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
 using Inventory.Service.Features.SetThreshold;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.SetThreshold;
 
-public class ThresholdApiTests : IntegrationTestBase
+public class SetThresholdEndpointTests : IntegrationTestBase
 {
-    public ThresholdApiTests(InventoryWebApplicationFactory webApplicationFactory)
+    public SetThresholdEndpointTests(InventoryWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }

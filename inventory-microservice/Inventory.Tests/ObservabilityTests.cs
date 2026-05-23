@@ -7,7 +7,7 @@ using Inventory.Service.Features.ReserveStock;
 using Inventory.Service.Features.Restock;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests;
 
 public class ObservabilityTests : IntegrationTestBase
 {

@@ -4,11 +4,11 @@ using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
 using Inventory.Service.Features.Restock;
 
-namespace Inventory.Tests.Api;
+namespace Inventory.Tests.Features.Restock;
 
-public class RestockApiTests : IntegrationTestBase
+public class RestockEndpointTests : IntegrationTestBase
 {
-    public RestockApiTests(InventoryWebApplicationFactory webApplicationFactory)
+    public RestockEndpointTests(InventoryWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }
