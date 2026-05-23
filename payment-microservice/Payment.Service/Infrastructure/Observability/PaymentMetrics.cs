@@ -2,7 +2,7 @@ using System.Diagnostics.Metrics;
 using ECommerce.Shared.Observability.Metrics;
 using Payment.Service.Domain;
 
-namespace Payment.Service.Observability;
+namespace Payment.Service.Infrastructure.Observability;
 
 internal sealed class PaymentMetrics
 {

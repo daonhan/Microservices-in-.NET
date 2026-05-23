@@ -5,7 +5,7 @@ using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
-using Payment.Service.Observability;
+using Payment.Service.Infrastructure.Observability;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
 

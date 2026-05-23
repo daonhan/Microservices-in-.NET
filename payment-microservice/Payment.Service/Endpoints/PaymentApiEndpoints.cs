@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
-using Payment.Service.Observability;
+using Payment.Service.Infrastructure.Observability;
 
 namespace Payment.Service.Endpoints;
 

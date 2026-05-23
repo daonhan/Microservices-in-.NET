@@ -12,8 +12,8 @@ using Payment.Service.Domain.Abstractions;
 using Payment.Service.Endpoints;
 using Payment.Service.Infrastructure.Data.EntityFramework;
 using Payment.Service.Infrastructure.Gateways;
+using Payment.Service.Infrastructure.Observability;
 using Payment.Service.IntegrationEvents.EventHandlers;
-using Payment.Service.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
 
