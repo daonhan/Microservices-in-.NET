@@ -6,7 +6,7 @@ using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
-using Inventory.Service.Infrastructure.Data;
+using Inventory.Service.Domain.Abstractions;
 
 namespace Inventory.Service.IntegrationEvents.EventHandlers;
 

@@ -1,6 +1,6 @@
 using Inventory.Service.Domain;
 
-namespace Inventory.Service.Infrastructure.Data;
+namespace Inventory.Service.Domain.Abstractions;
 
 internal interface IInventoryStore
 {

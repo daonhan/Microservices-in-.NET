@@ -4,7 +4,7 @@ using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.ApiModels;
 using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
-using Inventory.Service.Infrastructure.Data;
+using Inventory.Service.Domain.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
