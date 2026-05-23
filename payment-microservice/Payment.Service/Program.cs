@@ -13,6 +13,8 @@ using Payment.Service.Endpoints;
 using Payment.Service.Infrastructure.Data.EntityFramework;
 using Payment.Service.Infrastructure.Gateways;
 using Payment.Service.Infrastructure.Observability;
+using Payment.Service.Infrastructure.Outbox;
+using Payment.Service.Infrastructure.Outbox.Mappers;
 using Payment.Service.IntegrationEvents.EventHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +24,14 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddSingleton<IPaymentGateway, InMemoryPaymentGateway>();
+
+builder.Services.AddScoped<MessageCorrelationContext>();
+builder.Services.AddScoped<DomainEventOutboxInterceptor>();
+builder.Services.AddScoped<IIntegrationMap, PaymentAuthorizedIntegrationMap>();
+builder.Services.AddScoped<IIntegrationMap, PaymentFailedIntegrationMap>();
+builder.Services.AddScoped<IIntegrationMap, PaymentCapturedIntegrationMap>();
+builder.Services.AddScoped<IIntegrationMap, PaymentRefundedIntegrationMap>();
+builder.Services.AddScoped<IIntegrationMap, PaymentVoidedIntegrationMap>();
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)

@@ -6,6 +6,7 @@ using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Infrastructure.Observability;
+using Payment.Service.Infrastructure.Outbox;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
 
@@ -13,15 +14,18 @@ internal class CapturePaymentCommandHandler : IEventHandler<CapturePaymentComman
 {
     private readonly IPaymentStore _store;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
+    private readonly MessageCorrelationContext _correlation;
     private readonly PaymentMetrics _metrics;
 
     public CapturePaymentCommandHandler(
         IPaymentStore store,
         IOutboxUnitOfWork outboxUnitOfWork,
+        MessageCorrelationContext correlation,
         PaymentMetrics metrics)
     {
         _store = store;
         _outboxUnitOfWork = outboxUnitOfWork;
+        _correlation = correlation;
         _metrics = metrics;
     }
 
@@ -33,29 +37,32 @@ internal class CapturePaymentCommandHandler : IEventHandler<CapturePaymentComman
             return;
         }
 
-        await _outboxUnitOfWork.ExecuteAsync(async () =>
+        if (payment.Status == PaymentStatus.Captured)
         {
-            if (payment.Status == PaymentStatus.Captured)
-            {
-                return [BuildCapturedReply(payment, command)];
-            }
+            await _outboxUnitOfWork.ExecuteAsync(() =>
+                Task.FromResult<IReadOnlyList<Event>>([BuildIdempotentReply(payment, command)]));
+            return;
+        }
 
-            if (payment.Status != PaymentStatus.Authorized)
-            {
-                return [];
-            }
+        if (payment.Status != PaymentStatus.Authorized)
+        {
+            return;
+        }
 
+        _correlation.CorrelationId = command.CorrelationId;
+        _correlation.CausationId = command.Id;
+        _correlation.SagaId = command.SagaId;
+
+        await _store.ExecuteAsync(() =>
+        {
             payment.Capture(DateTime.UtcNow);
-            payment.DequeueDomainEvents();
-
-            await _store.SaveChangesAsync();
-            _metrics.RecordStatusChange(payment.Status);
-
-            return [BuildCapturedReply(payment, command)];
+            return Task.CompletedTask;
         });
+
+        _metrics.RecordStatusChange(payment.Status);
     }
 
-    private static PaymentCapturedEvent BuildCapturedReply(Domain.Payment payment, CapturePaymentCommand command) =>
+    private static PaymentCapturedEvent BuildIdempotentReply(Domain.Payment payment, CapturePaymentCommand command) =>
         new(payment.PaymentId, payment.OrderId, payment.Amount)
         {
             CorrelationId = command.CorrelationId,

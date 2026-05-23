@@ -6,6 +6,7 @@ using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Infrastructure.Observability;
+using Payment.Service.Infrastructure.Outbox;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
 
@@ -13,15 +14,18 @@ internal class VoidPaymentCommandHandler : IEventHandler<VoidPaymentCommand>
 {
     private readonly IPaymentStore _store;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
+    private readonly MessageCorrelationContext _correlation;
     private readonly PaymentMetrics _metrics;
 
     public VoidPaymentCommandHandler(
         IPaymentStore store,
         IOutboxUnitOfWork outboxUnitOfWork,
+        MessageCorrelationContext correlation,
         PaymentMetrics metrics)
     {
         _store = store;
         _outboxUnitOfWork = outboxUnitOfWork;
+        _correlation = correlation;
         _metrics = metrics;
     }
 
@@ -33,26 +37,32 @@ internal class VoidPaymentCommandHandler : IEventHandler<VoidPaymentCommand>
             return;
         }
 
-        await _outboxUnitOfWork.ExecuteAsync(async () =>
+        if (payment.Status == PaymentStatus.Voided)
         {
-            if (payment.Status is not (PaymentStatus.Pending or PaymentStatus.Authorized or PaymentStatus.Voided))
-            {
-                return [];
-            }
+            await _outboxUnitOfWork.ExecuteAsync(() =>
+                Task.FromResult<IReadOnlyList<Event>>([BuildIdempotentReply(payment, command)]));
+            return;
+        }
 
-            if (payment.Status != PaymentStatus.Voided)
-            {
-                payment.Void(command.Reason, DateTime.UtcNow);
-                payment.DequeueDomainEvents();
-                await _store.SaveChangesAsync();
-                _metrics.RecordStatusChange(payment.Status);
-            }
+        if (payment.Status is not (PaymentStatus.Pending or PaymentStatus.Authorized))
+        {
+            return;
+        }
 
-            return [BuildReply(payment, command)];
+        _correlation.CorrelationId = command.CorrelationId;
+        _correlation.CausationId = command.Id;
+        _correlation.SagaId = command.SagaId;
+
+        await _store.ExecuteAsync(() =>
+        {
+            payment.Void(command.Reason, DateTime.UtcNow);
+            return Task.CompletedTask;
         });
+
+        _metrics.RecordStatusChange(payment.Status);
     }
 
-    private static PaymentVoidedEvent BuildReply(Domain.Payment payment, VoidPaymentCommand command) =>
+    private static PaymentVoidedEvent BuildIdempotentReply(Domain.Payment payment, VoidPaymentCommand command) =>
         new(payment.PaymentId, payment.OrderId, payment.CustomerId, command.Reason)
         {
             CorrelationId = command.CorrelationId,

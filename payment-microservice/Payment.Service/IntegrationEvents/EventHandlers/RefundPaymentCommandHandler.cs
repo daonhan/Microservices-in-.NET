@@ -6,6 +6,7 @@ using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Infrastructure.Observability;
+using Payment.Service.Infrastructure.Outbox;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
 
@@ -13,15 +14,18 @@ internal class RefundPaymentCommandHandler : IEventHandler<RefundPaymentCommand>
 {
     private readonly IPaymentStore _store;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
+    private readonly MessageCorrelationContext _correlation;
     private readonly PaymentMetrics _metrics;
 
     public RefundPaymentCommandHandler(
         IPaymentStore store,
         IOutboxUnitOfWork outboxUnitOfWork,
+        MessageCorrelationContext correlation,
         PaymentMetrics metrics)
     {
         _store = store;
         _outboxUnitOfWork = outboxUnitOfWork;
+        _correlation = correlation;
         _metrics = metrics;
     }
 
@@ -33,26 +37,32 @@ internal class RefundPaymentCommandHandler : IEventHandler<RefundPaymentCommand>
             return;
         }
 
-        await _outboxUnitOfWork.ExecuteAsync(async () =>
+        if (payment.Status == PaymentStatus.Refunded)
         {
-            if (payment.Status is not (PaymentStatus.Captured or PaymentStatus.Refunded))
-            {
-                return [];
-            }
+            await _outboxUnitOfWork.ExecuteAsync(() =>
+                Task.FromResult<IReadOnlyList<Event>>([BuildIdempotentReply(payment, command)]));
+            return;
+        }
 
-            if (payment.Status != PaymentStatus.Refunded)
-            {
-                payment.Refund(command.Amount, DateTime.UtcNow);
-                payment.DequeueDomainEvents();
-                await _store.SaveChangesAsync();
-                _metrics.RecordStatusChange(payment.Status);
-            }
+        if (payment.Status != PaymentStatus.Captured)
+        {
+            return;
+        }
 
-            return [BuildReply(payment, command)];
+        _correlation.CorrelationId = command.CorrelationId;
+        _correlation.CausationId = command.Id;
+        _correlation.SagaId = command.SagaId;
+
+        await _store.ExecuteAsync(() =>
+        {
+            payment.Refund(command.Amount, DateTime.UtcNow);
+            return Task.CompletedTask;
         });
+
+        _metrics.RecordStatusChange(payment.Status);
     }
 
-    private static PaymentRefundedEvent BuildReply(Domain.Payment payment, RefundPaymentCommand command) =>
+    private static PaymentRefundedEvent BuildIdempotentReply(Domain.Payment payment, RefundPaymentCommand command) =>
         new(payment.PaymentId, payment.OrderId, command.Amount)
         {
             CorrelationId = command.CorrelationId,

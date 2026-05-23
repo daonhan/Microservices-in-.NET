@@ -1,35 +1,41 @@
-using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
-using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
-using Payment.Service.Domain.Events;
+using Payment.Service.Infrastructure.Outbox;
 
 namespace Payment.Service.Infrastructure.Data.EntityFramework;
 
 internal class PaymentContext : DbContext
 {
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
+    private readonly DomainEventOutboxInterceptor _interceptor;
 
     /// <summary>
     /// Design-time only constructor. Used exclusively by <see cref="PaymentContextDesignTimeFactory"/>
     /// for EF Core migrations tooling. Runtime code must use the constructor that accepts
-    /// <see cref="IOutboxUnitOfWork"/> so misconfiguration fails fast at startup.
+    /// <see cref="IOutboxUnitOfWork"/> and <see cref="DomainEventOutboxInterceptor"/> so
+    /// misconfiguration fails fast at startup.
     /// </summary>
     internal PaymentContext(DbContextOptions<PaymentContext> options)
         : base(options)
     {
-        // _outboxUnitOfWork is left as default (null) for the design-time path.
-        // The Translate/ExecuteAsync methods are never called during migrations,
-        // so null! is safe here. The runtime constructor below makes it mandatory.
+        // Dependencies are left as default (null) for the design-time path.
+        // ExecuteAsync is never called during migrations, so null! is safe here.
+        // The runtime constructor below makes them mandatory.
         _outboxUnitOfWork = null!;
+        _interceptor = null!;
     }
 
-    public PaymentContext(DbContextOptions<PaymentContext> options, IOutboxUnitOfWork outboxUnitOfWork)
+    public PaymentContext(
+        DbContextOptions<PaymentContext> options,
+        IOutboxUnitOfWork outboxUnitOfWork,
+        DomainEventOutboxInterceptor interceptor)
         : base(options)
     {
         ArgumentNullException.ThrowIfNull(outboxUnitOfWork);
+        ArgumentNullException.ThrowIfNull(interceptor);
         _outboxUnitOfWork = outboxUnitOfWork;
+        _interceptor = interceptor;
     }
 
     public DbSet<Domain.Payment> Payments { get; set; } = null!;
@@ -59,21 +65,7 @@ internal class PaymentContext : DbContext
             await SaveChangesAsync(acceptAllChangesOnSuccess: false);
             ChangeTracker.AcceptAllChanges();
 
-            return domainEvents.Select(Translate).ToList();
+            return _interceptor.Translate(domainEvents);
         });
     }
-
-    private static Event Translate(IDomainEvent domainEvent) => domainEvent switch
-    {
-        PaymentAuthorizedDomainEvent e => new PaymentAuthorizedEvent(
-            e.PaymentId, e.OrderId, e.CustomerId, e.Amount, e.Currency),
-        PaymentFailedDomainEvent e => new PaymentFailedEvent(
-            e.PaymentId, e.OrderId, e.CustomerId, e.Reason),
-        PaymentCapturedDomainEvent e => new PaymentCapturedEvent(e.PaymentId, e.OrderId, e.Amount),
-        PaymentRefundedDomainEvent e => new PaymentRefundedEvent(e.PaymentId, e.OrderId, e.Amount),
-        PaymentVoidedDomainEvent e => new PaymentVoidedEvent(
-            e.PaymentId, e.OrderId, e.CustomerId, e.Reason),
-        _ => throw new InvalidOperationException(
-            $"No integration-event translation registered for domain event {domainEvent.GetType().Name}")
-    };
 }

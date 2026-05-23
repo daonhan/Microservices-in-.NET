@@ -7,6 +7,7 @@ using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Infrastructure.Observability;
+using Payment.Service.Infrastructure.Outbox;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
 
@@ -15,17 +16,20 @@ internal class AuthorizePaymentCommandHandler : IEventHandler<AuthorizePaymentCo
     private readonly IPaymentStore _store;
     private readonly IPaymentGateway _gateway;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
+    private readonly MessageCorrelationContext _correlation;
     private readonly PaymentMetrics _metrics;
 
     public AuthorizePaymentCommandHandler(
         IPaymentStore store,
         IPaymentGateway gateway,
         IOutboxUnitOfWork outboxUnitOfWork,
+        MessageCorrelationContext correlation,
         PaymentMetrics metrics)
     {
         _store = store;
         _gateway = gateway;
         _outboxUnitOfWork = outboxUnitOfWork;
+        _correlation = correlation;
         _metrics = metrics;
     }
 
@@ -35,7 +39,7 @@ internal class AuthorizePaymentCommandHandler : IEventHandler<AuthorizePaymentCo
         if (existing is not null)
         {
             await _outboxUnitOfWork.ExecuteAsync(() =>
-                Task.FromResult<IReadOnlyList<Event>>([BuildReply(existing, command)]));
+                Task.FromResult<IReadOnlyList<Event>>([BuildIdempotentReply(existing, command)]));
             return;
         }
 
@@ -60,54 +64,30 @@ internal class AuthorizePaymentCommandHandler : IEventHandler<AuthorizePaymentCo
             currency: command.Currency,
             createdAt: now);
 
-        await _outboxUnitOfWork.ExecuteAsync(async () =>
+        _correlation.CorrelationId = command.CorrelationId;
+        _correlation.CausationId = command.Id;
+        _correlation.SagaId = command.SagaId;
+
+        await _store.ExecuteAsync(() =>
         {
             _store.Add(payment);
 
-            Event reply;
             if (result.Success)
             {
                 payment.Authorize(result.ProviderReference!, now);
-                reply = new PaymentAuthorizedEvent(
-                    payment.PaymentId,
-                    payment.OrderId,
-                    payment.CustomerId,
-                    payment.Amount,
-                    payment.Currency)
-                {
-                    CorrelationId = command.CorrelationId,
-                    CausationId = command.Id,
-                    SagaId = command.SagaId,
-                };
             }
             else
             {
-                var reason = result.FailureReason ?? "Declined";
-                payment.Fail(reason, now);
-                reply = new PaymentFailedEvent(
-                    payment.PaymentId,
-                    payment.OrderId,
-                    payment.CustomerId,
-                    reason)
-                {
-                    CorrelationId = command.CorrelationId,
-                    CausationId = command.Id,
-                    SagaId = command.SagaId,
-                };
+                payment.Fail(result.FailureReason ?? "Declined", now);
             }
 
-            // Drain queued domain events — saga path emits the reply explicitly so
-            // the PaymentContext translation must not fire and duplicate-publish.
-            payment.DequeueDomainEvents();
-
-            await _store.SaveChangesAsync();
-            _metrics.RecordStatusChange(payment.Status);
-
-            return [reply];
+            return Task.CompletedTask;
         });
+
+        _metrics.RecordStatusChange(payment.Status);
     }
 
-    private static Event BuildReply(Domain.Payment payment, AuthorizePaymentCommand command)
+    private static Event BuildIdempotentReply(Domain.Payment payment, AuthorizePaymentCommand command)
     {
         return payment.Status switch
         {
