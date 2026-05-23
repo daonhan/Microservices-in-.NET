@@ -10,8 +10,10 @@ using ECommerce.Shared.Qa;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Endpoints;
+using Payment.Service.Features.CapturePayment;
 using Payment.Service.Features.GetPaymentById;
 using Payment.Service.Features.GetPaymentByOrder;
+using Payment.Service.Features.RefundPayment;
 using Payment.Service.Infrastructure.Data.EntityFramework;
 using Payment.Service.Infrastructure.Gateways;
 using Payment.Service.Infrastructure.Observability;
@@ -29,13 +31,13 @@ builder.Services.AddSingleton<IPaymentGateway, InMemoryPaymentGateway>();
 
 builder.Services.AddGetPaymentByIdSlice();
 builder.Services.AddGetPaymentByOrderSlice();
+builder.Services.AddCapturePaymentSlice();
+builder.Services.AddRefundPaymentSlice();
 
 builder.Services.AddScoped<MessageCorrelationContext>();
 builder.Services.AddScoped<DomainEventOutboxInterceptor>();
 builder.Services.AddScoped<IIntegrationMap, PaymentAuthorizedIntegrationMap>();
 builder.Services.AddScoped<IIntegrationMap, PaymentFailedIntegrationMap>();
-builder.Services.AddScoped<IIntegrationMap, PaymentCapturedIntegrationMap>();
-builder.Services.AddScoped<IIntegrationMap, PaymentRefundedIntegrationMap>();
 builder.Services.AddScoped<IIntegrationMap, PaymentVoidedIntegrationMap>();
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
@@ -88,6 +90,8 @@ app.Services.GetRequiredService<PaymentMetrics>();
 
 app.MapGetPaymentById();
 app.MapGetPaymentByOrder();
+app.MapCapturePayment();
+app.MapRefundPayment();
 app.RegisterEndpoints();
 app.RegisterInternalOutboxEndpoints();
 
