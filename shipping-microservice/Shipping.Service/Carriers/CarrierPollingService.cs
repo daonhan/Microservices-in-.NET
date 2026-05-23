@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Shipping.Service.Domain;
-using Shipping.Service.Infrastructure.Data;
+using Shipping.Service.Domain.Abstractions;
 using Shipping.Service.Observability;
 
 namespace Shipping.Service.Carriers;

@@ -1,6 +1,4 @@
-using Shipping.Service.Domain;
-
-namespace Shipping.Service.Infrastructure.Data;
+namespace Shipping.Service.Domain.Abstractions;
 
 internal interface IShipmentStore
 {

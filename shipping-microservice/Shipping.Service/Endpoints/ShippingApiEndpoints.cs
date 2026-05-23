@@ -9,7 +9,7 @@ using Shipping.Service.ApiModels;
 using Shipping.Service.Carriers;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
-using Shipping.Service.Infrastructure.Data;
+using Shipping.Service.Domain.Abstractions;
 using Shipping.Service.Observability;
 
 namespace Shipping.Service.Endpoints;

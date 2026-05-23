@@ -4,7 +4,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
-using Shipping.Service.Infrastructure.Data;
+using Shipping.Service.Domain.Abstractions;
 
 namespace Shipping.Service.IntegrationEvents.EventHandlers;
 

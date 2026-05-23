@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Shipping.Service.Domain.Abstractions;
 
 namespace Shipping.Service.Infrastructure.Data.EntityFramework;
 
