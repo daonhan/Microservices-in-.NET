@@ -10,6 +10,9 @@ using ECommerce.Shared.Qa;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain.Abstractions;
 using Shipping.Service.Endpoints;
+using Shipping.Service.Features.GetShipmentById;
+using Shipping.Service.Features.GetShipmentsByOrder;
+using Shipping.Service.Features.ListShipments;
 using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
 using Shipping.Service.Infrastructure.Observability;
@@ -73,6 +76,10 @@ builder.Services.Configure<CarrierWebhookOptions>(options =>
 builder.Services.AddSingleton<CarrierPollingService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<CarrierPollingService>());
 
+builder.Services.AddGetShipmentsByOrderSlice();
+builder.Services.AddGetShipmentByIdSlice();
+builder.Services.AddListShipmentsSlice();
+
 builder.AddPlatformOpenApi("shipping");
 
 var app = builder.Build();
@@ -89,6 +96,9 @@ if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 
 app.SeedQaData();
 
+app.MapGetShipmentsByOrder();
+app.MapGetShipmentById();
+app.MapListShipments();
 app.RegisterEndpoints();
 app.RegisterInternalOutboxEndpoints();
 

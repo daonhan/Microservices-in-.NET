@@ -1,4 +1,4 @@
-namespace Shipping.Service.ApiModels;
+namespace Shipping.Service.Features.GetShipmentsByOrder;
 
 public record ShipmentLineDto(int ProductId, int Quantity);
 

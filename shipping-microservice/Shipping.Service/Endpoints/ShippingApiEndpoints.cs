@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Text.Json;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
@@ -9,6 +8,7 @@ using Shipping.Service.ApiModels;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
 using Shipping.Service.Domain.Abstractions;
+using Shipping.Service.Features.GetShipmentsByOrder;
 using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Service.Infrastructure.Observability;
 
@@ -16,88 +16,8 @@ namespace Shipping.Service.Endpoints;
 
 public static class ShippingApiEndpoints
 {
-    private const string AdminRole = "Administrator";
-    private const string CustomerIdClaim = "customerId";
-    private const int MaxPageSize = 200;
-    private const int DefaultPageSize = 50;
-
     public static void RegisterEndpoints(this IEndpointRouteBuilder routeBuilder)
     {
-        routeBuilder.MapGet("/by-order/{orderId:guid}", async Task<IResult> (
-            [FromServices] IShipmentStore shipmentStore,
-            ClaimsPrincipal user,
-            Guid orderId) =>
-        {
-            var shipments = await shipmentStore.GetByOrder(orderId);
-
-            if (shipments.Count == 0)
-            {
-                return TypedResults.NotFound($"No shipments found for order {orderId}");
-            }
-
-            if (!IsAuthorizedForShipments(user, shipments))
-            {
-                return TypedResults.Forbid();
-            }
-
-            return TypedResults.Ok(shipments.Select(ToResponse).ToList());
-        }).RequireAuthorization();
-
-        routeBuilder.MapGet("/{shipmentId:guid}", async Task<IResult> (
-            [FromServices] IShipmentStore shipmentStore,
-            ClaimsPrincipal user,
-            Guid shipmentId) =>
-        {
-            var shipment = await shipmentStore.GetById(shipmentId);
-
-            if (shipment is null)
-            {
-                return TypedResults.NotFound($"Shipment {shipmentId} not found");
-            }
-
-            if (!IsAuthorizedForShipment(user, shipment))
-            {
-                return TypedResults.Forbid();
-            }
-
-            return TypedResults.Ok(ToResponse(shipment));
-        }).RequireAuthorization();
-
-        routeBuilder.MapGet("/", async Task<IResult> (
-            [FromServices] IShipmentStore shipmentStore,
-            [FromQuery] string? status,
-            [FromQuery] int? warehouseId,
-            [FromQuery] DateTime? from,
-            [FromQuery] DateTime? to,
-            [FromQuery] int? skip,
-            [FromQuery] int? take) =>
-        {
-            ShipmentStatus? parsedStatus = null;
-            if (!string.IsNullOrWhiteSpace(status))
-            {
-                if (!Enum.TryParse<ShipmentStatus>(status, ignoreCase: true, out var parsed))
-                {
-                    return TypedResults.BadRequest($"Unknown status '{status}'");
-                }
-
-                parsedStatus = parsed;
-            }
-
-            var pageSize = Math.Clamp(take ?? DefaultPageSize, 1, MaxPageSize);
-            var pageSkip = Math.Max(skip ?? 0, 0);
-
-            var filters = new ShipmentListFilters(
-                Status: parsedStatus,
-                WarehouseId: warehouseId,
-                From: from,
-                To: to,
-                Skip: pageSkip,
-                Take: pageSize);
-
-            var shipments = await shipmentStore.ListShipments(filters);
-            return TypedResults.Ok(shipments.Select(ToResponse).ToList());
-        }).RequireAuthorization("Administrator");
-
         routeBuilder.MapPost("/{shipmentId:guid}/pick", async Task<IResult> (
             [FromServices] IShipmentStore shipmentStore,
             [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
@@ -511,20 +431,6 @@ public static class ShippingApiEndpoints
         }
 
         return TypedResults.Ok(ToResponse(shipment));
-    }
-
-    private static bool IsAuthorizedForShipments(ClaimsPrincipal user, IEnumerable<Shipment> shipments)
-        => shipments.All(s => IsAuthorizedForShipment(user, s));
-
-    private static bool IsAuthorizedForShipment(ClaimsPrincipal user, Shipment shipment)
-    {
-        if (user.HasClaim("user_role", AdminRole))
-        {
-            return true;
-        }
-
-        var customerId = user.FindFirst(CustomerIdClaim)?.Value;
-        return customerId is not null && customerId == shipment.CustomerId;
     }
 
     private static ShipmentResponse ToResponse(Shipment s)

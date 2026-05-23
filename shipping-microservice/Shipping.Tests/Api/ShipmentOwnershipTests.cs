@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
-using Shipping.Service.ApiModels;
 using Shipping.Service.Domain;
+using Shipping.Service.Features.GetShipmentsByOrder;
 using Shipping.Tests.Authentication;
 
 namespace Shipping.Tests.Api;

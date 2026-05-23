@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.ApiModels;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
+using Shipping.Service.Features.GetShipmentsByOrder;
 using Shipping.Tests.Authentication;
 
 namespace Shipping.Tests.Api;
