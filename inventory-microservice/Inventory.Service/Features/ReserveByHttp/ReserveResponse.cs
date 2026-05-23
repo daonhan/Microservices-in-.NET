@@ -1,4 +1,4 @@
-namespace Inventory.Service.ApiModels;
+namespace Inventory.Service.Features.ReserveByHttp;
 
 public record ReservedLineDto(int ProductId, int WarehouseId, int Quantity);
 

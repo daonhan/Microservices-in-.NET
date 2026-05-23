@@ -13,6 +13,7 @@ using Inventory.Service.Features.CreateBackorder;
 using Inventory.Service.Features.GetStockItem;
 using Inventory.Service.Features.GetStockMovements;
 using Inventory.Service.Features.ListStockItems;
+using Inventory.Service.Features.ReserveByHttp;
 using Inventory.Service.Features.Restock;
 using Inventory.Service.Features.SetThreshold;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
@@ -38,6 +39,7 @@ builder.Services.AddGetStockItemSlice();
 builder.Services.AddGetStockMovementsSlice();
 builder.Services.AddRestockSlice();
 builder.Services.AddSetThresholdSlice();
+builder.Services.AddReserveByHttpSlice();
 builder.Services.AddCreateBackorderSlice();
 
 builder.AddPlatformObservability("Inventory",
@@ -79,9 +81,10 @@ app.MapGetStockItem();
 app.MapGetStockMovements();
 app.MapRestock();
 app.MapSetThreshold();
+app.MapReserveByHttp();
 app.MapCreateBackorder();
 
-app.RegisterEndpoints();
+app.MapHealthChecks("/health");
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();
