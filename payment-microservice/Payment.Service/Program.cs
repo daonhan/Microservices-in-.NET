@@ -10,6 +10,8 @@ using ECommerce.Shared.Qa;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Endpoints;
+using Payment.Service.Features.GetPaymentById;
+using Payment.Service.Features.GetPaymentByOrder;
 using Payment.Service.Infrastructure.Data.EntityFramework;
 using Payment.Service.Infrastructure.Gateways;
 using Payment.Service.Infrastructure.Observability;
@@ -24,6 +26,9 @@ builder.Services.AddSqlServerDatastore(builder.Configuration);
 builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddSingleton<IPaymentGateway, InMemoryPaymentGateway>();
+
+builder.Services.AddGetPaymentByIdSlice();
+builder.Services.AddGetPaymentByOrderSlice();
 
 builder.Services.AddScoped<MessageCorrelationContext>();
 builder.Services.AddScoped<DomainEventOutboxInterceptor>();
@@ -81,6 +86,8 @@ app.SeedQaData();
 // before any traffic flows.
 app.Services.GetRequiredService<PaymentMetrics>();
 
+app.MapGetPaymentById();
+app.MapGetPaymentByOrder();
 app.RegisterEndpoints();
 app.RegisterInternalOutboxEndpoints();
 
