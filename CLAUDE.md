@@ -67,6 +67,8 @@ dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
 
 Consumers see no change until version bump + new `.nupkg` in feed.
 
+**Broker singletons must register lazy** (`AddSingleton<IRabbitMqConnection>(_ => new RabbitMqConnection(opts))`, not `AddSingleton<IRabbitMqConnection>(new RabbitMqConnection(opts))`). Eager registration opens a socket during `Program.Main` — before `WebApplicationFactory.ConfigureWebHost` can swap stubs — and breaks boot tests like `Inventory.Tests.MessagingProviderBootTests` in any sandbox without a reachable broker. Lazy fix shipped in `ECommerce.Shared` ≥ 2.25.0 (commit `dcbc29c`); Inventory pins 2.25.0. **Other services still pin 2.23.0 / 2.18.0 and carry the latent eager defect** — sweeping them is a separate ADR/PR. When packing a new shared version, also confirm the `.nupkg` in `local-nuget-packages/` was built **after** the relevant source commit (older nupkgs sharing a version number have been observed).
+
 ## Cross-service architecture
 
 Read together: each service's `Program.cs` (composition root, uses `ECommerce.Shared` extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`); `shared-libs/ECommerce.Shared/Infrastructure/` (`EventBus/`, `Messaging/`, `RabbitMq/`, `AzureServiceBus/` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; `Outbox/` — `OutboxBackgroundService`, services that publish need `AddOutbox(...)` + `app.ApplyOutboxMigrations()` in Dev). New cross-cutting concerns belong in `ECommerce.Shared`.
