@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Payment.Service.IntegrationEvents.Events;
+namespace Payment.Service.Contracts.Integration;
 
 public record PaymentFailedEvent(
     Guid PaymentId,

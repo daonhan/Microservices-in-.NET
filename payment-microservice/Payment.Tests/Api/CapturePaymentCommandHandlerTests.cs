@@ -2,8 +2,8 @@ using System.Text.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
+using Payment.Service.Contracts.Integration;
 using Payment.Service.IntegrationEvents.EventHandlers;
-using Payment.Service.IntegrationEvents.Events;
 using Payment.Service.Models;
 
 namespace Payment.Tests.Api;

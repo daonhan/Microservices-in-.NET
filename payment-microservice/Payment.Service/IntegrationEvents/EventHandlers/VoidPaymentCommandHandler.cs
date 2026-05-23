@@ -2,8 +2,8 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
+using Payment.Service.Contracts.Integration;
 using Payment.Service.Infrastructure.Data;
-using Payment.Service.IntegrationEvents.Events;
 using Payment.Service.Models;
 using Payment.Service.Observability;
 

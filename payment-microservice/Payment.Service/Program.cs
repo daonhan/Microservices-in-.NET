@@ -7,12 +7,12 @@ using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
+using Payment.Service.Contracts.Integration;
 using Payment.Service.Endpoints;
 using Payment.Service.Infrastructure.Data;
 using Payment.Service.Infrastructure.Data.EntityFramework;
 using Payment.Service.Infrastructure.Gateways;
 using Payment.Service.IntegrationEvents.EventHandlers;
-using Payment.Service.IntegrationEvents.Events;
 using Payment.Service.Observability;
 
 var builder = WebApplication.CreateBuilder(args);

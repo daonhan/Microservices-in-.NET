@@ -1,7 +1,7 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
-using Payment.Service.IntegrationEvents.Events;
+using Payment.Service.Contracts.Integration;
 using Payment.Service.Models;
 
 namespace Payment.Service.Infrastructure.Data.EntityFramework;

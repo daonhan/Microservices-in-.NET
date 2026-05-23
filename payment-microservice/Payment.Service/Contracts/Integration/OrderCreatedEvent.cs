@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Payment.Service.IntegrationEvents.Events;
+namespace Payment.Service.Contracts.Integration;
 
 public record OrderItem(string ProductId, int Quantity, decimal UnitPrice = 0m);
 

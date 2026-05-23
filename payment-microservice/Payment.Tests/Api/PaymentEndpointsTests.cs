@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.Extensions.DependencyInjection;
+using Payment.Service.Contracts.Integration;
 using Payment.Service.Endpoints;
-using Payment.Service.IntegrationEvents.Events;
 using Payment.Service.Models;
 using Payment.Tests.Authentication;
 
