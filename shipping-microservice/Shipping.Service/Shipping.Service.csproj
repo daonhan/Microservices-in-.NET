@@ -23,4 +23,10 @@
     <InternalsVisibleTo Include="Shipping.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Shipping.Service.LayoutAnalyzer\Shipping.Service.LayoutAnalyzer.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
 </Project>
