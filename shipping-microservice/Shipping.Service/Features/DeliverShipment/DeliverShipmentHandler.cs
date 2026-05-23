@@ -57,8 +57,8 @@ internal sealed class DeliverShipmentHandler
                 new ShipmentStatusChangedEvent(
                     shipment.Id,
                     shipment.OrderId,
-                    FromStatus: fromStatus,
-                    ToStatus: shipment.Status,
+                    FromStatus: (int?)fromStatus,
+                    ToStatus: (int)shipment.Status,
                     OccurredAt: now),
             };
         });

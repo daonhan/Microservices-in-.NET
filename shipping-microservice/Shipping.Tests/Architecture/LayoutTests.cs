@@ -2,15 +2,11 @@ using NetArchTest.Rules;
 
 namespace Shipping.Tests.Architecture;
 
-// Scaffolded in Phase 1 (issue #210) with every test skipped; the rules are unskipped and
-// enforced in Phase 10 (issue #223) once the Clean Architecture + VSA layout is in place.
 public class LayoutTests
 {
-    private const string Phase10 = "enabled in Phase 10";
-
     private static readonly System.Reflection.Assembly ShippingServiceAssembly = typeof(Program).Assembly;
 
-    [Fact(Skip = Phase10)]
+    [Fact]
     public void Domain_DoesNotReference_InfrastructureFeaturesOrContracts()
     {
         var result = Types.InAssembly(ShippingServiceAssembly)
@@ -28,7 +24,7 @@ public class LayoutTests
             + string.Join(", ", result.FailingTypeNames ?? []));
     }
 
-    [Fact(Skip = Phase10)]
+    [Fact]
     public void Features_DoNotReference_OtherFeatureSlices()
     {
         var featureTypes = Types.InAssembly(ShippingServiceAssembly)
@@ -76,7 +72,7 @@ public class LayoutTests
             "Features.<X> may not reference Features.<Y> for X != Y: " + string.Join(", ", offenders));
     }
 
-    [Fact(Skip = Phase10)]
+    [Fact]
     public void Infrastructure_DoesNotReference_Features()
     {
         var result = Types.InAssembly(ShippingServiceAssembly)
@@ -91,7 +87,7 @@ public class LayoutTests
             + string.Join(", ", result.FailingTypeNames ?? []));
     }
 
-    [Fact(Skip = Phase10)]
+    [Fact]
     public void Contracts_DoNotReference_InternalLayers()
     {
         var result = Types.InAssembly(ShippingServiceAssembly)

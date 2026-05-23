@@ -88,8 +88,8 @@ internal static class CarrierStatusApplier
         events.Add(new ShipmentStatusChangedEvent(
             shipment.Id,
             shipment.OrderId,
-            FromStatus: fromStatus,
-            ToStatus: shipment.Status,
+            FromStatus: (int?)fromStatus,
+            ToStatus: (int)shipment.Status,
             OccurredAt: occurredAt));
 
         if (metrics is not null)

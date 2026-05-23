@@ -35,8 +35,8 @@ public class CarrierStatusApplierTests
             {
                 var changed = Assert.IsType<ShipmentStatusChangedEvent>(evt);
                 Assert.Equal(shipmentId, changed.ShipmentId);
-                Assert.Equal(ShipmentStatus.Shipped, changed.FromStatus);
-                Assert.Equal(ShipmentStatus.Delivered, changed.ToStatus);
+                Assert.Equal((int)ShipmentStatus.Shipped, changed.FromStatus);
+                Assert.Equal((int)ShipmentStatus.Delivered, changed.ToStatus);
                 Assert.Equal(occurredAt, changed.OccurredAt);
             });
     }
@@ -70,8 +70,8 @@ public class CarrierStatusApplierTests
             {
                 var changed = Assert.IsType<ShipmentStatusChangedEvent>(evt);
                 Assert.Equal(shipmentId, changed.ShipmentId);
-                Assert.Equal(ShipmentStatus.Shipped, changed.FromStatus);
-                Assert.Equal(ShipmentStatus.Failed, changed.ToStatus);
+                Assert.Equal((int)ShipmentStatus.Shipped, changed.FromStatus);
+                Assert.Equal((int)ShipmentStatus.Failed, changed.ToStatus);
                 Assert.Equal(occurredAt, changed.OccurredAt);
             });
     }

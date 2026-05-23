@@ -69,7 +69,7 @@ internal sealed class CreateShipmentCommandHandler : IEventHandler<ECommerce.Sha
                     shipment.Id,
                     shipment.OrderId,
                     FromStatus: null,
-                    ToStatus: Domain.ShipmentStatus.Pending,
+                    ToStatus: (int)Domain.ShipmentStatus.Pending,
                     OccurredAt: shipment.CreatedAt)
                 {
                     CorrelationId = command.CorrelationId,

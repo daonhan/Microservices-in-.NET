@@ -6,13 +6,9 @@ using Shipping.Service.LayoutAnalyzer;
 
 namespace Shipping.Tests.Architecture;
 
-// Scaffolded in Phase 1 (issue #210) with every test skipped; the analyzer detection logic and
-// these tests are unskipped and enforced in Phase 10 (issue #223).
 public class LayoutAnalyzerTests
 {
-    private const string Phase10 = "enabled in Phase 10";
-
-    [Fact(Skip = Phase10)]
+    [Fact]
     public async Task Domain_WhenFullyQualifiedInfrastructureReference_ThenReportsDomainRule()
     {
         const string targetSource = """
@@ -32,7 +28,7 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.DomainRuleId);
     }
 
-    [Fact(Skip = Phase10)]
+    [Fact]
     public async Task Feature_WhenFullyQualifiedOtherSliceReference_ThenReportsFeatureRule()
     {
         const string targetSource = """
@@ -52,7 +48,7 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.FeatureSliceRuleId);
     }
 
-    [Fact(Skip = Phase10)]
+    [Fact]
     public async Task Infrastructure_WhenFullyQualifiedFeatureReference_ThenReportsInfrastructureRule()
     {
         const string targetSource = """
