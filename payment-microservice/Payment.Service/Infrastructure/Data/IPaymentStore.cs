@@ -1,12 +1,12 @@
-using Payment.Service.Models;
+using Payment.Service.Domain;
 
 namespace Payment.Service.Infrastructure.Data;
 
 public interface IPaymentStore
 {
-    void Add(Models.Payment payment);
-    Task<Models.Payment?> GetById(Guid paymentId);
-    Task<Models.Payment?> GetByOrder(Guid orderId);
+    void Add(Domain.Payment payment);
+    Task<Domain.Payment?> GetById(Guid paymentId);
+    Task<Domain.Payment?> GetByOrder(Guid orderId);
     Task<int> SaveChangesAsync();
     Task ExecuteAsync(Func<Task> unitOfWork);
     Task RecordOrderCustomer(Guid orderId, string customerId);

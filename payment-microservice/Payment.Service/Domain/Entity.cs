@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Payment.Service.Models;
+namespace Payment.Service.Domain;
 
 public abstract class Entity
 {

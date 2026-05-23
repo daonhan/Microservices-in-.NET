@@ -3,8 +3,8 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
+using Payment.Service.Domain;
 using Payment.Service.Infrastructure.Data;
-using Payment.Service.Models;
 using Payment.Service.Observability;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
@@ -52,7 +52,7 @@ internal class RefundPaymentCommandHandler : IEventHandler<RefundPaymentCommand>
         });
     }
 
-    private static PaymentRefundedEvent BuildReply(Models.Payment payment, RefundPaymentCommand command) =>
+    private static PaymentRefundedEvent BuildReply(Domain.Payment payment, RefundPaymentCommand command) =>
         new(payment.PaymentId, payment.OrderId, command.Amount)
         {
             CorrelationId = command.CorrelationId,

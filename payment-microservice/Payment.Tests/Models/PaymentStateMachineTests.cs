@@ -1,12 +1,13 @@
-using Payment.Service.Models;
+using Payment.Service.Domain;
+using Payment.Service.Domain.Events;
 
 namespace Payment.Tests.Models;
 
 public class PaymentStateMachineTests
 {
-    private static Service.Models.Payment NewPending()
+    private static Service.Domain.Payment NewPending()
     {
-        return Service.Models.Payment.Create(
+        return Service.Domain.Payment.Create(
             paymentId: Guid.NewGuid(),
             orderId: Guid.NewGuid(),
             customerId: "cust-1",
@@ -262,7 +263,7 @@ public class PaymentStateMachineTests
         Assert.Throws<InvalidOperationException>(() => payment.Void("reason", DateTime.UtcNow));
     }
 
-    private static Service.Models.Payment MoveTo(PaymentStatus target)
+    private static Service.Domain.Payment MoveTo(PaymentStatus target)
     {
         var payment = NewPending();
         switch (target)

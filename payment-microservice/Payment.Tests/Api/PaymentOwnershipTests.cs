@@ -120,7 +120,7 @@ public class PaymentOwnershipTests : IntegrationTestBase
         var orderId = Guid.NewGuid();
         var paymentId = Guid.NewGuid();
         var customerId = $"cust-{Guid.NewGuid():N}";
-        var payment = Service.Models.Payment.Create(
+        var payment = Service.Domain.Payment.Create(
             paymentId: paymentId,
             orderId: orderId,
             customerId: customerId,

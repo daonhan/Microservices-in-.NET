@@ -1,4 +1,6 @@
-namespace Payment.Service.Models;
+using Payment.Service.Domain.Events;
+
+namespace Payment.Service.Domain;
 
 public class Payment : Entity
 {

@@ -2,7 +2,8 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Payment.Service.Contracts.Integration;
-using Payment.Service.Models;
+using Payment.Service.Domain;
+using Payment.Service.Domain.Events;
 
 namespace Payment.Service.Infrastructure.Data.EntityFramework;
 
@@ -31,7 +32,7 @@ internal class PaymentContext : DbContext, IPaymentStore
         _outboxUnitOfWork = outboxUnitOfWork;
     }
 
-    public DbSet<Models.Payment> Payments { get; set; } = null!;
+    public DbSet<Domain.Payment> Payments { get; set; } = null!;
     public DbSet<OrderCustomer> OrderCustomers { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -40,17 +41,17 @@ internal class PaymentContext : DbContext, IPaymentStore
         modelBuilder.ApplyConfiguration(new OrderCustomerConfiguration());
     }
 
-    public void Add(Models.Payment payment)
+    public void Add(Domain.Payment payment)
     {
         Payments.Add(payment);
     }
 
-    public async Task<Models.Payment?> GetById(Guid paymentId)
+    public async Task<Domain.Payment?> GetById(Guid paymentId)
     {
         return await Payments.FirstOrDefaultAsync(p => p.PaymentId == paymentId);
     }
 
-    public async Task<Models.Payment?> GetByOrder(Guid orderId)
+    public async Task<Domain.Payment?> GetByOrder(Guid orderId)
     {
         return await Payments.FirstOrDefaultAsync(p => p.OrderId == orderId);
     }

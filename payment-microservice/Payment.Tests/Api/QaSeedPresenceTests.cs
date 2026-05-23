@@ -1,8 +1,8 @@
 using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Payment.Service.Domain;
 using Payment.Service.Infrastructure.Data.EntityFramework;
-using Payment.Service.Models;
 
 namespace Payment.Tests.Api;
 

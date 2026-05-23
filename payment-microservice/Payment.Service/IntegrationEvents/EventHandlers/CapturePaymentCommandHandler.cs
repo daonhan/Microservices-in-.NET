@@ -3,8 +3,8 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
+using Payment.Service.Domain;
 using Payment.Service.Infrastructure.Data;
-using Payment.Service.Models;
 using Payment.Service.Observability;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
@@ -55,7 +55,7 @@ internal class CapturePaymentCommandHandler : IEventHandler<CapturePaymentComman
         });
     }
 
-    private static PaymentCapturedEvent BuildCapturedReply(Models.Payment payment, CapturePaymentCommand command) =>
+    private static PaymentCapturedEvent BuildCapturedReply(Domain.Payment payment, CapturePaymentCommand command) =>
         new(payment.PaymentId, payment.OrderId, payment.Amount)
         {
             CorrelationId = command.CorrelationId,

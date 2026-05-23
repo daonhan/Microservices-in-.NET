@@ -1,9 +1,9 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Payment.Service.Domain;
 using Payment.Service.Infrastructure.Data;
 using Payment.Service.Infrastructure.Gateways;
-using Payment.Service.Models;
 using Payment.Service.Observability;
 
 namespace Payment.Service.Endpoints;
@@ -142,7 +142,7 @@ public static class PaymentApiEndpoints
         return callerCustomerId is not null && callerCustomerId == customerId;
     }
 
-    private static PaymentResponse ToResponse(Models.Payment payment)
+    private static PaymentResponse ToResponse(Domain.Payment payment)
         => new(
             payment.PaymentId,
             payment.OrderId,

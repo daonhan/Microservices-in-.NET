@@ -4,9 +4,9 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
+using Payment.Service.Domain;
 using Payment.Service.Infrastructure.Data;
 using Payment.Service.Infrastructure.Gateways;
-using Payment.Service.Models;
 using Payment.Service.Observability;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
@@ -53,7 +53,7 @@ internal class AuthorizePaymentCommandHandler : IEventHandler<AuthorizePaymentCo
         _metrics.RecordAuthorizeLatency(sw.Elapsed);
 
         var now = DateTime.UtcNow;
-        var payment = Models.Payment.Create(
+        var payment = Domain.Payment.Create(
             paymentId: Guid.NewGuid(),
             orderId: command.OrderId,
             customerId: customerId,
@@ -108,7 +108,7 @@ internal class AuthorizePaymentCommandHandler : IEventHandler<AuthorizePaymentCo
         });
     }
 
-    private static Event BuildReply(Models.Payment payment, AuthorizePaymentCommand command)
+    private static Event BuildReply(Domain.Payment payment, AuthorizePaymentCommand command)
     {
         return payment.Status switch
         {

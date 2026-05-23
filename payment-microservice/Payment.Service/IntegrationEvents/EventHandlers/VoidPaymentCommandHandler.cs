@@ -3,8 +3,8 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
+using Payment.Service.Domain;
 using Payment.Service.Infrastructure.Data;
-using Payment.Service.Models;
 using Payment.Service.Observability;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
@@ -52,7 +52,7 @@ internal class VoidPaymentCommandHandler : IEventHandler<VoidPaymentCommand>
         });
     }
 
-    private static PaymentVoidedEvent BuildReply(Models.Payment payment, VoidPaymentCommand command) =>
+    private static PaymentVoidedEvent BuildReply(Domain.Payment payment, VoidPaymentCommand command) =>
         new(payment.PaymentId, payment.OrderId, payment.CustomerId, command.Reason)
         {
             CorrelationId = command.CorrelationId,

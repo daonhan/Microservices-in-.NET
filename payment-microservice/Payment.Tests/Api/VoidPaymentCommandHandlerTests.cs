@@ -3,8 +3,8 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Contracts.Integration;
+using Payment.Service.Domain;
 using Payment.Service.IntegrationEvents.EventHandlers;
-using Payment.Service.Models;
 
 namespace Payment.Tests.Api;
 
@@ -61,7 +61,7 @@ public class VoidPaymentCommandHandlerTests : IntegrationTestBase
         var paymentId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
         var now = DateTime.UtcNow;
-        var payment = Service.Models.Payment.Create(
+        var payment = Service.Domain.Payment.Create(
             paymentId: paymentId,
             orderId: orderId,
             customerId: $"cust-{Guid.NewGuid():N}",

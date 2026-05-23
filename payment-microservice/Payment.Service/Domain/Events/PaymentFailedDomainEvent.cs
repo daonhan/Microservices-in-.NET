@@ -1,6 +1,6 @@
-namespace Payment.Service.Models;
+namespace Payment.Service.Domain.Events;
 
-public sealed record PaymentVoidedDomainEvent(
+public sealed record PaymentFailedDomainEvent(
     Guid PaymentId,
     Guid OrderId,
     string CustomerId,

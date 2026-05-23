@@ -3,8 +3,8 @@ using System.Net.Http.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Contracts.Integration;
+using Payment.Service.Domain;
 using Payment.Service.Endpoints;
-using Payment.Service.Models;
 using Payment.Tests.Authentication;
 
 namespace Payment.Tests.Api;
@@ -188,7 +188,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
         var paymentId = Guid.NewGuid();
         var orderId = Guid.NewGuid();
         var now = DateTime.UtcNow;
-        var payment = Service.Models.Payment.Create(
+        var payment = Service.Domain.Payment.Create(
             paymentId: paymentId,
             orderId: orderId,
             customerId: $"cust-{Guid.NewGuid():N}",

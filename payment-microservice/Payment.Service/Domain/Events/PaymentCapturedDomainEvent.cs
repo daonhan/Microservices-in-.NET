@@ -1,4 +1,4 @@
-namespace Payment.Service.Models;
+namespace Payment.Service.Domain.Events;
 
 public sealed record PaymentCapturedDomainEvent(
     Guid PaymentId,

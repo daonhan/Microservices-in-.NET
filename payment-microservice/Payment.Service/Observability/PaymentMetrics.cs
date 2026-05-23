@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
 using ECommerce.Shared.Observability.Metrics;
-using Payment.Service.Models;
+using Payment.Service.Domain;
 
 namespace Payment.Service.Observability;
 
