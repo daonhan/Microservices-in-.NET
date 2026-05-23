@@ -4,7 +4,8 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
-using Inventory.Service.IntegrationEvents.EventHandlers;
+using Inventory.Service.Features.CommitStock;
+using Inventory.Service.Features.ReserveStock;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Inventory.Tests.Api;

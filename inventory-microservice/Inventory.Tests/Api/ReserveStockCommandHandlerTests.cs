@@ -2,7 +2,7 @@ using System.Globalization;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
-using Inventory.Service.IntegrationEvents.EventHandlers;
+using Inventory.Service.Features.ReserveStock;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Inventory.Tests.Api;

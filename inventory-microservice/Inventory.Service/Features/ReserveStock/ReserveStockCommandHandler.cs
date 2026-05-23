@@ -8,7 +8,7 @@ using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
 using Inventory.Service.Domain.Abstractions;
 
-namespace Inventory.Service.IntegrationEvents.EventHandlers;
+namespace Inventory.Service.Features.ReserveStock;
 
 internal sealed class ReserveStockCommandHandler : IEventHandler<ReserveStockCommand>
 {

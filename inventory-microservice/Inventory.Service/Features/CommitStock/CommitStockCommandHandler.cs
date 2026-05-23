@@ -6,15 +6,15 @@ using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
 using Inventory.Service.Domain.Abstractions;
 
-namespace Inventory.Service.IntegrationEvents.EventHandlers;
+namespace Inventory.Service.Features.CommitStock;
 
-internal sealed class ReleaseStockCommandHandler : IEventHandler<ReleaseStockCommand>
+internal sealed class CommitStockCommandHandler : IEventHandler<CommitStockCommand>
 {
     private readonly IInventoryStore _inventoryStore;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly MetricFactory _metricFactory;
 
-    public ReleaseStockCommandHandler(
+    public CommitStockCommandHandler(
         IInventoryStore inventoryStore,
         IOutboxUnitOfWork outboxUnitOfWork,
         MetricFactory metricFactory)
@@ -24,26 +24,31 @@ internal sealed class ReleaseStockCommandHandler : IEventHandler<ReleaseStockCom
         _metricFactory = metricFactory;
     }
 
-    public async Task Handle(ReleaseStockCommand command)
+    public async Task Handle(CommitStockCommand command)
     {
         await _outboxUnitOfWork.ExecuteAsync(async () =>
         {
-            var result = await _inventoryStore.ReleaseReservations(command.OrderId);
+            var result = await _inventoryStore.CommitReservations(command.OrderId);
 
-            if (result.Released && !result.AlreadyProcessed)
+            if (!result.Committed)
+            {
+                return [];
+            }
+
+            if (!result.AlreadyProcessed)
             {
                 foreach (var _ in result.Lines)
                 {
                     _metricFactory.Counter("stock-movements", "movements")
-                        .Add(1, new KeyValuePair<string, object?>("movement_type", nameof(MovementType.Release)));
+                        .Add(1, new KeyValuePair<string, object?>("movement_type", nameof(MovementType.Commit)));
                 }
             }
 
             var published = result.Lines
-                .Select(l => new ReleasedItem(l.ProductId, l.WarehouseId, l.Quantity))
+                .Select(l => new CommittedItem(l.ProductId, l.WarehouseId, l.Quantity))
                 .ToList();
 
-            return [new StockReleasedEvent(command.OrderId, published)
+            return [new StockCommittedEvent(command.OrderId, published)
             {
                 CorrelationId = command.CorrelationId,
                 CausationId = command.Id,

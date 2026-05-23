@@ -3,8 +3,8 @@ using System.Net.Http.Json;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.Domain;
+using Inventory.Service.Features.ReserveStock;
 using Inventory.Service.Features.Restock;
-using Inventory.Service.IntegrationEvents.EventHandlers;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Inventory.Tests.Api;
