@@ -10,12 +10,16 @@ using ECommerce.Shared.Qa;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain.Abstractions;
 using Shipping.Service.Endpoints;
+using Shipping.Service.Features.CancelShipment;
+using Shipping.Service.Features.DeliverShipment;
 using Shipping.Service.Features.DispatchShipment;
+using Shipping.Service.Features.FailShipment;
 using Shipping.Service.Features.GetShipmentById;
 using Shipping.Service.Features.GetShipmentsByOrder;
 using Shipping.Service.Features.ListShipments;
 using Shipping.Service.Features.PackShipment;
 using Shipping.Service.Features.PickShipment;
+using Shipping.Service.Features.ReturnShipment;
 using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
 using Shipping.Service.Infrastructure.Observability;
@@ -85,6 +89,10 @@ builder.Services.AddListShipmentsSlice();
 builder.Services.AddPickShipmentSlice();
 builder.Services.AddPackShipmentSlice();
 builder.Services.AddDispatchShipmentSlice();
+builder.Services.AddDeliverShipmentSlice();
+builder.Services.AddFailShipmentSlice();
+builder.Services.AddReturnShipmentSlice();
+builder.Services.AddCancelShipmentSlice();
 
 builder.AddPlatformOpenApi("shipping");
 
@@ -108,6 +116,10 @@ app.MapListShipments();
 app.MapPickShipment();
 app.MapPackShipment();
 app.MapDispatchShipment();
+app.MapDeliverShipment();
+app.MapFailShipment();
+app.MapReturnShipment();
+app.MapCancelShipment();
 app.RegisterEndpoints();
 app.RegisterInternalOutboxEndpoints();
 
