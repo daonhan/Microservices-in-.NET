@@ -3,12 +3,11 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
-using Payment.Service.Domain.Abstractions;
 using Payment.Service.Domain.Events;
 
 namespace Payment.Service.Infrastructure.Data.EntityFramework;
 
-internal class PaymentContext : DbContext, IPaymentStore
+internal class PaymentContext : DbContext
 {
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
 
@@ -42,23 +41,6 @@ internal class PaymentContext : DbContext, IPaymentStore
         modelBuilder.ApplyConfiguration(new OrderCustomerConfiguration());
     }
 
-    public void Add(Domain.Payment payment)
-    {
-        Payments.Add(payment);
-    }
-
-    public async Task<Domain.Payment?> GetById(Guid paymentId)
-    {
-        return await Payments.FirstOrDefaultAsync(p => p.PaymentId == paymentId);
-    }
-
-    public async Task<Domain.Payment?> GetByOrder(Guid orderId)
-    {
-        return await Payments.FirstOrDefaultAsync(p => p.OrderId == orderId);
-    }
-
-    public Task<int> SaveChangesAsync() => base.SaveChangesAsync();
-
     public async Task ExecuteAsync(Func<Task> unitOfWork)
     {
         var strategy = Database.CreateExecutionStrategy();
@@ -79,30 +61,6 @@ internal class PaymentContext : DbContext, IPaymentStore
 
             return domainEvents.Select(Translate).ToList();
         });
-    }
-
-    public async Task RecordOrderCustomer(Guid orderId, string customerId)
-    {
-        var exists = await OrderCustomers.AnyAsync(o => o.OrderId == orderId);
-        if (exists)
-        {
-            return;
-        }
-
-        OrderCustomers.Add(new OrderCustomer
-        {
-            OrderId = orderId,
-            CustomerId = customerId,
-            ReceivedAt = DateTime.UtcNow,
-        });
-
-        await SaveChangesAsync();
-    }
-
-    public async Task<string?> TryGetOrderCustomer(Guid orderId)
-    {
-        var record = await OrderCustomers.FirstOrDefaultAsync(o => o.OrderId == orderId);
-        return record?.CustomerId;
     }
 
     private static Event Translate(IDomainEvent domainEvent) => domainEvent switch
