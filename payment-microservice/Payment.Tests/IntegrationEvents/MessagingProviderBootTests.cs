@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using RabbitMQ.Client;
 
 namespace Payment.Tests.IntegrationEvents;
 
@@ -71,6 +72,12 @@ public sealed class MessagingProviderBootTests
             builder.UseEnvironment("Tests");
             builder.ConfigureServices(services =>
             {
+                if (UsesRabbitMqProvider())
+                {
+                    services.RemoveAll<IRabbitMqConnection>();
+                    services.AddSingleton<IRabbitMqConnection, UnusedRabbitMqConnection>();
+                }
+
                 HostedServiceTypes = services
                     .Where(descriptor => descriptor.ServiceType == typeof(IHostedService))
                     .Select(GetHostedServiceType)
@@ -84,5 +91,15 @@ public sealed class MessagingProviderBootTests
         private static Type? GetHostedServiceType(ServiceDescriptor descriptor) =>
             descriptor.ImplementationType
             ?? descriptor.ImplementationInstance?.GetType();
+
+        private bool UsesRabbitMqProvider() =>
+            !settings.TryGetValue("Messaging:Provider", out var provider)
+            || !string.Equals(provider, MessagingOptions.AzureServiceBusProvider, StringComparison.OrdinalIgnoreCase);
+
+        private sealed class UnusedRabbitMqConnection : IRabbitMqConnection
+        {
+            public IConnection Connection => throw new NotSupportedException(
+                "Messaging provider boot tests verify DI wiring and must not publish messages.");
+        }
     }
 }
