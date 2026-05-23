@@ -1,4 +1,4 @@
-namespace Shipping.Service.ApiModels;
+namespace Shipping.Service.Features.GetCarrierQuotes;
 
 public record CarrierQuoteResponse(
     string CarrierKey,
