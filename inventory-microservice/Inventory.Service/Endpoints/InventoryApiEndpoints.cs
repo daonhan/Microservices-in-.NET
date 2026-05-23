@@ -1,9 +1,7 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.Observability.Metrics;
 using Inventory.Service.ApiModels;
 using Inventory.Service.Contracts.Integration;
-using Inventory.Service.Domain;
 using Inventory.Service.Domain.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,129 +11,6 @@ public static class InventoryApiEndpoints
 {
     public static void RegisterEndpoints(this IEndpointRouteBuilder routeBuilder)
     {
-        routeBuilder.MapPost("/{productId:int}/restock", async Task<IResult> (
-            [FromServices] IInventoryStore inventoryStore,
-            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
-            [FromServices] MetricFactory metricFactory,
-            int productId,
-            RestockRequest request) =>
-        {
-            if (request.Quantity <= 0)
-            {
-                return TypedResults.BadRequest("Quantity must be greater than zero.");
-            }
-
-            RestockResult? result = null;
-
-            await outboxUnitOfWork.ExecuteAsync(async () =>
-            {
-                result = await inventoryStore.Restock(productId, request.Quantity);
-
-                if (result is null)
-                {
-                    return [];
-                }
-
-                var events = new List<Event>
-                {
-                    new StockAdjustedEvent(
-                        productId,
-                        result.WarehouseId,
-                        request.Quantity,
-                        result.NewOnHand),
-                };
-
-                var lowStock = StockLevelMonitor.TryLowStockCrossing(
-                    productId,
-                    result.WarehouseId,
-                    result.AvailableBefore,
-                    result.AvailableAfter,
-                    result.Threshold,
-                    result.Threshold);
-                if (lowStock is not null)
-                {
-                    events.Add(new LowStockEvent(
-                        lowStock.ProductId,
-                        lowStock.WarehouseId,
-                        lowStock.AvailableAfter,
-                        lowStock.ThresholdAfter));
-                }
-
-                var depleted = StockLevelMonitor.TryDepletedCrossing(
-                    productId,
-                    result.WarehouseId,
-                    result.AvailableBefore,
-                    result.AvailableAfter);
-                if (depleted is not null)
-                {
-                    events.Add(new StockDepletedEvent(depleted.ProductId, depleted.WarehouseId));
-                    metricFactory.Counter("stock-depleted", "events").Add(1);
-                }
-
-                return events;
-            });
-
-            if (result is null)
-            {
-                return TypedResults.NotFound($"Stock item for product {productId} not found");
-            }
-
-            return TypedResults.Ok(new RestockResponse(productId, result.WarehouseId, result.NewOnHand));
-        }).RequireAuthorization("Administrator");
-
-        routeBuilder.MapPut("/{productId:int}/threshold", async Task<IResult> (
-            [FromServices] IInventoryStore inventoryStore,
-            [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
-            int productId,
-            SetThresholdRequest request) =>
-        {
-            if (request.Threshold < 0)
-            {
-                return TypedResults.BadRequest("Threshold must be zero or greater.");
-            }
-
-            SetThresholdResult? result = null;
-
-            await outboxUnitOfWork.ExecuteAsync(async () =>
-            {
-                result = await inventoryStore.SetThreshold(productId, request.Threshold);
-
-                if (result is null)
-                {
-                    return [];
-                }
-
-                var lowStock = StockLevelMonitor.TryLowStockCrossing(
-                    productId,
-                    result.WarehouseId,
-                    result.Available,
-                    result.Available,
-                    result.ThresholdBefore,
-                    result.ThresholdAfter);
-
-                if (lowStock is null)
-                {
-                    return [];
-                }
-
-                return new List<Event>
-                {
-                    new LowStockEvent(
-                        lowStock.ProductId,
-                        lowStock.WarehouseId,
-                        lowStock.AvailableAfter,
-                        lowStock.ThresholdAfter),
-                };
-            });
-
-            if (result is null)
-            {
-                return TypedResults.NotFound($"Stock item for product {productId} not found");
-            }
-
-            return TypedResults.Ok(new SetThresholdResponse(productId, result.ThresholdAfter));
-        }).RequireAuthorization("Administrator");
-
         routeBuilder.MapPost("/{productId:int}/reserve", async Task<IResult> (
             [FromServices] IInventoryStore inventoryStore,
             [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
@@ -183,36 +58,6 @@ public static class InventoryApiEndpoints
 
             return TypedResults.Ok(new ReserveResponse(request.OrderId, lines));
         }).RequireAuthorization("Administrator");
-
-        routeBuilder.MapPost("/{productId:int}/backorder", async Task<IResult> (
-            [FromServices] IInventoryStore inventoryStore,
-            int productId,
-            BackorderRequestDto request) =>
-        {
-            if (request.Quantity <= 0)
-            {
-                return TypedResults.BadRequest("Quantity must be greater than zero.");
-            }
-
-            if (string.IsNullOrWhiteSpace(request.CustomerId))
-            {
-                return TypedResults.BadRequest("CustomerId is required.");
-            }
-
-            var result = await inventoryStore.CreateBackorder(request.CustomerId, productId, request.Quantity);
-
-            if (result is null)
-            {
-                return TypedResults.NotFound($"Stock item for product {productId} not found");
-            }
-
-            return TypedResults.Ok(new BackorderResponse(
-                result.Id,
-                result.CustomerId,
-                result.ProductId,
-                result.Quantity,
-                result.CreatedAt));
-        }).RequireAuthorization();
 
         routeBuilder.MapGet("/health", () => TypedResults.Ok(new { status = "healthy" }));
     }

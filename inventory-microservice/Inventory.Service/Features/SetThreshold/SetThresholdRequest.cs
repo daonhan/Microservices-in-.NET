@@ -1,3 +1,3 @@
-namespace Inventory.Service.ApiModels;
+namespace Inventory.Service.Features.SetThreshold;
 
 public record SetThresholdRequest(int Threshold);

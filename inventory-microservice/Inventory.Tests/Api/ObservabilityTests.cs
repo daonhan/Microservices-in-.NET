@@ -2,8 +2,8 @@ using System.Diagnostics.Metrics;
 using System.Net.Http.Json;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability.Metrics;
-using Inventory.Service.ApiModels;
 using Inventory.Service.Domain;
+using Inventory.Service.Features.Restock;
 using Inventory.Service.IntegrationEvents.EventHandlers;
 using Microsoft.Extensions.DependencyInjection;
 
