@@ -1,14 +1,13 @@
+using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Inventory.Service.LayoutAnalyzer;
 
-/// <summary>
-/// Roslyn guardrail for the Inventory.Service Clean Architecture + Vertical Slices layout.
-/// Phase 1 scaffold (issue #195): the diagnostics are declared but no detection logic runs.
-/// Detection logic and the hidden -> error severity promotion land in Phase 9 (issue #206).
-/// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class LayoutAnalyzer : DiagnosticAnalyzer
 {
@@ -49,8 +48,151 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
+        context.RegisterSyntaxNodeAction(AnalyzeUsingDirective, SyntaxKind.UsingDirective);
+        context.RegisterSyntaxNodeAction(AnalyzeSymbolReference,
+            SyntaxKind.IdentifierName,
+            SyntaxKind.GenericName,
+            SyntaxKind.QualifiedName,
+            SyntaxKind.SimpleMemberAccessExpression);
+    }
 
-        // Phase 1 scaffold (issue #195): rules are intentionally off — no syntax actions registered.
-        // Phase 9 (issue #206) wires the banned-namespace / banned-symbol detection.
+    private static void AnalyzeUsingDirective(SyntaxNodeAnalysisContext context)
+    {
+        var root = context.Node.SyntaxTree.GetRoot(context.CancellationToken);
+        var fileNamespace = GetFileNamespace(root);
+        if (fileNamespace is null || !StartsWith(fileNamespace, "Inventory.Service"))
+        {
+            return;
+        }
+
+        var usingDirective = (UsingDirectiveSyntax)context.Node;
+        var target = usingDirective.Name?.ToString();
+        if (target is null || !StartsWith(target, "Inventory.Service"))
+        {
+            return;
+        }
+
+        var reference = usingDirective.Name is null
+            ? (SyntaxNode)usingDirective
+            : usingDirective.Name;
+        CheckRules(context, reference, fileNamespace, target);
+    }
+
+    private static void AnalyzeSymbolReference(SyntaxNodeAnalysisContext context)
+    {
+        if (context.Node.Parent is UsingDirectiveSyntax)
+        {
+            return;
+        }
+
+        if (context.Node.Parent is QualifiedNameSyntax or MemberAccessExpressionSyntax)
+        {
+            return;
+        }
+
+        var root = context.Node.SyntaxTree.GetRoot(context.CancellationToken);
+        var fileNamespace = GetFileNamespace(root);
+        if (fileNamespace is null || !StartsWith(fileNamespace, "Inventory.Service"))
+        {
+            return;
+        }
+
+        var targetNamespace = GetTargetNamespace(context);
+        if (targetNamespace is null || !StartsWith(targetNamespace, "Inventory.Service"))
+        {
+            return;
+        }
+
+        CheckRules(context, context.Node, fileNamespace, targetNamespace);
+    }
+
+    private static string? GetTargetNamespace(SyntaxNodeAnalysisContext context)
+    {
+        var symbolInfo = context.SemanticModel.GetSymbolInfo(context.Node, context.CancellationToken);
+        var symbol = symbolInfo.Symbol ?? symbolInfo.CandidateSymbols.FirstOrDefault();
+
+        var ns = symbol switch
+        {
+            INamespaceSymbol namespaceSymbol => namespaceSymbol.ToDisplayString(),
+            INamedTypeSymbol typeSymbol => typeSymbol.ContainingNamespace.ToDisplayString(),
+            IMethodSymbol methodSymbol => methodSymbol.ContainingType?.ContainingNamespace.ToDisplayString(),
+            IPropertySymbol propertySymbol => propertySymbol.ContainingType?.ContainingNamespace.ToDisplayString(),
+            IFieldSymbol fieldSymbol => fieldSymbol.ContainingType?.ContainingNamespace.ToDisplayString(),
+            IEventSymbol eventSymbol => eventSymbol.ContainingType?.ContainingNamespace.ToDisplayString(),
+            _ => symbol?.ContainingNamespace?.ToDisplayString()
+        };
+
+        return string.IsNullOrEmpty(ns) ? null : ns;
+    }
+
+    private static string? GetFileNamespace(SyntaxNode root)
+    {
+        var fileScoped = root.DescendantNodes()
+            .OfType<FileScopedNamespaceDeclarationSyntax>()
+            .FirstOrDefault();
+        if (fileScoped is not null)
+        {
+            return fileScoped.Name.ToString();
+        }
+
+        var block = root.DescendantNodes()
+            .OfType<NamespaceDeclarationSyntax>()
+            .FirstOrDefault();
+        return block?.Name.ToString();
+    }
+
+    private static void CheckRules(
+        SyntaxNodeAnalysisContext context,
+        SyntaxNode reference,
+        string fileNamespace,
+        string targetNamespace)
+    {
+        var location = reference.GetLocation();
+
+        if (StartsWith(fileNamespace, "Inventory.Service.Domain")
+            && (StartsWith(targetNamespace, "Inventory.Service.Infrastructure")
+                || StartsWith(targetNamespace, "Inventory.Service.Features")))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(DomainRule, location, fileNamespace, targetNamespace));
+            return;
+        }
+
+        if (StartsWith(fileNamespace, "Inventory.Service.Features")
+            && StartsWith(targetNamespace, "Inventory.Service.Features"))
+        {
+            var fileSlice = GetSliceSegment(fileNamespace);
+            var targetSlice = GetSliceSegment(targetNamespace);
+            if (fileSlice is not null
+                && targetSlice is not null
+                && !fileSlice.Equals(targetSlice, StringComparison.Ordinal))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(FeatureSliceRule, location, fileSlice, targetNamespace));
+                return;
+            }
+        }
+
+        if (StartsWith(fileNamespace, "Inventory.Service.Infrastructure")
+            && StartsWith(targetNamespace, "Inventory.Service.Features"))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(InfrastructureRule, location, fileNamespace, targetNamespace));
+        }
+    }
+
+    private static bool StartsWith(string? value, string prefix)
+        => value is not null
+            && (value.Equals(prefix, StringComparison.Ordinal)
+                || value.StartsWith(prefix + ".", StringComparison.Ordinal));
+
+    private static string? GetSliceSegment(string ns)
+    {
+        const string prefix = "Inventory.Service.Features.";
+        if (!ns.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var remainder = ns.Substring(prefix.Length);
+        var dot = remainder.IndexOf('.');
+        return dot < 0 ? remainder : remainder.Substring(0, dot);
     }
 }

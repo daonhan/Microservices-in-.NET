@@ -6,13 +6,9 @@ using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace Inventory.Tests.Architecture;
 
-// Scaffolded in Phase 1 (issue #195) with every test skipped; the analyzer detection logic and
-// these tests are unskipped and enforced in Phase 9 (issue #206).
 public class LayoutAnalyzerTests
 {
-    private const string Phase9 = "enabled in Phase 9";
-
-    [Fact(Skip = Phase9)]
+    [Fact]
     public async Task Domain_WhenFullyQualifiedInfrastructureReference_ThenReportsDomainRule()
     {
         const string targetSource = """
@@ -32,7 +28,7 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.DomainRuleId);
     }
 
-    [Fact(Skip = Phase9)]
+    [Fact]
     public async Task Feature_WhenFullyQualifiedOtherSliceReference_ThenReportsFeatureRule()
     {
         const string targetSource = """
@@ -52,7 +48,7 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.FeatureSliceRuleId);
     }
 
-    [Fact(Skip = Phase9)]
+    [Fact]
     public async Task Infrastructure_WhenFullyQualifiedFeatureReference_ThenReportsInfrastructureRule()
     {
         const string targetSource = """
