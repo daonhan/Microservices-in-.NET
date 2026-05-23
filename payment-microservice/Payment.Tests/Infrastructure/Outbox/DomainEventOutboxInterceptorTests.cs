@@ -1,7 +1,7 @@
 using Payment.Service.Domain;
 using Payment.Service.Domain.Events;
+using Payment.Service.Features.AuthorizePaymentCommand;
 using Payment.Service.Infrastructure.Outbox;
-using Payment.Service.Infrastructure.Outbox.Mappers;
 
 namespace Payment.Tests.Infrastructure.Outbox;
 

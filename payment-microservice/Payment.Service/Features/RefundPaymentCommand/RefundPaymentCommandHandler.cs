@@ -1,16 +1,15 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Infrastructure.Observability;
 using Payment.Service.Infrastructure.Outbox;
 
-namespace Payment.Service.IntegrationEvents.EventHandlers;
+namespace Payment.Service.Features.RefundPaymentCommand;
 
-internal class RefundPaymentCommandHandler : IEventHandler<RefundPaymentCommand>
+internal sealed class RefundPaymentCommandHandler : IEventHandler<ECommerce.Shared.IntegrationEvents.Commands.RefundPaymentCommand>
 {
     private readonly IPaymentStore _store;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
@@ -29,7 +28,7 @@ internal class RefundPaymentCommandHandler : IEventHandler<RefundPaymentCommand>
         _metrics = metrics;
     }
 
-    public async Task Handle(RefundPaymentCommand command)
+    public async Task Handle(ECommerce.Shared.IntegrationEvents.Commands.RefundPaymentCommand command)
     {
         var payment = await _store.GetByOrder(command.OrderId);
         if (payment is null)
@@ -62,7 +61,7 @@ internal class RefundPaymentCommandHandler : IEventHandler<RefundPaymentCommand>
         _metrics.RecordStatusChange(payment.Status);
     }
 
-    private static PaymentRefundedEvent BuildIdempotentReply(Domain.Payment payment, RefundPaymentCommand command) =>
+    private static PaymentRefundedEvent BuildIdempotentReply(Domain.Payment payment, ECommerce.Shared.IntegrationEvents.Commands.RefundPaymentCommand command) =>
         new(payment.PaymentId, payment.OrderId, command.Amount)
         {
             CorrelationId = command.CorrelationId,

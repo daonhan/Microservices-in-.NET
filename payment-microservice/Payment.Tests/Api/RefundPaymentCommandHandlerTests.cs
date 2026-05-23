@@ -4,7 +4,7 @@ using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
-using Payment.Service.IntegrationEvents.EventHandlers;
+using Payment.Service.Features.RefundPaymentCommand;
 
 namespace Payment.Tests.Api;
 

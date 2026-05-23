@@ -1,16 +1,15 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Infrastructure.Observability;
 using Payment.Service.Infrastructure.Outbox;
 
-namespace Payment.Service.IntegrationEvents.EventHandlers;
+namespace Payment.Service.Features.CapturePaymentCommand;
 
-internal class CapturePaymentCommandHandler : IEventHandler<CapturePaymentCommand>
+internal sealed class CapturePaymentCommandHandler : IEventHandler<ECommerce.Shared.IntegrationEvents.Commands.CapturePaymentCommand>
 {
     private readonly IPaymentStore _store;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
@@ -29,7 +28,7 @@ internal class CapturePaymentCommandHandler : IEventHandler<CapturePaymentComman
         _metrics = metrics;
     }
 
-    public async Task Handle(CapturePaymentCommand command)
+    public async Task Handle(ECommerce.Shared.IntegrationEvents.Commands.CapturePaymentCommand command)
     {
         var payment = await _store.GetByOrder(command.OrderId);
         if (payment is null)
@@ -62,7 +61,7 @@ internal class CapturePaymentCommandHandler : IEventHandler<CapturePaymentComman
         _metrics.RecordStatusChange(payment.Status);
     }
 
-    private static PaymentCapturedEvent BuildIdempotentReply(Domain.Payment payment, CapturePaymentCommand command) =>
+    private static PaymentCapturedEvent BuildIdempotentReply(Domain.Payment payment, ECommerce.Shared.IntegrationEvents.Commands.CapturePaymentCommand command) =>
         new(payment.PaymentId, payment.OrderId, payment.Amount)
         {
             CorrelationId = command.CorrelationId,

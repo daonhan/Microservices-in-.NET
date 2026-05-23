@@ -2,8 +2,9 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Events;
+using Payment.Service.Infrastructure.Outbox;
 
-namespace Payment.Service.Infrastructure.Outbox.Mappers;
+namespace Payment.Service.Features.VoidPaymentCommand;
 
 internal sealed class PaymentVoidedIntegrationMap : IIntegrationMap<PaymentVoidedDomainEvent, PaymentVoidedEvent>
 {

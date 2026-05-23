@@ -1,16 +1,15 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Infrastructure.Observability;
 using Payment.Service.Infrastructure.Outbox;
 
-namespace Payment.Service.IntegrationEvents.EventHandlers;
+namespace Payment.Service.Features.VoidPaymentCommand;
 
-internal class VoidPaymentCommandHandler : IEventHandler<VoidPaymentCommand>
+internal sealed class VoidPaymentCommandHandler : IEventHandler<ECommerce.Shared.IntegrationEvents.Commands.VoidPaymentCommand>
 {
     private readonly IPaymentStore _store;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
@@ -29,7 +28,7 @@ internal class VoidPaymentCommandHandler : IEventHandler<VoidPaymentCommand>
         _metrics = metrics;
     }
 
-    public async Task Handle(VoidPaymentCommand command)
+    public async Task Handle(ECommerce.Shared.IntegrationEvents.Commands.VoidPaymentCommand command)
     {
         var payment = await _store.GetByOrder(command.OrderId);
         if (payment is null)
@@ -62,7 +61,7 @@ internal class VoidPaymentCommandHandler : IEventHandler<VoidPaymentCommand>
         _metrics.RecordStatusChange(payment.Status);
     }
 
-    private static PaymentVoidedEvent BuildIdempotentReply(Domain.Payment payment, VoidPaymentCommand command) =>
+    private static PaymentVoidedEvent BuildIdempotentReply(Domain.Payment payment, ECommerce.Shared.IntegrationEvents.Commands.VoidPaymentCommand command) =>
         new(payment.PaymentId, payment.OrderId, payment.CustomerId, command.Reason)
         {
             CorrelationId = command.CorrelationId,

@@ -2,16 +2,15 @@ using System.Diagnostics;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Infrastructure.Observability;
 using Payment.Service.Infrastructure.Outbox;
 
-namespace Payment.Service.IntegrationEvents.EventHandlers;
+namespace Payment.Service.Features.AuthorizePaymentCommand;
 
-internal class AuthorizePaymentCommandHandler : IEventHandler<AuthorizePaymentCommand>
+internal sealed class AuthorizePaymentCommandHandler : IEventHandler<ECommerce.Shared.IntegrationEvents.Commands.AuthorizePaymentCommand>
 {
     private readonly IPaymentStore _store;
     private readonly IPaymentGateway _gateway;
@@ -33,7 +32,7 @@ internal class AuthorizePaymentCommandHandler : IEventHandler<AuthorizePaymentCo
         _metrics = metrics;
     }
 
-    public async Task Handle(AuthorizePaymentCommand command)
+    public async Task Handle(ECommerce.Shared.IntegrationEvents.Commands.AuthorizePaymentCommand command)
     {
         var existing = await _store.GetByOrder(command.OrderId);
         if (existing is not null)
@@ -87,7 +86,7 @@ internal class AuthorizePaymentCommandHandler : IEventHandler<AuthorizePaymentCo
         _metrics.RecordStatusChange(payment.Status);
     }
 
-    private static Event BuildIdempotentReply(Domain.Payment payment, AuthorizePaymentCommand command)
+    private static Event BuildIdempotentReply(Domain.Payment payment, ECommerce.Shared.IntegrationEvents.Commands.AuthorizePaymentCommand command)
     {
         return payment.Status switch
         {
