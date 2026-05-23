@@ -7,7 +7,6 @@ using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using Shipping.Service.Domain.Abstractions;
-using Shipping.Service.Endpoints;
 using Shipping.Service.Features.CancelShipment;
 using Shipping.Service.Features.CancelShipmentCommand;
 using Shipping.Service.Features.CreateShipmentCommand;
@@ -26,6 +25,7 @@ using Shipping.Service.Features.ReturnShipment;
 using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
 using Shipping.Service.Infrastructure.Observability;
+using Shipping.Service.Infrastructure.Outbox;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,11 +36,6 @@ builder.Services.AddOutbox(builder.Configuration);
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration);
-
-builder.Services
-    .AddOrderConfirmedSlice()
-    .AddCreateShipmentCommandSlice()
-    .AddCancelShipmentCommandSlice();
 
 builder.AddPlatformObservability("Shipping",
     customTracing: t => t.WithSqlInstrumentation());
@@ -87,18 +82,22 @@ builder.Services.Configure<CarrierWebhookOptions>(options =>
 builder.Services.AddSingleton<CarrierPollingService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<CarrierPollingService>());
 
-builder.Services.AddGetShipmentsByOrderSlice();
-builder.Services.AddGetShipmentByIdSlice();
-builder.Services.AddListShipmentsSlice();
-builder.Services.AddGetCarrierQuotesSlice();
-builder.Services.AddPickShipmentSlice();
-builder.Services.AddPackShipmentSlice();
-builder.Services.AddDispatchShipmentSlice();
-builder.Services.AddDeliverShipmentSlice();
-builder.Services.AddFailShipmentSlice();
-builder.Services.AddReturnShipmentSlice();
-builder.Services.AddCancelShipmentSlice();
-builder.Services.AddProcessCarrierWebhookSlice();
+builder.Services
+    .AddGetShipmentsByOrderSlice()
+    .AddGetShipmentByIdSlice()
+    .AddListShipmentsSlice()
+    .AddGetCarrierQuotesSlice()
+    .AddPickShipmentSlice()
+    .AddPackShipmentSlice()
+    .AddDispatchShipmentSlice()
+    .AddDeliverShipmentSlice()
+    .AddFailShipmentSlice()
+    .AddReturnShipmentSlice()
+    .AddCancelShipmentSlice()
+    .AddProcessCarrierWebhookSlice()
+    .AddOrderConfirmedSlice()
+    .AddCreateShipmentCommandSlice()
+    .AddCancelShipmentCommandSlice();
 
 builder.AddPlatformOpenApi("shipping");
 
@@ -128,6 +127,7 @@ app.MapFailShipment();
 app.MapReturnShipment();
 app.MapCancelShipment();
 app.MapProcessCarrierWebhook();
+
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();

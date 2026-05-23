@@ -2,7 +2,7 @@ using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Shipping.Service.Endpoints;
+namespace Shipping.Service.Infrastructure.Outbox;
 
 public static class InternalOutboxEndpoints
 {
