@@ -1,7 +1,6 @@
 using System.Text.Json;
-using Shipping.Service.Domain;
 
-namespace Shipping.Service.Carriers;
+namespace Shipping.Service.Domain.Abstractions;
 
 public record ShipmentQuoteRequest(
     Guid ShipmentId,

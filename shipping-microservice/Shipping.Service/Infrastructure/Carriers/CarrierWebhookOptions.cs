@@ -1,4 +1,4 @@
-namespace Shipping.Service.Carriers;
+namespace Shipping.Service.Infrastructure.Carriers;
 
 public class CarrierWebhookOptions
 {

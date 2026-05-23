@@ -1,9 +1,10 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
-using Shipping.Service.Observability;
+using Shipping.Service.Domain.Abstractions;
+using Shipping.Service.Infrastructure.Observability;
 
-namespace Shipping.Service.Carriers;
+namespace Shipping.Service.Infrastructure.Carriers;
 
 /// <summary>
 /// Applies a <see cref="CarrierStatus"/> update to a <see cref="Shipment"/>

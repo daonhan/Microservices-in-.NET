@@ -6,11 +6,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Shipping.Service.ApiModels;
-using Shipping.Service.Carriers;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
 using Shipping.Service.Domain.Abstractions;
-using Shipping.Service.Observability;
+using Shipping.Service.Infrastructure.Carriers;
+using Shipping.Service.Infrastructure.Observability;
 
 namespace Shipping.Service.Endpoints;
 

@@ -1,6 +1,7 @@
-using Shipping.Service.Carriers;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
+using Shipping.Service.Domain.Abstractions;
+using Shipping.Service.Infrastructure.Carriers;
 
 namespace Shipping.Tests.Carriers;
 

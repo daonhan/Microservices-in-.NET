@@ -3,9 +3,9 @@ using System.Net.Http.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.ApiModels;
-using Shipping.Service.Carriers;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
+using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Tests.Authentication;
 
 namespace Shipping.Tests.Api;

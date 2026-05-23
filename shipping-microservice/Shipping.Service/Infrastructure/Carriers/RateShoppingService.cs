@@ -1,6 +1,6 @@
-using Shipping.Service.Domain;
+using Shipping.Service.Domain.Abstractions;
 
-namespace Shipping.Service.Carriers;
+namespace Shipping.Service.Infrastructure.Carriers;
 
 internal sealed class RateShoppingService
 {

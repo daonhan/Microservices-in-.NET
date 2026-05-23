@@ -1,6 +1,7 @@
 using System.Text.Json;
+using Shipping.Service.Domain.Abstractions;
 
-namespace Shipping.Service.Carriers;
+namespace Shipping.Service.Infrastructure.Carriers;
 
 /// <summary>
 /// Shared webhook payload parser for fake carriers. Expects

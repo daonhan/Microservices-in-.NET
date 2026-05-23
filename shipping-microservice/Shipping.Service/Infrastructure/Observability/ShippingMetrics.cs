@@ -2,7 +2,7 @@ using System.Diagnostics.Metrics;
 using ECommerce.Shared.Observability.Metrics;
 using Shipping.Service.Domain;
 
-namespace Shipping.Service.Observability;
+namespace Shipping.Service.Infrastructure.Observability;
 
 /// <summary>
 /// Custom Shipping-service metrics emitted through the shared

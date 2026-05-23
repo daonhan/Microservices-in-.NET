@@ -7,9 +7,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Shipping.Service.Domain;
 using Shipping.Service.Domain.Abstractions;
-using Shipping.Service.Observability;
+using Shipping.Service.Infrastructure.Observability;
 
-namespace Shipping.Service.Carriers;
+namespace Shipping.Service.Infrastructure.Carriers;
 
 /// <summary>
 /// Periodically polls carriers for status updates on shipments in the

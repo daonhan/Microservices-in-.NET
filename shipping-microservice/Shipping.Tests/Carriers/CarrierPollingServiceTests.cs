@@ -1,9 +1,9 @@
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Shipping.Service.Carriers;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
+using Shipping.Service.Infrastructure.Carriers;
 
 namespace Shipping.Tests.Carriers;
 

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
+using Shipping.Service.Domain.Abstractions;
 
-namespace Shipping.Service.Carriers;
+namespace Shipping.Service.Infrastructure.Carriers;
 
 /// <summary>
 /// In-memory registry used by fake carriers to track when a tracking number was
