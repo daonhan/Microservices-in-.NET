@@ -3,16 +3,29 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
-using Shipping.Service.Carriers;
-using Shipping.Service.Endpoints;
+using Shipping.Service.Domain.Abstractions;
+using Shipping.Service.Features.CancelShipment;
+using Shipping.Service.Features.CancelShipmentCommand;
+using Shipping.Service.Features.CreateShipmentCommand;
+using Shipping.Service.Features.DeliverShipment;
+using Shipping.Service.Features.DispatchShipment;
+using Shipping.Service.Features.FailShipment;
+using Shipping.Service.Features.GetCarrierQuotes;
+using Shipping.Service.Features.GetShipmentById;
+using Shipping.Service.Features.GetShipmentsByOrder;
+using Shipping.Service.Features.ListShipments;
+using Shipping.Service.Features.OrderConfirmed;
+using Shipping.Service.Features.PackShipment;
+using Shipping.Service.Features.PickShipment;
+using Shipping.Service.Features.ProcessCarrierWebhook;
+using Shipping.Service.Features.ReturnShipment;
+using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
-using Shipping.Service.IntegrationEvents;
-using Shipping.Service.IntegrationEvents.EventHandlers;
-using Shipping.Service.Observability;
+using Shipping.Service.Infrastructure.Observability;
+using Shipping.Service.Infrastructure.Outbox;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,10 +35,7 @@ builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
-    .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
-    .AddEventHandler<CreateShipmentCommand, CreateShipmentCommandHandler>()
-    .AddEventHandler<CancelShipmentCommand, CancelShipmentCommandHandler>();
+    .AddPlatformSubscriberService(builder.Configuration);
 
 builder.AddPlatformObservability("Shipping",
     customTracing: t => t.WithSqlInstrumentation());
@@ -72,6 +82,23 @@ builder.Services.Configure<CarrierWebhookOptions>(options =>
 builder.Services.AddSingleton<CarrierPollingService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<CarrierPollingService>());
 
+builder.Services
+    .AddGetShipmentsByOrderSlice()
+    .AddGetShipmentByIdSlice()
+    .AddListShipmentsSlice()
+    .AddGetCarrierQuotesSlice()
+    .AddPickShipmentSlice()
+    .AddPackShipmentSlice()
+    .AddDispatchShipmentSlice()
+    .AddDeliverShipmentSlice()
+    .AddFailShipmentSlice()
+    .AddReturnShipmentSlice()
+    .AddCancelShipmentSlice()
+    .AddProcessCarrierWebhookSlice()
+    .AddOrderConfirmedSlice()
+    .AddCreateShipmentCommandSlice()
+    .AddCancelShipmentCommandSlice();
+
 builder.AddPlatformOpenApi("shipping");
 
 var app = builder.Build();
@@ -88,7 +115,19 @@ if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 
 app.SeedQaData();
 
-app.RegisterEndpoints();
+app.MapGetShipmentsByOrder();
+app.MapGetShipmentById();
+app.MapListShipments();
+app.MapGetCarrierQuotes();
+app.MapPickShipment();
+app.MapPackShipment();
+app.MapDispatchShipment();
+app.MapDeliverShipment();
+app.MapFailShipment();
+app.MapReturnShipment();
+app.MapCancelShipment();
+app.MapProcessCarrierWebhook();
+
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();

@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="Shipping.Service/Shipping.Service.csproj" />
+  <Project Path="Shipping.Service.LayoutAnalyzer/Shipping.Service.LayoutAnalyzer.csproj" />
   <Project Path="Shipping.Tests/Shipping.Tests.csproj" />
 </Solution>

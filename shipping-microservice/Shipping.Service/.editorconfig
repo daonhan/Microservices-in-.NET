@@ -1,0 +1,7 @@
+# Shipping.Service.LayoutAnalyzer boundary rules.
+# Phase 1 scaffold (issue #210): rules are off (silent); the analyzer has no detection logic yet.
+# Promoted to error in Phase 10 (issue #223) once the VSA layout is in place.
+[*.cs]
+dotnet_diagnostic.SHPLAY001.severity = silent
+dotnet_diagnostic.SHPLAY002.severity = silent
+dotnet_diagnostic.SHPLAY003.severity = silent

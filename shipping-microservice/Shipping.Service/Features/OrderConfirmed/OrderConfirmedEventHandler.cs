@@ -1,0 +1,30 @@
+using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
+using ECommerce.Shared.Infrastructure.Outbox;
+using Shipping.Service.Contracts.Integration;
+using Shipping.Service.Domain.Abstractions;
+
+namespace Shipping.Service.Features.OrderConfirmed;
+
+internal sealed class OrderConfirmedEventHandler : IEventHandler<OrderConfirmedEvent>
+{
+    private readonly IShipmentStore _shipmentStore;
+    private readonly IOutboxUnitOfWork _outboxUnitOfWork;
+
+    public OrderConfirmedEventHandler(
+        IShipmentStore shipmentStore,
+        IOutboxUnitOfWork outboxUnitOfWork)
+    {
+        _shipmentStore = shipmentStore;
+        _outboxUnitOfWork = outboxUnitOfWork;
+    }
+
+    public async Task Handle(OrderConfirmedEvent @event)
+    {
+        await _outboxUnitOfWork.ExecuteAsync(async () =>
+        {
+            await _shipmentStore.RecordOrderConfirmation(@event.OrderId, @event.CustomerId);
+
+            return [];
+        });
+    }
+}

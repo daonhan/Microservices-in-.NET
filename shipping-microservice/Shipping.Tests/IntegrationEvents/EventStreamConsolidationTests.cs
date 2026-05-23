@@ -6,11 +6,12 @@ using ECommerce.Shared.Infrastructure.Outbox.Models;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Shipping.Service.ApiModels;
-using Shipping.Service.Carriers;
+using Shipping.Service.Contracts.Integration;
+using Shipping.Service.Domain;
+using Shipping.Service.Domain.Abstractions;
+using Shipping.Service.Features.DispatchShipment;
+using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
-using Shipping.Service.IntegrationEvents;
-using Shipping.Service.Models;
 
 namespace Shipping.Tests.IntegrationEvents;
 

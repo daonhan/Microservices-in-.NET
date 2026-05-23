@@ -1,7 +1,7 @@
 using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
+using Shipping.Service.Domain;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
-using Shipping.Service.Models;
 
 namespace Shipping.Tests.Domain;
 

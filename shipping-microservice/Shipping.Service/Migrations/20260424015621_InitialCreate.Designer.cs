@@ -25,7 +25,7 @@ namespace Shipping.Service.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Shipping.Service.Models.OrderConfirmation", b =>
+            modelBuilder.Entity("Shipping.Service.Domain.OrderConfirmation", b =>
                 {
                     b.Property<Guid>("OrderId")
                         .ValueGeneratedOnAdd()
@@ -44,7 +44,7 @@ namespace Shipping.Service.Migrations
                     b.ToTable("OrderConfirmations");
                 });
 
-            modelBuilder.Entity("Shipping.Service.Models.Shipment", b =>
+            modelBuilder.Entity("Shipping.Service.Domain.Shipment", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -74,7 +74,7 @@ namespace Shipping.Service.Migrations
                     b.ToTable("Shipments");
                 });
 
-            modelBuilder.Entity("Shipping.Service.Models.ShipmentLine", b =>
+            modelBuilder.Entity("Shipping.Service.Domain.ShipmentLine", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -98,7 +98,7 @@ namespace Shipping.Service.Migrations
                     b.ToTable("ShipmentLines");
                 });
 
-            modelBuilder.Entity("Shipping.Service.Models.Warehouse", b =>
+            modelBuilder.Entity("Shipping.Service.Domain.Warehouse", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -138,16 +138,16 @@ namespace Shipping.Service.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Shipping.Service.Models.ShipmentLine", b =>
+            modelBuilder.Entity("Shipping.Service.Domain.ShipmentLine", b =>
                 {
-                    b.HasOne("Shipping.Service.Models.Shipment", null)
+                    b.HasOne("Shipping.Service.Domain.Shipment", null)
                         .WithMany("Lines")
                         .HasForeignKey("ShipmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Shipping.Service.Models.Shipment", b =>
+            modelBuilder.Entity("Shipping.Service.Domain.Shipment", b =>
                 {
                     b.Navigation("Lines");
                 });

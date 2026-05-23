@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Shipping.Service.Domain.Abstractions;
 
 namespace Shipping.Service.Infrastructure.Data.EntityFramework;
 
@@ -16,6 +17,6 @@ public static class EntityFrameworkExtensions
                         errorNumbersToAdd: [0]);
                 }));
 
-        services.AddScoped<IShipmentStore, ShippingContext>();
+        services.AddScoped<IShipmentStore, EfShipmentStore>();
     }
 }
