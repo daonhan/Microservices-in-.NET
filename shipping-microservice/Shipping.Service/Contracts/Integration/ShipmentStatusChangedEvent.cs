@@ -1,5 +1,5 @@
 using ECommerce.Shared.Infrastructure.EventBus;
-using Shipping.Service.Models;
+using Shipping.Service.Domain;
 
 namespace Shipping.Service.Contracts.Integration;
 

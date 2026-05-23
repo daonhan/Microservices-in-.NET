@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Shipping.Service.Models;
+using Shipping.Service.Domain;
 
 namespace Shipping.Service.Infrastructure.Data.EntityFramework;
 

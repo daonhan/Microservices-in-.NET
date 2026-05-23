@@ -8,8 +8,8 @@ using Microsoft.Extensions.Options;
 using Shipping.Service.ApiModels;
 using Shipping.Service.Carriers;
 using Shipping.Service.Contracts.Integration;
+using Shipping.Service.Domain;
 using Shipping.Service.Infrastructure.Data;
-using Shipping.Service.Models;
 using Shipping.Service.Observability;
 
 namespace Shipping.Service.Endpoints;

@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using Shipping.Service.Contracts.Integration;
-using Shipping.Service.Models;
+using Shipping.Service.Domain;
 using Shipping.Service.Observability;
 
 namespace Shipping.Service.Carriers;

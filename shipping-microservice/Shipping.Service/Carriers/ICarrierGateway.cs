@@ -1,5 +1,5 @@
 using System.Text.Json;
-using Shipping.Service.Models;
+using Shipping.Service.Domain;
 
 namespace Shipping.Service.Carriers;
 

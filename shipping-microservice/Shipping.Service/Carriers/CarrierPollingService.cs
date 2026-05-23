@@ -5,8 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Shipping.Service.Domain;
 using Shipping.Service.Infrastructure.Data;
-using Shipping.Service.Models;
 using Shipping.Service.Observability;
 
 namespace Shipping.Service.Carriers;

@@ -70,7 +70,7 @@ internal class CreateShipmentCommandHandler : IEventHandler<CreateShipmentComman
                     shipment.Id,
                     shipment.OrderId,
                     FromStatus: null,
-                    ToStatus: Models.ShipmentStatus.Pending,
+                    ToStatus: Domain.ShipmentStatus.Pending,
                     OccurredAt: shipment.CreatedAt)
                 {
                     CorrelationId = command.CorrelationId,

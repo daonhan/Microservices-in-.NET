@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Shipping.Service.ApiModels;
-using Shipping.Service.Models;
+using Shipping.Service.Domain;
 
 namespace Shipping.Tests.Api;
 

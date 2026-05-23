@@ -9,8 +9,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.ApiModels;
 using Shipping.Service.Carriers;
 using Shipping.Service.Contracts.Integration;
+using Shipping.Service.Domain;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
-using Shipping.Service.Models;
 
 namespace Shipping.Tests.IntegrationEvents;
 

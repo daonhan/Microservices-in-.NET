@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.Carriers;
 using Shipping.Service.Contracts.Integration;
-using Shipping.Service.Models;
+using Shipping.Service.Domain;
 
 namespace Shipping.Tests.Carriers;
 

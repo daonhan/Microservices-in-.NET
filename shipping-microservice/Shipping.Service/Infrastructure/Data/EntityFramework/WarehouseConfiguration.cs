@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Shipping.Service.Models;
+using Shipping.Service.Domain;
 
 namespace Shipping.Service.Infrastructure.Data.EntityFramework;
 

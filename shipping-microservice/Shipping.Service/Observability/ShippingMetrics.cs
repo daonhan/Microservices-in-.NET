@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
 using ECommerce.Shared.Observability.Metrics;
-using Shipping.Service.Models;
+using Shipping.Service.Domain;
 
 namespace Shipping.Service.Observability;
 
