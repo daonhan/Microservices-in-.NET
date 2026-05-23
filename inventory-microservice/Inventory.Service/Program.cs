@@ -6,7 +6,6 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
-using Inventory.Service.Endpoints;
 using Inventory.Service.Features.CommitStock;
 using Inventory.Service.Features.CreateBackorder;
 using Inventory.Service.Features.GetStockItem;
@@ -19,6 +18,7 @@ using Inventory.Service.Features.ReserveStock;
 using Inventory.Service.Features.Restock;
 using Inventory.Service.Features.SetThreshold;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
+using Inventory.Service.Infrastructure.Outbox;
 using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
