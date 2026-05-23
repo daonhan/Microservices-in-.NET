@@ -4,7 +4,7 @@ using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
-using Shipping.Service.IntegrationEvents.EventHandlers;
+using Shipping.Service.Features.CancelShipmentCommand;
 
 namespace Shipping.Tests.Api;
 

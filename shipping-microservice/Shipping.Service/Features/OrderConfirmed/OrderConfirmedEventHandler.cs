@@ -3,9 +3,9 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain.Abstractions;
 
-namespace Shipping.Service.IntegrationEvents.EventHandlers;
+namespace Shipping.Service.Features.OrderConfirmed;
 
-internal class OrderConfirmedEventHandler : IEventHandler<OrderConfirmedEvent>
+internal sealed class OrderConfirmedEventHandler : IEventHandler<OrderConfirmedEvent>
 {
     private readonly IShipmentStore _shipmentStore;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;

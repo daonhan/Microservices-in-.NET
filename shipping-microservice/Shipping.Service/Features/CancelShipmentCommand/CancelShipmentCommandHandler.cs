@@ -1,14 +1,13 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
 using Shipping.Service.Domain.Abstractions;
 
-namespace Shipping.Service.IntegrationEvents.EventHandlers;
+namespace Shipping.Service.Features.CancelShipmentCommand;
 
-internal class CancelShipmentCommandHandler : IEventHandler<CancelShipmentCommand>
+internal sealed class CancelShipmentCommandHandler : IEventHandler<ECommerce.Shared.IntegrationEvents.Commands.CancelShipmentCommand>
 {
     private readonly IShipmentStore _shipmentStore;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
@@ -21,7 +20,7 @@ internal class CancelShipmentCommandHandler : IEventHandler<CancelShipmentComman
         _outboxUnitOfWork = outboxUnitOfWork;
     }
 
-    public async Task Handle(CancelShipmentCommand command)
+    public async Task Handle(ECommerce.Shared.IntegrationEvents.Commands.CancelShipmentCommand command)
     {
         var shipments = await _shipmentStore.GetByOrder(command.OrderId);
         if (shipments.Count == 0)
@@ -81,7 +80,7 @@ internal class CancelShipmentCommandHandler : IEventHandler<CancelShipmentComman
     private static ShipmentCancelledEvent BuildReply(
         Shipment shipment,
         DateTime occurredAt,
-        CancelShipmentCommand command) =>
+        ECommerce.Shared.IntegrationEvents.Commands.CancelShipmentCommand command) =>
         new(shipment.Id, shipment.OrderId, shipment.CustomerId, occurredAt, command.Reason)
         {
             CorrelationId = command.CorrelationId,

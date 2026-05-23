@@ -5,9 +5,9 @@ using ECommerce.Shared.IntegrationEvents.Commands;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain.Abstractions;
 
-namespace Shipping.Service.IntegrationEvents.EventHandlers;
+namespace Shipping.Service.Features.CreateShipmentCommand;
 
-internal class CreateShipmentCommandHandler : IEventHandler<CreateShipmentCommand>
+internal sealed class CreateShipmentCommandHandler : IEventHandler<ECommerce.Shared.IntegrationEvents.Commands.CreateShipmentCommand>
 {
     private readonly IShipmentStore _shipmentStore;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
@@ -20,7 +20,7 @@ internal class CreateShipmentCommandHandler : IEventHandler<CreateShipmentComman
         _outboxUnitOfWork = outboxUnitOfWork;
     }
 
-    public async Task Handle(CreateShipmentCommand command)
+    public async Task Handle(ECommerce.Shared.IntegrationEvents.Commands.CreateShipmentCommand command)
     {
         if (command.Items is null || command.Items.Count == 0)
         {

@@ -3,14 +3,14 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
-using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain.Abstractions;
 using Shipping.Service.Endpoints;
 using Shipping.Service.Features.CancelShipment;
+using Shipping.Service.Features.CancelShipmentCommand;
+using Shipping.Service.Features.CreateShipmentCommand;
 using Shipping.Service.Features.DeliverShipment;
 using Shipping.Service.Features.DispatchShipment;
 using Shipping.Service.Features.FailShipment;
@@ -18,6 +18,7 @@ using Shipping.Service.Features.GetCarrierQuotes;
 using Shipping.Service.Features.GetShipmentById;
 using Shipping.Service.Features.GetShipmentsByOrder;
 using Shipping.Service.Features.ListShipments;
+using Shipping.Service.Features.OrderConfirmed;
 using Shipping.Service.Features.PackShipment;
 using Shipping.Service.Features.PickShipment;
 using Shipping.Service.Features.ProcessCarrierWebhook;
@@ -25,7 +26,6 @@ using Shipping.Service.Features.ReturnShipment;
 using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
 using Shipping.Service.Infrastructure.Observability;
-using Shipping.Service.IntegrationEvents.EventHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,10 +35,12 @@ builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
-    .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
-    .AddEventHandler<CreateShipmentCommand, CreateShipmentCommandHandler>()
-    .AddEventHandler<CancelShipmentCommand, CancelShipmentCommandHandler>();
+    .AddPlatformSubscriberService(builder.Configuration);
+
+builder.Services
+    .AddOrderConfirmedSlice()
+    .AddCreateShipmentCommandSlice()
+    .AddCancelShipmentCommandSlice();
 
 builder.AddPlatformObservability("Shipping",
     customTracing: t => t.WithSqlInstrumentation());
