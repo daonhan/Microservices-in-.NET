@@ -39,6 +39,7 @@ Known failure: `MSB3248 No such device` on `dotnet build --no-restore` (or on `E
 1. Clean + restore + rerun hook:
    ```bash
    find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+   dotnet tool restore
    dotnet restore && dotnet husky run --group pre-commit
    ```
 2. If still `MSB3248`, retry once more after `dotnet restore --force`.
