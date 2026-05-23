@@ -3,6 +3,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
+using Payment.Service.Domain.Abstractions;
 using Payment.Service.Domain.Events;
 
 namespace Payment.Service.Infrastructure.Data.EntityFramework;

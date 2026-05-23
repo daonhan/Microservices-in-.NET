@@ -1,4 +1,4 @@
-namespace Payment.Service.Infrastructure.Gateways;
+namespace Payment.Service.Domain.Abstractions;
 
 public interface IPaymentGateway
 {

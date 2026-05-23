@@ -4,7 +4,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
-using Payment.Service.Infrastructure.Data;
+using Payment.Service.Domain.Abstractions;
 using Payment.Service.Observability;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;

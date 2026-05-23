@@ -2,8 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Payment.Service.Domain;
-using Payment.Service.Infrastructure.Data;
-using Payment.Service.Infrastructure.Gateways;
+using Payment.Service.Domain.Abstractions;
 using Payment.Service.Observability;
 
 namespace Payment.Service.Endpoints;

@@ -1,6 +1,6 @@
 using Payment.Service.Domain;
 
-namespace Payment.Service.Infrastructure.Data;
+namespace Payment.Service.Domain.Abstractions;
 
 public interface IPaymentStore
 {

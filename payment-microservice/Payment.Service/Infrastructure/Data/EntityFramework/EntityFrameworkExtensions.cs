@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Payment.Service.Domain.Abstractions;
 
 namespace Payment.Service.Infrastructure.Data.EntityFramework;
 

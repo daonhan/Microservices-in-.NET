@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using Payment.Service.Contracts.Integration;
-using Payment.Service.Infrastructure.Data;
+using Payment.Service.Domain.Abstractions;
 
 namespace Payment.Service.IntegrationEvents.EventHandlers;
 
