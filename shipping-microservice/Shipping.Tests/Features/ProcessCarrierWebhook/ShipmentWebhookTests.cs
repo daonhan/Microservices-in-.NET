@@ -8,7 +8,7 @@ using Shipping.Service.Domain;
 using Shipping.Service.Domain.Abstractions;
 using Shipping.Service.Infrastructure.Carriers;
 
-namespace Shipping.Tests.Api;
+namespace Shipping.Tests.Features.ProcessCarrierWebhook;
 
 public class ShipmentWebhookTests : IntegrationTestBase
 {

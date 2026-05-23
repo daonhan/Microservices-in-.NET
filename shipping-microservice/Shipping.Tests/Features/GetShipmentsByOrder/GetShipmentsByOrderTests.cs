@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using Shipping.Service.Domain;
 using Shipping.Service.Features.GetShipmentsByOrder;
 
-namespace Shipping.Tests.Api;
+namespace Shipping.Tests.Features.GetShipmentsByOrder;
 
 public class GetShipmentsByOrderTests : IntegrationTestBase
 {

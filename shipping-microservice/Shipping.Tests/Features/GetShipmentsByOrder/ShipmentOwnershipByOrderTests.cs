@@ -4,11 +4,11 @@ using Shipping.Service.Domain;
 using Shipping.Service.Features.GetShipmentsByOrder;
 using Shipping.Tests.Authentication;
 
-namespace Shipping.Tests.Api;
+namespace Shipping.Tests.Features.GetShipmentsByOrder;
 
-public class ShipmentOwnershipTests : IntegrationTestBase
+public class ShipmentOwnershipByOrderTests : IntegrationTestBase
 {
-    public ShipmentOwnershipTests(ShippingWebApplicationFactory webApplicationFactory)
+    public ShipmentOwnershipByOrderTests(ShippingWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }
@@ -44,56 +44,6 @@ public class ShipmentOwnershipTests : IntegrationTestBase
         var response = await CreateAuthenticatedClient().GetAsync($"/by-order/{orderId}");
 
         response.EnsureSuccessStatusCode();
-    }
-
-    [Fact]
-    public async Task GetById_WhenCustomerOwnsShipment_ReturnsOk()
-    {
-        var (_, shipmentId, customerId) = await SeedShipmentAsync();
-
-        var response = await CreateCustomerClient(customerId).GetAsync($"/{shipmentId}");
-
-        response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<ShipmentResponse>();
-        Assert.NotNull(body);
-        Assert.Equal(shipmentId, body.ShipmentId);
-    }
-
-    [Fact]
-    public async Task GetById_WhenCustomerIsNotOwner_ReturnsForbidden()
-    {
-        var (_, shipmentId, _) = await SeedShipmentAsync();
-
-        var response = await CreateCustomerClient("different-customer").GetAsync($"/{shipmentId}");
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetById_WhenAdmin_ReturnsOkRegardlessOfOwnership()
-    {
-        var (_, shipmentId, _) = await SeedShipmentAsync();
-
-        var response = await CreateAuthenticatedClient().GetAsync($"/{shipmentId}");
-
-        response.EnsureSuccessStatusCode();
-    }
-
-    [Fact]
-    public async Task GetById_WhenUnauthenticated_ReturnsUnauthorized()
-    {
-        var response = await HttpClient.GetAsync($"/{Guid.NewGuid()}");
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetById_WhenNotFound_ReturnsNotFound()
-    {
-        var client = CreateAuthenticatedClient();
-        var response = await client.GetAsync($"/{Guid.NewGuid()}");
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     private async Task<(Guid OrderId, Guid ShipmentId, string CustomerId)> SeedShipmentAsync()

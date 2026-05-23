@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Shipping.Tests.Api;
+namespace Shipping.Tests;
 
 public class HealthChecksTests : IntegrationTestBase
 {

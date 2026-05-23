@@ -4,15 +4,14 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
-using Shipping.Service.Features.CancelShipment;
 using Shipping.Service.Features.GetShipmentsByOrder;
 using Shipping.Tests.Authentication;
 
-namespace Shipping.Tests.Api;
+namespace Shipping.Tests.Features.PickShipment;
 
-public class ShipmentTransitionEndpointsTests : IntegrationTestBase
+public class PickShipmentEndpointTests : IntegrationTestBase
 {
-    public ShipmentTransitionEndpointsTests(ShippingWebApplicationFactory webApplicationFactory)
+    public PickShipmentEndpointTests(ShippingWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }
@@ -30,29 +29,6 @@ public class ShipmentTransitionEndpointsTests : IntegrationTestBase
         Assert.Equal("Picked", body.Status);
 
         await AssertStatusChangedInOutbox(shipmentId, ShipmentStatus.Picked);
-    }
-
-    [Fact]
-    public async Task Pack_WhenShipmentInPicked_Succeeds()
-    {
-        var shipmentId = await SeedShipmentAsync(ShipmentStatus.Picked);
-
-        var response = await CreateAuthenticatedClient().PostAsync($"/{shipmentId}/pack", content: null);
-
-        response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<ShipmentResponse>();
-        Assert.NotNull(body);
-        Assert.Equal("Packed", body.Status);
-    }
-
-    [Fact]
-    public async Task Pack_WhenShipmentInPending_ReturnsConflict()
-    {
-        var shipmentId = await SeedShipmentAsync(ShipmentStatus.Pending);
-
-        var response = await CreateAuthenticatedClient().PostAsync($"/{shipmentId}/pack", content: null);
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
@@ -78,40 +54,7 @@ public class ShipmentTransitionEndpointsTests : IntegrationTestBase
     }
 
     [Fact]
-    public async Task Cancel_WhenShipmentInPacked_EmitsCancelledAndStatusChanged()
-    {
-        var shipmentId = await SeedShipmentAsync(ShipmentStatus.Packed);
-
-        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
-            $"/{shipmentId}/cancel",
-            new CancelShipmentRequest(Reason: "Customer request"));
-
-        response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<ShipmentResponse>();
-        Assert.NotNull(body);
-        Assert.Equal("Cancelled", body.Status);
-
-        using var outboxScope = Factory.Services.CreateScope();
-        var outboxStore = outboxScope.ServiceProvider.GetRequiredService<IOutboxStore>();
-        var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
-        Assert.Contains(outboxEvents, e => e.EventType.Contains(nameof(ShipmentCancelledEvent), StringComparison.Ordinal));
-        Assert.Contains(outboxEvents, e => e.EventType.Contains(nameof(ShipmentStatusChangedEvent), StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public async Task Cancel_WhenShipmentIsShipped_ReturnsConflict()
-    {
-        var shipmentId = await SeedShipmentAsync(ShipmentStatus.Shipped);
-
-        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
-            $"/{shipmentId}/cancel",
-            new CancelShipmentRequest(Reason: null));
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Transition_WhenShipmentNotFound_ReturnsNotFound()
+    public async Task Pick_WhenShipmentNotFound_ReturnsNotFound()
     {
         var response = await CreateAuthenticatedClient().PostAsync($"/{Guid.NewGuid()}/pick", content: null);
 

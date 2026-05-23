@@ -5,8 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
 using Shipping.Service.Features.CreateShipmentCommand;
+using SagaCreateShipmentCommand = ECommerce.Shared.IntegrationEvents.Commands.CreateShipmentCommand;
 
-namespace Shipping.Tests.Api;
+namespace Shipping.Tests.Features.CreateShipmentCommand;
 
 public class CreateShipmentCommandHandlerTests : IntegrationTestBase
 {
@@ -30,7 +31,7 @@ public class CreateShipmentCommandHandlerTests : IntegrationTestBase
         });
         await ShippingContext.SaveChangesAsync();
 
-        var command = new CreateShipmentCommand(
+        var command = new SagaCreateShipmentCommand(
             orderId,
             [new CreateShipmentItem(ProductId: 701, WarehouseId: 1, Quantity: 4)],
             causationId: Guid.NewGuid(),
@@ -67,7 +68,7 @@ public class CreateShipmentCommandHandlerTests : IntegrationTestBase
         });
         await ShippingContext.SaveChangesAsync();
 
-        var first = new CreateShipmentCommand(
+        var first = new SagaCreateShipmentCommand(
             orderId,
             [new CreateShipmentItem(702, 1, 2)],
             causationId: Guid.NewGuid(),
@@ -84,7 +85,7 @@ public class CreateShipmentCommandHandlerTests : IntegrationTestBase
 
         await ClearOutboxAsync();
 
-        var replay = new CreateShipmentCommand(
+        var replay = new SagaCreateShipmentCommand(
             orderId,
             [new CreateShipmentItem(702, 1, 2)],
             causationId: Guid.NewGuid(),
@@ -110,7 +111,7 @@ public class CreateShipmentCommandHandlerTests : IntegrationTestBase
             && e.Data.Contains(orderId.ToString(), StringComparison.OrdinalIgnoreCase));
     }
 
-    private async Task AssertCreatedReplyAsync(Guid orderId, string customerId, CreateShipmentCommand command)
+    private async Task AssertCreatedReplyAsync(Guid orderId, string customerId, SagaCreateShipmentCommand command)
     {
         using var scope = Factory.Services.CreateScope();
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();

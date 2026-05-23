@@ -1,12 +1,12 @@
 using System.Text.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
 using Shipping.Service.Features.CancelShipmentCommand;
+using SagaCancelShipmentCommand = ECommerce.Shared.IntegrationEvents.Commands.CancelShipmentCommand;
 
-namespace Shipping.Tests.Api;
+namespace Shipping.Tests.Features.CancelShipmentCommand;
 
 public class CancelShipmentCommandHandlerTests : IntegrationTestBase
 {
@@ -84,13 +84,13 @@ public class CancelShipmentCommandHandlerTests : IntegrationTestBase
         ShippingContext.ChangeTracker.Clear();
     }
 
-    private static CancelShipmentCommand NewCancel(Guid orderId, Guid sagaId) =>
+    private static SagaCancelShipmentCommand NewCancel(Guid orderId, Guid sagaId) =>
         new(orderId, "Saga compensation.", causationId: Guid.NewGuid(), sagaId: sagaId)
         {
             CorrelationId = Guid.NewGuid(),
         };
 
-    private async Task AssertCancelledReplyAsync(Guid orderId, string customerId, CancelShipmentCommand command)
+    private async Task AssertCancelledReplyAsync(Guid orderId, string customerId, SagaCancelShipmentCommand command)
     {
         using var scope = Factory.Services.CreateScope();
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();

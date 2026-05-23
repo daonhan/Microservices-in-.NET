@@ -5,52 +5,16 @@ using Microsoft.Extensions.DependencyInjection;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain;
 using Shipping.Service.Features.DispatchShipment;
-using Shipping.Service.Features.GetCarrierQuotes;
 using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Tests.Authentication;
 
-namespace Shipping.Tests.Api;
+namespace Shipping.Tests.Features.DispatchShipment;
 
-public class ShipmentDispatchEndpointsTests : IntegrationTestBase
+public class DispatchShipmentEndpointTests : IntegrationTestBase
 {
-    public ShipmentDispatchEndpointsTests(ShippingWebApplicationFactory webApplicationFactory)
+    public DispatchShipmentEndpointTests(ShippingWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
-    }
-
-    [Fact]
-    public async Task GetQuotes_WhenAdmin_ReturnsRankedQuotes()
-    {
-        var shipmentId = await SeedShipmentAsync(ShipmentStatus.Packed);
-
-        var response = await CreateAuthenticatedClient().GetAsync($"/{shipmentId}/quotes");
-
-        response.EnsureSuccessStatusCode();
-        var quotes = await response.Content.ReadFromJsonAsync<List<CarrierQuoteResponse>>();
-        Assert.NotNull(quotes);
-        Assert.Equal(2, quotes.Count);
-        // Ranked by cheapest first.
-        Assert.True(quotes[0].PriceAmount <= quotes[1].PriceAmount);
-    }
-
-    [Fact]
-    public async Task GetQuotes_WhenNonAdmin_ReturnsForbidden()
-    {
-        var shipmentId = await SeedShipmentAsync(ShipmentStatus.Packed);
-
-        var client = Factory.CreateClient();
-        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "Customer");
-        var response = await client.GetAsync($"/{shipmentId}/quotes");
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task GetQuotes_WhenShipmentMissing_ReturnsNotFound()
-    {
-        var response = await CreateAuthenticatedClient().GetAsync($"/{Guid.NewGuid()}/quotes");
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]

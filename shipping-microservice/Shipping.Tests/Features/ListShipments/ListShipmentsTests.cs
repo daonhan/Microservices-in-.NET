@@ -4,7 +4,7 @@ using Shipping.Service.Domain;
 using Shipping.Service.Features.GetShipmentsByOrder;
 using Shipping.Tests.Authentication;
 
-namespace Shipping.Tests.Api;
+namespace Shipping.Tests.Features.ListShipments;
 
 public class ListShipmentsTests : IntegrationTestBase
 {

@@ -2,7 +2,7 @@ using Shipping.Service.Domain;
 using Shipping.Service.Domain.Abstractions;
 using Shipping.Service.Infrastructure.Carriers;
 
-namespace Shipping.Tests.Carriers;
+namespace Shipping.Tests.Infrastructure.Carriers;
 
 public class RateShoppingServiceTests
 {
