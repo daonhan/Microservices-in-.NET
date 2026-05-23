@@ -1,4 +1,4 @@
-namespace Shipping.Service.ApiModels;
+namespace Shipping.Service.Features.DispatchShipment;
 
 public record ShippingAddressDto(
     string Recipient,
@@ -18,19 +18,3 @@ public record CarrierQuoteOverride(
     decimal PriceAmount,
     string PriceCurrency,
     int EstimatedDeliveryDays);
-
-public record CarrierQuoteResponse(
-    string CarrierKey,
-    string CarrierName,
-    decimal PriceAmount,
-    string PriceCurrency,
-    int EstimatedDeliveryDays);
-
-public record DispatchShipmentResponse(
-    Guid ShipmentId,
-    string Status,
-    string CarrierKey,
-    string TrackingNumber,
-    string LabelRef,
-    decimal QuotedPriceAmount,
-    string QuotedPriceCurrency);

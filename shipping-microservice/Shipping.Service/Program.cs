@@ -10,9 +10,12 @@ using ECommerce.Shared.Qa;
 using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Domain.Abstractions;
 using Shipping.Service.Endpoints;
+using Shipping.Service.Features.DispatchShipment;
 using Shipping.Service.Features.GetShipmentById;
 using Shipping.Service.Features.GetShipmentsByOrder;
 using Shipping.Service.Features.ListShipments;
+using Shipping.Service.Features.PackShipment;
+using Shipping.Service.Features.PickShipment;
 using Shipping.Service.Infrastructure.Carriers;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
 using Shipping.Service.Infrastructure.Observability;
@@ -79,6 +82,9 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<CarrierPollingServ
 builder.Services.AddGetShipmentsByOrderSlice();
 builder.Services.AddGetShipmentByIdSlice();
 builder.Services.AddListShipmentsSlice();
+builder.Services.AddPickShipmentSlice();
+builder.Services.AddPackShipmentSlice();
+builder.Services.AddDispatchShipmentSlice();
 
 builder.AddPlatformOpenApi("shipping");
 
@@ -99,6 +105,9 @@ app.SeedQaData();
 app.MapGetShipmentsByOrder();
 app.MapGetShipmentById();
 app.MapListShipments();
+app.MapPickShipment();
+app.MapPackShipment();
+app.MapDispatchShipment();
 app.RegisterEndpoints();
 app.RegisterInternalOutboxEndpoints();
 
