@@ -1,4 +1,4 @@
-namespace Inventory.Service.ApiModels;
+namespace Inventory.Service.Features.GetStockItem;
 
 public record GetStockItemResponse(
     int ProductId,

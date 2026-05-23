@@ -1,4 +1,4 @@
-namespace Inventory.Service.ApiModels;
+namespace Inventory.Service.Features.ListStockItems;
 
 public record StockItemSummaryDto(
     int ProductId,

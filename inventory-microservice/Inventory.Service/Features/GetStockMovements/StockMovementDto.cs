@@ -1,4 +1,4 @@
-namespace Inventory.Service.ApiModels;
+namespace Inventory.Service.Features.GetStockMovements;
 
 public record StockMovementDto(
     long Id,

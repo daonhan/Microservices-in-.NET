@@ -13,35 +13,6 @@ internal sealed class EfInventoryStore : IInventoryStore
         _ctx = ctx;
     }
 
-    public async Task<StockItem?> GetStockItem(int productId)
-    {
-        return await _ctx.StockItems.FirstOrDefaultAsync(s => s.ProductId == productId);
-    }
-
-    public async Task<IReadOnlyList<StockLevel>> GetStockLevels(int productId)
-    {
-        return await _ctx.StockLevels
-            .Include(l => l.Warehouse)
-            .Where(l => l.ProductId == productId)
-            .ToListAsync();
-    }
-
-    public async Task<IReadOnlyList<StockItem>> ListStockItems()
-    {
-        return await _ctx.StockItems
-            .OrderBy(s => s.ProductId)
-            .ToListAsync();
-    }
-
-    public async Task<IReadOnlyList<StockMovement>> GetMovements(int productId)
-    {
-        return await _ctx.StockMovements
-            .Where(m => m.ProductId == productId)
-            .OrderBy(m => m.OccurredAt)
-            .ThenBy(m => m.Id)
-            .ToListAsync();
-    }
-
     public async Task ProvisionStockItem(int productId)
     {
         var existing = await _ctx.StockItems.FirstOrDefaultAsync(s => s.ProductId == productId);

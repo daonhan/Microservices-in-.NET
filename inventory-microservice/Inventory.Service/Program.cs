@@ -9,6 +9,9 @@ using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Endpoints;
+using Inventory.Service.Features.GetStockItem;
+using Inventory.Service.Features.GetStockMovements;
+using Inventory.Service.Features.ListStockItems;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
 using Inventory.Service.IntegrationEvents.EventHandlers;
 using OpenTelemetry.Metrics;
@@ -26,6 +29,10 @@ builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddEventHandler<ReserveStockCommand, ReserveStockCommandHandler>()
     .AddEventHandler<CommitStockCommand, CommitStockCommandHandler>()
     .AddEventHandler<ReleaseStockCommand, ReleaseStockCommandHandler>();
+
+builder.Services.AddListStockItemsSlice();
+builder.Services.AddGetStockItemSlice();
+builder.Services.AddGetStockMovementsSlice();
 
 builder.AddPlatformObservability("Inventory",
     customTracing: t => t.WithSqlInstrumentation(),
@@ -60,6 +67,10 @@ if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 }
 
 app.SeedQaData();
+
+app.MapListStockItems();
+app.MapGetStockItem();
+app.MapGetStockMovements();
 
 app.RegisterEndpoints();
 app.RegisterInternalOutboxEndpoints();

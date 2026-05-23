@@ -6,7 +6,6 @@ using Inventory.Service.Contracts.Integration;
 using Inventory.Service.Domain;
 using Inventory.Service.Domain.Abstractions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.Service.Endpoints;
 
@@ -14,76 +13,6 @@ public static class InventoryApiEndpoints
 {
     public static void RegisterEndpoints(this IEndpointRouteBuilder routeBuilder)
     {
-        routeBuilder.MapGet("/", async Task<IResult> (
-            [FromServices] IInventoryStore inventoryStore) =>
-        {
-            var items = await inventoryStore.ListStockItems();
-
-            var response = items
-                .Select(item => new StockItemSummaryDto(
-                    item.ProductId,
-                    item.TotalOnHand,
-                    item.TotalReserved,
-                    item.Available,
-                    item.LowStockThreshold))
-                .ToList();
-
-            return TypedResults.Ok(response);
-        }).RequireAuthorization();
-
-        routeBuilder.MapGet("/{productId:int}", async Task<IResult> (
-            [FromServices] IInventoryStore inventoryStore,
-            int productId) =>
-        {
-            var stockItem = await inventoryStore.GetStockItem(productId);
-
-            if (stockItem is null)
-            {
-                return TypedResults.NotFound($"Stock item for product {productId} not found");
-            }
-
-            var stockLevels = await inventoryStore.GetStockLevels(productId);
-
-            var perWarehouse = stockLevels
-                .Select(level => new StockLevelDto(
-                    level.WarehouseId,
-                    level.Warehouse?.Code ?? string.Empty,
-                    level.OnHand,
-                    level.Reserved))
-                .ToList();
-
-            var response = new GetStockItemResponse(
-                stockItem.ProductId,
-                stockItem.TotalOnHand,
-                stockItem.TotalReserved,
-                stockItem.Available,
-                stockItem.LowStockThreshold,
-                perWarehouse);
-
-            return TypedResults.Ok(response);
-        });
-
-        routeBuilder.MapGet("/{productId:int}/movements", async Task<IResult> (
-            [FromServices] IInventoryStore inventoryStore,
-            int productId) =>
-        {
-            var movements = await inventoryStore.GetMovements(productId);
-
-            var response = movements
-                .Select(m => new StockMovementDto(
-                    m.Id,
-                    m.ProductId,
-                    m.WarehouseId,
-                    m.Type.ToString(),
-                    m.Quantity,
-                    m.OccurredAt,
-                    m.OrderId,
-                    m.Reason))
-                .ToList();
-
-            return TypedResults.Ok(response);
-        }).RequireAuthorization();
-
         routeBuilder.MapPost("/{productId:int}/restock", async Task<IResult> (
             [FromServices] IInventoryStore inventoryStore,
             [FromServices] IOutboxUnitOfWork outboxUnitOfWork,
