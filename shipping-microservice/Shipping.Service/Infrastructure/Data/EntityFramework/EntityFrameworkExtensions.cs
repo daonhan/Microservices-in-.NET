@@ -17,6 +17,6 @@ public static class EntityFrameworkExtensions
                         errorNumbersToAdd: [0]);
                 }));
 
-        services.AddScoped<IShipmentStore, ShippingContext>();
+        services.AddScoped<IShipmentStore, EfShipmentStore>();
     }
 }
