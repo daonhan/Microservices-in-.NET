@@ -32,6 +32,7 @@ Known WSL/virtiofs/Docker sandbox issue: pre-commit may fail at `dotnet build --
 
 ```bash
 find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
+dotnet tool restore
 dotnet restore && dotnet husky run --group pre-commit
 ```
 

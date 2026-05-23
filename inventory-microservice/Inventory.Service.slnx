@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="Inventory.Service/Inventory.Service.csproj" />
+  <Project Path="Inventory.Service.LayoutAnalyzer/Inventory.Service.LayoutAnalyzer.csproj" />
   <Project Path="Inventory.Tests/Inventory.Tests.csproj" />
 </Solution>

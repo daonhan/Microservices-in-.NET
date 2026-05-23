@@ -1,5 +1,5 @@
 using ECommerce.Shared.Qa;
-using Inventory.Service.Models;
+using Inventory.Service.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

@@ -1,3 +1,4 @@
+using Inventory.Service.Domain.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Inventory.Service.Infrastructure.Data.EntityFramework;
@@ -16,6 +17,6 @@ public static class EntityFrameworkExtensions
                         errorNumbersToAdd: [0]);
                 }));
 
-        services.AddScoped<IInventoryStore, InventoryContext>();
+        services.AddScoped<IInventoryStore, EfInventoryStore>();
     }
 }

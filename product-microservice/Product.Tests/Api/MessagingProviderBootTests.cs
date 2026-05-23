@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using RabbitMQ.Client;
 
 namespace Product.Tests.Api;
 
@@ -79,6 +81,24 @@ public sealed class MessagingProviderBootTests
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Tests");
+            builder.ConfigureServices(services =>
+            {
+                if (UsesRabbitMqProvider())
+                {
+                    services.RemoveAll<IRabbitMqConnection>();
+                    services.AddSingleton<IRabbitMqConnection, UnusedRabbitMqConnection>();
+                }
+            });
+        }
+
+        private bool UsesRabbitMqProvider() =>
+            !settings.TryGetValue("Messaging:Provider", out var provider)
+            || !string.Equals(provider, MessagingOptions.AzureServiceBusProvider, StringComparison.OrdinalIgnoreCase);
+
+        private sealed class UnusedRabbitMqConnection : IRabbitMqConnection
+        {
+            public IConnection Connection => throw new NotSupportedException(
+                "Messaging provider boot tests verify DI wiring and must not publish messages.");
         }
     }
 }

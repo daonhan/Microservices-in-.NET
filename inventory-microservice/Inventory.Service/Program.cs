@@ -3,14 +3,22 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
-using Inventory.Service.Endpoints;
+using Inventory.Service.Features.CommitStock;
+using Inventory.Service.Features.CreateBackorder;
+using Inventory.Service.Features.GetStockItem;
+using Inventory.Service.Features.GetStockMovements;
+using Inventory.Service.Features.ListStockItems;
+using Inventory.Service.Features.ProductCreated;
+using Inventory.Service.Features.ReleaseStock;
+using Inventory.Service.Features.ReserveByHttp;
+using Inventory.Service.Features.ReserveStock;
+using Inventory.Service.Features.Restock;
+using Inventory.Service.Features.SetThreshold;
 using Inventory.Service.Infrastructure.Data.EntityFramework;
-using Inventory.Service.IntegrationEvents;
-using Inventory.Service.IntegrationEvents.EventHandlers;
+using Inventory.Service.Infrastructure.Outbox;
 using OpenTelemetry.Metrics;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,11 +29,19 @@ builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
-    .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<ProductCreatedEvent, ProductCreatedEventHandler>()
-    .AddEventHandler<ReserveStockCommand, ReserveStockCommandHandler>()
-    .AddEventHandler<CommitStockCommand, CommitStockCommandHandler>()
-    .AddEventHandler<ReleaseStockCommand, ReleaseStockCommandHandler>();
+    .AddPlatformSubscriberService(builder.Configuration);
+
+builder.Services.AddListStockItemsSlice();
+builder.Services.AddGetStockItemSlice();
+builder.Services.AddGetStockMovementsSlice();
+builder.Services.AddRestockSlice();
+builder.Services.AddSetThresholdSlice();
+builder.Services.AddReserveByHttpSlice();
+builder.Services.AddCreateBackorderSlice();
+builder.Services.AddProductCreatedSlice();
+builder.Services.AddReserveStockSlice();
+builder.Services.AddCommitStockSlice();
+builder.Services.AddReleaseStockSlice();
 
 builder.AddPlatformObservability("Inventory",
     customTracing: t => t.WithSqlInstrumentation(),
@@ -61,7 +77,15 @@ if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 
 app.SeedQaData();
 
-app.RegisterEndpoints();
+app.MapListStockItems();
+app.MapGetStockItem();
+app.MapGetStockMovements();
+app.MapRestock();
+app.MapSetThreshold();
+app.MapReserveByHttp();
+app.MapCreateBackorder();
+
+app.MapHealthChecks("/health");
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();
