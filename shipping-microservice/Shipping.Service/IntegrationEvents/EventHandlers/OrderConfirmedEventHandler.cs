@@ -1,5 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
+using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Infrastructure.Data;
 
 namespace Shipping.Service.IntegrationEvents.EventHandlers;

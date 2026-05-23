@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.Extensions.DependencyInjection;
-using Shipping.Service.IntegrationEvents;
+using Shipping.Service.Contracts.Integration;
 
 namespace Shipping.Tests.Api;
 

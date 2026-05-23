@@ -1,5 +1,5 @@
 using Shipping.Service.Carriers;
-using Shipping.Service.IntegrationEvents;
+using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Models;
 
 namespace Shipping.Tests.Carriers;

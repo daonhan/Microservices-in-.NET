@@ -1,7 +1,7 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using Shipping.Service.Models;
 
-namespace Shipping.Service.IntegrationEvents;
+namespace Shipping.Service.Contracts.Integration;
 
 public record ShipmentStatusChangedEvent(
     Guid ShipmentId,

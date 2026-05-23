@@ -1,11 +1,12 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Shipping.Service.IntegrationEvents;
+namespace Shipping.Service.Contracts.Integration;
 
-public record ShipmentDeliveredEvent(
+public record ShipmentReturnedEvent(
     Guid ShipmentId,
     Guid OrderId,
     string CustomerId,
     string? CarrierKey,
     string? TrackingNumber,
+    string Reason,
     DateTime OccurredAt) : Event;

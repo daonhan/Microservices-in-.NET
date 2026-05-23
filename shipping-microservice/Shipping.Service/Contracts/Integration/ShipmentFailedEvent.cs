@@ -1,8 +1,8 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Shipping.Service.IntegrationEvents;
+namespace Shipping.Service.Contracts.Integration;
 
-public record ShipmentReturnedEvent(
+public record ShipmentFailedEvent(
     Guid ShipmentId,
     Guid OrderId,
     string CustomerId,

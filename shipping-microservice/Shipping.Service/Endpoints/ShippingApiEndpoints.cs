@@ -7,8 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Shipping.Service.ApiModels;
 using Shipping.Service.Carriers;
+using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Infrastructure.Data;
-using Shipping.Service.IntegrationEvents;
 using Shipping.Service.Models;
 using Shipping.Service.Observability;
 

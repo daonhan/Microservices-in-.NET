@@ -2,6 +2,7 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
+using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Infrastructure.Data;
 using Shipping.Service.Models;
 

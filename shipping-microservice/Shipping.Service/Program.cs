@@ -8,9 +8,9 @@ using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using Shipping.Service.Carriers;
+using Shipping.Service.Contracts.Integration;
 using Shipping.Service.Endpoints;
 using Shipping.Service.Infrastructure.Data.EntityFramework;
-using Shipping.Service.IntegrationEvents;
 using Shipping.Service.IntegrationEvents.EventHandlers;
 using Shipping.Service.Observability;
 
