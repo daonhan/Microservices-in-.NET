@@ -7,9 +7,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Features.OrderSaga.OrderConfirmed;
+using Saga.Service.Features.OrderSaga.OrderCreated;
+using Saga.Service.Features.OrderSaga.PaymentAuthorized;
+using Saga.Service.Features.OrderSaga.PaymentFailed;
+using Saga.Service.Features.OrderSaga.ShipmentCreated;
+using Saga.Service.Features.OrderSaga.StockCommitted;
+using Saga.Service.Features.OrderSaga.StockReservationFailed;
+using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Observability;
-using Saga.Service.IntegrationEvents.EventHandlers;
 
 namespace Saga.Tests.Api;
 
@@ -62,10 +69,10 @@ public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
             CausationId = reserveCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<StockReservedEventHandler, StockReservedEvent>(stockReserved);
+        await DispatchAsync<StockReservedHandler, StockReservedEvent>(stockReserved);
 
         var authorizeCommandId = await GetLatestCommandIdAsync(nameof(AuthorizePaymentCommand));
-        await DispatchAsync<PaymentAuthorizedEventHandler, PaymentAuthorizedEvent>(
+        await DispatchAsync<PaymentAuthorizedHandler, PaymentAuthorizedEvent>(
             new PaymentAuthorizedEvent(Guid.NewGuid(), orderId, "customer-1", 25m, "USD")
             {
                 CausationId = authorizeCommandId,
@@ -73,7 +80,7 @@ public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
             });
 
         var confirmCommandId = await GetLatestCommandIdAsync(nameof(ConfirmOrderCommand));
-        await DispatchAsync<OrderConfirmedEventHandler, OrderConfirmedEvent>(
+        await DispatchAsync<OrderConfirmedHandler, OrderConfirmedEvent>(
             new OrderConfirmedEvent(orderId, "customer-1")
             {
                 CausationId = confirmCommandId,
@@ -81,7 +88,7 @@ public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
             });
 
         var commitCommandId = await GetLatestCommandIdAsync(nameof(CommitStockCommand));
-        await DispatchAsync<StockCommittedEventHandler, StockCommittedEvent>(
+        await DispatchAsync<StockCommittedHandler, StockCommittedEvent>(
             new StockCommittedEvent(orderId, [new CommittedItem(101, 1, 2)])
             {
                 CausationId = commitCommandId,
@@ -89,7 +96,7 @@ public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
             });
 
         var createShipmentCommandId = await GetLatestCommandIdAsync(nameof(CreateShipmentCommand));
-        await DispatchAsync<ShipmentCreatedEventHandler, ShipmentCreatedEvent>(
+        await DispatchAsync<ShipmentCreatedHandler, ShipmentCreatedEvent>(
             new ShipmentCreatedEvent(Guid.NewGuid(), orderId, "customer-1", 1, [new ShipmentLineItem(101, 2)])
             {
                 CausationId = createShipmentCommandId,
@@ -122,13 +129,13 @@ public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
             CausationId = reserveCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<StockReservedEventHandler, StockReservedEvent>(stockReserved);
+        await DispatchAsync<StockReservedHandler, StockReservedEvent>(stockReserved);
 
         var authorizeCommandId = await GetLatestCommandIdAsync(nameof(AuthorizePaymentCommand));
 
         using var metrics = new MetricCapture();
 
-        await DispatchAsync<PaymentFailedEventHandler, PaymentFailedEvent>(
+        await DispatchAsync<PaymentFailedHandler, PaymentFailedEvent>(
             new PaymentFailedEvent(Guid.NewGuid(), orderId, "customer-1", "Declined")
             {
                 CausationId = authorizeCommandId,
@@ -151,7 +158,7 @@ public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
 
         using var metrics = new MetricCapture();
 
-        await DispatchAsync<StockReservationFailedEventHandler, StockReservationFailedEvent>(
+        await DispatchAsync<StockReservationFailedHandler, StockReservationFailedEvent>(
             new StockReservationFailedEvent(orderId, [new FailedItem(101, 2, 0)])
             {
                 CausationId = reserveCommandId,
@@ -167,7 +174,7 @@ public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
     private async Task<Guid> OpenSaga(OrderCreatedEvent orderCreated)
     {
         using var scope = _factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<OrderCreatedEventHandler>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<OrderCreatedHandler>(scope.ServiceProvider);
         await handler.Handle(orderCreated);
 
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();

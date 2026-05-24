@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.RefundSaga;
+using Saga.Service.Features.OrderSaga.ShipmentFailed;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.IntegrationEvents.EventHandlers;
 
@@ -109,7 +110,7 @@ public class RefundSagaOrchestratorTests : IClassFixture<SagaWebApplicationFacto
             CausationId = cancelShipmentCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<ShipmentFailedEventHandler, ShipmentFailedEvent>(shipmentFailed);
+        await DispatchAsync<ShipmentFailedHandler, ShipmentFailedEvent>(shipmentFailed);
 
         using (var scope = _factory.Services.CreateScope())
         {

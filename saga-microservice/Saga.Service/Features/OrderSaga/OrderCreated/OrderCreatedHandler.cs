@@ -8,9 +8,9 @@ using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Observability;
 using Saga.Service.Infrastructure.Reaper;
 
-namespace Saga.Service.IntegrationEvents.EventHandlers;
+namespace Saga.Service.Features.OrderSaga.OrderCreated;
 
-internal sealed partial class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
+internal sealed partial class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
 {
     private const string SagaType = "Order";
 
@@ -18,14 +18,14 @@ internal sealed partial class OrderCreatedEventHandler : IEventHandler<OrderCrea
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly TimeProvider _timeProvider;
     private readonly OrderSagaTimeoutScheduler _timeoutScheduler;
-    private readonly ILogger<OrderCreatedEventHandler> _logger;
+    private readonly ILogger<OrderCreatedHandler> _logger;
 
-    public OrderCreatedEventHandler(
+    public OrderCreatedHandler(
         SagaContext sagaContext,
         IOutboxUnitOfWork outboxUnitOfWork,
         TimeProvider timeProvider,
         OrderSagaTimeoutScheduler timeoutScheduler,
-        ILogger<OrderCreatedEventHandler> logger)
+        ILogger<OrderCreatedHandler> logger)
     {
         _sagaContext = sagaContext;
         _outboxUnitOfWork = outboxUnitOfWork;

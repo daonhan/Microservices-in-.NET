@@ -7,6 +7,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Features.OrderSaga.OrderConfirmed;
+using Saga.Service.Features.OrderSaga.OrderCreated;
+using Saga.Service.Features.OrderSaga.PaymentAuthorized;
+using Saga.Service.Features.OrderSaga.PaymentFailed;
+using Saga.Service.Features.OrderSaga.ShipmentCreated;
+using Saga.Service.Features.OrderSaga.StockCommitted;
+using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.IntegrationEvents.EventHandlers;
 
@@ -32,7 +39,7 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
         var reserveId = await OpenSaga(orderCreated);
         var sagaId = await GetSagaIdAsync(orderId);
 
-        await Dispatch<StockReservedEventHandler, StockReservedEvent>(new StockReservedEvent(
+        await Dispatch<StockReservedHandler, StockReservedEvent>(new StockReservedEvent(
             orderId, [new ReservedItem(101, 1, 2)], 25m, "USD")
         {
             CausationId = reserveId,
@@ -40,7 +47,7 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
         });
 
         var authorizeId = await GetLatestCommandId(nameof(AuthorizePaymentCommand));
-        await Dispatch<PaymentAuthorizedEventHandler, PaymentAuthorizedEvent>(new PaymentAuthorizedEvent(
+        await Dispatch<PaymentAuthorizedHandler, PaymentAuthorizedEvent>(new PaymentAuthorizedEvent(
             Guid.NewGuid(), orderId, "customer-1", 25m, "USD")
         {
             CausationId = authorizeId,
@@ -48,14 +55,14 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
         });
 
         var confirmId = await GetLatestCommandId(nameof(ConfirmOrderCommand));
-        await Dispatch<OrderConfirmedEventHandler, OrderConfirmedEvent>(new OrderConfirmedEvent(orderId, "customer-1")
+        await Dispatch<OrderConfirmedHandler, OrderConfirmedEvent>(new OrderConfirmedEvent(orderId, "customer-1")
         {
             CausationId = confirmId,
             SagaId = sagaId,
         });
 
         var commitId = await GetLatestCommandId(nameof(CommitStockCommand));
-        await Dispatch<StockCommittedEventHandler, StockCommittedEvent>(new StockCommittedEvent(
+        await Dispatch<StockCommittedHandler, StockCommittedEvent>(new StockCommittedEvent(
             orderId, [new CommittedItem(101, 1, 2)])
         {
             CausationId = commitId,
@@ -63,7 +70,7 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
         });
 
         var shipmentId = await GetLatestCommandId(nameof(CreateShipmentCommand));
-        await Dispatch<ShipmentCreatedEventHandler, ShipmentCreatedEvent>(new ShipmentCreatedEvent(
+        await Dispatch<ShipmentCreatedHandler, ShipmentCreatedEvent>(new ShipmentCreatedEvent(
             Guid.NewGuid(), orderId, "customer-1", 1, [new ShipmentLineItem(101, 2)])
         {
             CausationId = shipmentId,
@@ -90,7 +97,7 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
         var reserveId = await OpenSaga(orderCreated);
         var sagaId = await GetSagaIdAsync(orderId);
 
-        await Dispatch<StockReservedEventHandler, StockReservedEvent>(new StockReservedEvent(
+        await Dispatch<StockReservedHandler, StockReservedEvent>(new StockReservedEvent(
             orderId, [new ReservedItem(101, 1, 2)], 25m, "USD")
         {
             CausationId = reserveId,
@@ -98,7 +105,7 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
         });
 
         var authorizeId = await GetLatestCommandId(nameof(AuthorizePaymentCommand));
-        await Dispatch<PaymentFailedEventHandler, PaymentFailedEvent>(new PaymentFailedEvent(
+        await Dispatch<PaymentFailedHandler, PaymentFailedEvent>(new PaymentFailedEvent(
             Guid.NewGuid(), orderId, "customer-1", "Declined")
         {
             CausationId = authorizeId,
@@ -159,7 +166,7 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
     private async Task<Guid> OpenSaga(OrderCreatedEvent orderCreated)
     {
         using var scope = Factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<OrderCreatedEventHandler>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<OrderCreatedHandler>(scope.ServiceProvider);
 
         await handler.Handle(orderCreated);
 

@@ -14,6 +14,15 @@ using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Domain.RefundSaga;
 using Saga.Service.Endpoints;
+using Saga.Service.Features.OrderSaga.OrderConfirmed;
+using Saga.Service.Features.OrderSaga.OrderCreated;
+using Saga.Service.Features.OrderSaga.PaymentAuthorized;
+using Saga.Service.Features.OrderSaga.PaymentFailed;
+using Saga.Service.Features.OrderSaga.ShipmentCreated;
+using Saga.Service.Features.OrderSaga.ShipmentFailed;
+using Saga.Service.Features.OrderSaga.StockCommitted;
+using Saga.Service.Features.OrderSaga.StockReservationFailed;
+using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Observability;
 using Saga.Service.Infrastructure.Outbox;
@@ -44,21 +53,23 @@ builder.Services.AddScoped<OrderSagaReplyProcessor>();
 builder.Services.AddScoped<RefundSagaReplyProcessor>();
 builder.Services.AddHostedService<SagaReaperService>();
 
+builder.Services
+    .AddOrderCreatedSlice()
+    .AddStockReservedSlice()
+    .AddStockReservationFailedSlice()
+    .AddPaymentAuthorizedSlice()
+    .AddPaymentFailedSlice()
+    .AddOrderConfirmedSlice()
+    .AddStockCommittedSlice()
+    .AddShipmentCreatedSlice()
+    .AddShipmentFailedSlice();
+
 builder.AddPlatformOpenApi("saga");
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
     .AddEventHandler<RefundRequestedEvent, RefundRequestedEventHandler>()
-    .AddEventHandler<StockReservedEvent, StockReservedEventHandler>()
-    .AddEventHandler<StockReservationFailedEvent, StockReservationFailedEventHandler>()
-    .AddEventHandler<PaymentAuthorizedEvent, PaymentAuthorizedEventHandler>()
-    .AddEventHandler<PaymentFailedEvent, PaymentFailedEventHandler>()
-    .AddEventHandler<OrderConfirmedEvent, OrderConfirmedEventHandler>()
-    .AddEventHandler<StockCommittedEvent, StockCommittedEventHandler>()
-    .AddEventHandler<ShipmentCreatedEvent, ShipmentCreatedEventHandler>()
-    .AddEventHandler<ShipmentFailedEvent, ShipmentFailedEventHandler>()
     .AddEventHandler<StockReleasedEvent, StockReleasedEventHandler>()
     .AddEventHandler<PaymentVoidedEvent, PaymentVoidedEventHandler>()
     .AddEventHandler<PaymentRefundedEvent, PaymentRefundedEventHandler>()

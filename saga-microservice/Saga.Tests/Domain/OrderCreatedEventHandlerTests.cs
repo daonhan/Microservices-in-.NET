@@ -8,9 +8,9 @@ using Microsoft.Extensions.Options;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Features.OrderSaga.OrderCreated;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
-using Saga.Service.IntegrationEvents.EventHandlers;
 
 namespace Saga.Tests.Domain;
 
@@ -74,12 +74,12 @@ public class OrderCreatedEventHandlerTests : IClassFixture<SagaWebApplicationFac
     private async Task HandleOrderCreated(OrderCreatedEvent orderCreated)
     {
         using var scope = _factory.Services.CreateScope();
-        var handler = new OrderCreatedEventHandler(
+        var handler = new OrderCreatedHandler(
             scope.ServiceProvider.GetRequiredService<SagaContext>(),
             scope.ServiceProvider.GetRequiredService<IOutboxUnitOfWork>(),
             TimeProvider.System,
             new OrderSagaTimeoutScheduler(Options.Create(new OrderSagaTimeoutOptions())),
-            NullLogger<OrderCreatedEventHandler>.Instance);
+            NullLogger<OrderCreatedHandler>.Instance);
 
         await handler.Handle(orderCreated);
     }

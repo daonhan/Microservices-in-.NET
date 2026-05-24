@@ -7,6 +7,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Features.OrderSaga.OrderConfirmed;
+using Saga.Service.Features.OrderSaga.OrderCreated;
+using Saga.Service.Features.OrderSaga.PaymentAuthorized;
+using Saga.Service.Features.OrderSaga.PaymentFailed;
+using Saga.Service.Features.OrderSaga.ShipmentCreated;
+using Saga.Service.Features.OrderSaga.StockCommitted;
+using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.IntegrationEvents.EventHandlers;
 
@@ -55,7 +62,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             CausationId = commandId,
             SagaId = sagaId
         };
-        var handler = ActivatorUtilities.CreateInstance<StockReservedEventHandler>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<StockReservedHandler>(scope.ServiceProvider);
 
         await handler.Handle(stockReserved);
 
@@ -88,7 +95,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             CausationId = reserveCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<StockReservedEventHandler, StockReservedEvent>(stockReserved);
+        await DispatchAsync<StockReservedHandler, StockReservedEvent>(stockReserved);
 
         var authorizeCommandId = await GetLatestCommandIdAsync(nameof(AuthorizePaymentCommand));
         var paymentAuthorized = new PaymentAuthorizedEvent(
@@ -97,7 +104,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             CausationId = authorizeCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<PaymentAuthorizedEventHandler, PaymentAuthorizedEvent>(paymentAuthorized);
+        await DispatchAsync<PaymentAuthorizedHandler, PaymentAuthorizedEvent>(paymentAuthorized);
 
         var confirmCommandId = await GetLatestCommandIdAsync(nameof(ConfirmOrderCommand));
         var orderConfirmed = new OrderConfirmedEvent(orderId, "customer-1")
@@ -105,7 +112,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             CausationId = confirmCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<OrderConfirmedEventHandler, OrderConfirmedEvent>(orderConfirmed);
+        await DispatchAsync<OrderConfirmedHandler, OrderConfirmedEvent>(orderConfirmed);
 
         var commitCommandId = await GetLatestCommandIdAsync(nameof(CommitStockCommand));
         var stockCommitted = new StockCommittedEvent(orderId, [new CommittedItem(101, 1, 2)])
@@ -113,7 +120,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             CausationId = commitCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<StockCommittedEventHandler, StockCommittedEvent>(stockCommitted);
+        await DispatchAsync<StockCommittedHandler, StockCommittedEvent>(stockCommitted);
 
         var createShipmentCommandId = await GetLatestCommandIdAsync(nameof(CreateShipmentCommand));
         var shipmentCreated = new ShipmentCreatedEvent(
@@ -122,7 +129,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             CausationId = createShipmentCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<ShipmentCreatedEventHandler, ShipmentCreatedEvent>(shipmentCreated);
+        await DispatchAsync<ShipmentCreatedHandler, ShipmentCreatedEvent>(shipmentCreated);
 
         using var scope = _factory.Services.CreateScope();
         var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
@@ -150,7 +157,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             CausationId = reserveCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<StockReservedEventHandler, StockReservedEvent>(stockReserved);
+        await DispatchAsync<StockReservedHandler, StockReservedEvent>(stockReserved);
 
         var authorizeCommandId = await GetLatestCommandIdAsync(nameof(AuthorizePaymentCommand));
         var paymentFailed = new PaymentFailedEvent(
@@ -160,7 +167,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             SagaId = sagaId,
         };
 
-        await DispatchAsync<PaymentFailedEventHandler, PaymentFailedEvent>(paymentFailed);
+        await DispatchAsync<PaymentFailedHandler, PaymentFailedEvent>(paymentFailed);
 
         using (var scope = _factory.Services.CreateScope())
         {
@@ -226,7 +233,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
     private async Task Handle(OrderCreatedEvent orderCreated)
     {
         using var scope = _factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<OrderCreatedEventHandler>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<OrderCreatedHandler>(scope.ServiceProvider);
 
         await handler.Handle(orderCreated);
     }
