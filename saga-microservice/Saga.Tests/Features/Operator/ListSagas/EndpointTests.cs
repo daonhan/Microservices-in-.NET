@@ -1,24 +1,21 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
-using Saga.Service.Features.Operator.GetSaga;
 using Saga.Service.Features.Operator.ListSagas;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Tests.Authentication;
 
-namespace Saga.Tests.Api;
+namespace Saga.Tests.Features.Operator.ListSagas;
 
-public class OperatorEndpointTests : IClassFixture<SagaWebApplicationFactory>
+public class EndpointTests : IClassFixture<SagaWebApplicationFactory>
 {
     private readonly SagaWebApplicationFactory _factory;
 
-    public OperatorEndpointTests(SagaWebApplicationFactory factory)
+    public EndpointTests(SagaWebApplicationFactory factory)
     {
         _factory = factory;
     }
@@ -62,86 +59,6 @@ public class OperatorEndpointTests : IClassFixture<SagaWebApplicationFactory>
             Assert.NotNull(item.NextTimeoutAt);
             Assert.True(item.NextTimeoutAt <= DateTime.UtcNow);
         });
-    }
-
-    [Fact]
-    public async Task Given_saga_with_transitions_When_detail_requested_Then_returns_history()
-    {
-        var sagaId = await SeedSaga(OrderSagaStep.PaymentAuthorizing, SagaStatus.Running);
-
-        using var client = CreateServiceClient();
-
-        var response = await client.GetAsync($"/operator/api/sagas/{sagaId}");
-
-        response.EnsureSuccessStatusCode();
-        var detail = await response.Content.ReadFromJsonAsync<GetSagaResponse>();
-        Assert.NotNull(detail);
-        Assert.Equal(sagaId, detail.SagaId);
-        Assert.NotNull(detail.Order);
-        Assert.NotEmpty(detail.Transitions);
-        Assert.Contains(detail.Transitions, transition =>
-            transition.FromStep == OrderSagaStep.Started.ToString()
-            && transition.ToStep == OrderSagaStep.PaymentAuthorizing.ToString());
-    }
-
-    [Fact]
-    public async Task Given_running_saga_When_retry_requested_Then_last_command_is_requeued()
-    {
-        var command = new ReserveStockCommand(
-            Guid.NewGuid(),
-            "customer",
-            [new ReserveStockItem("9001", 1, 10m)],
-            "USD",
-            Guid.NewGuid(),
-            Guid.NewGuid());
-        await SeedFailedOutboxEvent(command);
-        var sagaId = await SeedSaga(OrderSagaStep.StockReserving, SagaStatus.Running, command.Id);
-
-        using var client = CreateServiceClient();
-
-        var response = await client.PostAsync($"/operator/api/sagas/{sagaId}/retry", null);
-
-        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
-        using var scope = _factory.Services.CreateScope();
-        var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
-        var pending = await store.GetUnpublishedOutboxEvents();
-        Assert.Contains(pending, row => row.Id == command.Id);
-
-        var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
-        var saga = await sagaContext.SagaInstances
-            .Include(s => s.Transitions)
-            .SingleAsync(s => s.SagaId == sagaId);
-        Assert.NotNull(saga);
-        Assert.Equal(0, saga.RetryCount);
-        Assert.Contains(saga.Transitions, transition =>
-            transition.TriggerKind == SagaTriggerKind.OperatorAction
-            && transition.TriggerMessageId == command.Id);
-    }
-
-    [Fact]
-    public async Task Given_running_saga_When_abort_requested_Then_enters_compensation_and_dispatches_reverse_command()
-    {
-        var sagaId = await SeedSaga(OrderSagaStep.PaymentAuthorizing, SagaStatus.Running);
-
-        using var client = CreateServiceClient();
-
-        var response = await client.PostAsync($"/operator/api/sagas/{sagaId}/abort", null);
-
-        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
-        using var scope = _factory.Services.CreateScope();
-        var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
-        var saga = await sagaContext.SagaInstances.FindAsync(sagaId);
-
-        Assert.NotNull(saga);
-        Assert.Equal(SagaStatus.Compensating, saga.Status);
-        Assert.Equal(OrderSagaStep.ReleasingStock.ToString(), saga.CurrentStep);
-        Assert.NotNull(saga.LastCommandId);
-
-        var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
-        var pending = await store.GetUnpublishedOutboxEvents();
-        Assert.Contains(pending, row =>
-            row.Id == saga.LastCommandId
-            && row.EventType.Contains(nameof(ReleaseStockCommand), StringComparison.Ordinal));
     }
 
     [Fact]
@@ -224,14 +141,5 @@ public class OperatorEndpointTests : IClassFixture<SagaWebApplicationFactory>
         await sagaContext.SaveChangesAsync();
 
         return sagaId;
-    }
-
-    private async Task SeedFailedOutboxEvent(ReserveStockCommand command)
-    {
-        using var scope = _factory.Services.CreateScope();
-        var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
-
-        await store.AddOutboxEvent(command);
-        await store.RecordPublishFailure(command.Id, "operator retry test", maxAttempts: 1);
     }
 }

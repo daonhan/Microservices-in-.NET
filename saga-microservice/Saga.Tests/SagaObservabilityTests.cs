@@ -18,7 +18,7 @@ using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Observability;
 
-namespace Saga.Tests.Api;
+namespace Saga.Tests;
 
 public class SagaObservabilityTests : IClassFixture<SagaWebApplicationFactory>
 {

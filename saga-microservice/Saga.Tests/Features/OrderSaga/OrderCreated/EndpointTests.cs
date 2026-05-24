@@ -7,24 +7,21 @@ using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
-using Saga.Service.Features.OrderSaga.OrderCancelled;
 using Saga.Service.Features.OrderSaga.OrderConfirmed;
 using Saga.Service.Features.OrderSaga.OrderCreated;
 using Saga.Service.Features.OrderSaga.PaymentAuthorized;
-using Saga.Service.Features.OrderSaga.PaymentFailed;
 using Saga.Service.Features.OrderSaga.ShipmentCreated;
 using Saga.Service.Features.OrderSaga.StockCommitted;
-using Saga.Service.Features.OrderSaga.StockReleased;
 using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 
-namespace Saga.Tests.Api;
+namespace Saga.Tests.Features.OrderSaga.OrderCreated;
 
-public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactory>
+public class EndpointTests : IClassFixture<SagaWebApplicationFactory>
 {
     private readonly SagaWebApplicationFactory _factory;
 
-    public OrderSagaOrchestratorTests(SagaWebApplicationFactory factory)
+    public EndpointTests(SagaWebApplicationFactory factory)
     {
         _factory = factory;
     }
@@ -38,47 +35,6 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
         await Handle(orderCreated);
 
         await AssertSagaOpened(orderCreated);
-    }
-
-    [Fact]
-    public async Task Given_StockReservingSaga_When_StockReservedReplyArrives_Then_SagaAdvancesToPaymentAuthorizing()
-    {
-        var orderId = Guid.NewGuid();
-        var orderCreated = CreateOrderCreated(orderId);
-
-        var commandId = await OpenSaga(orderCreated);
-
-        using var scope = _factory.Services.CreateScope();
-        var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
-        var sagaId = await sagaContext.OrderSagaStates
-            .Where(s => s.OrderId == orderId)
-            .Select(s => s.SagaId)
-            .SingleAsync();
-        var stockReserved = new StockReservedEvent(
-            orderId,
-            [new ReservedItem(101, 1, 2)],
-            25m,
-            "USD")
-        {
-            CausationId = commandId,
-            SagaId = sagaId
-        };
-        var handler = ActivatorUtilities.CreateInstance<StockReservedHandler>(scope.ServiceProvider);
-
-        await handler.Handle(stockReserved);
-
-        sagaContext.ChangeTracker.Clear();
-        var saga = await sagaContext.SagaInstances
-            .Include(s => s.OrderSagaState)
-            .Include(s => s.Transitions)
-            .SingleAsync(s => s.SagaId == sagaId);
-        Assert.Equal(OrderSagaStep.PaymentAuthorizing.ToString(), saga.CurrentStep);
-        Assert.Equal(nameof(AuthorizePaymentCommand), saga.OrderSagaState!.LastStepResult);
-        Assert.Equal(2, saga.Transitions.Count);
-        Assert.Contains(saga.Transitions, t =>
-            t.FromStep == OrderSagaStep.StockReserving.ToString()
-            && t.ToStep == OrderSagaStep.PaymentAuthorizing.ToString()
-            && t.TriggerMessageId == stockReserved.Id);
     }
 
     [Fact]
@@ -141,94 +97,6 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
         Assert.Equal(SagaStatus.Completed, saga.Status);
         Assert.Equal(OrderSagaStep.Completed.ToString(), saga.CurrentStep);
         Assert.Equal(6, saga.Transitions.Count);
-    }
-
-    [Fact]
-    public async Task Given_OpenSaga_When_PaymentFailedArrives_Then_SagaCompensatesAndEmitsReleaseStockCommand()
-    {
-        var orderId = Guid.NewGuid();
-        var orderCreated = CreateOrderCreated(orderId);
-
-        var reserveCommandId = await OpenSaga(orderCreated);
-        var sagaId = await GetSagaIdAsync(orderId);
-
-        var stockReserved = new StockReservedEvent(
-            orderId, [new ReservedItem(101, 1, 2)], 25m, "USD")
-        {
-            CausationId = reserveCommandId,
-            SagaId = sagaId,
-        };
-        await DispatchAsync<StockReservedHandler, StockReservedEvent>(stockReserved);
-
-        var authorizeCommandId = await GetLatestCommandIdAsync(nameof(AuthorizePaymentCommand));
-        var paymentFailed = new PaymentFailedEvent(
-            Guid.NewGuid(), orderId, "customer-1", "Declined")
-        {
-            CausationId = authorizeCommandId,
-            SagaId = sagaId,
-        };
-
-        await DispatchAsync<PaymentFailedHandler, PaymentFailedEvent>(paymentFailed);
-
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
-            sagaContext.ChangeTracker.Clear();
-            var saga = await sagaContext.SagaInstances
-                .Include(s => s.OrderSagaState)
-                .Include(s => s.Transitions)
-                .SingleAsync(s => s.SagaId == sagaId);
-
-            Assert.Equal(SagaStatus.Compensating, saga.Status);
-            Assert.Equal(OrderSagaStep.ReleasingStock.ToString(), saga.CurrentStep);
-            Assert.Equal(OrderSagaStep.StockReserved.ToString(), saga.OrderSagaState!.CompensationOrigin);
-            Assert.Contains(saga.Transitions, t =>
-                t.FromStep == OrderSagaStep.PaymentAuthorizing.ToString()
-                && t.ToStep == OrderSagaStep.ReleasingStock.ToString()
-                && t.Error != null && t.Error.Contains("Payment failed", StringComparison.Ordinal));
-
-            var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
-            var unpublished = await outboxStore.GetUnpublishedOutboxEvents();
-            Assert.Contains(unpublished, e =>
-                e.EventType.Contains(nameof(ReleaseStockCommand), StringComparison.Ordinal)
-                && e.Data.Contains(orderId.ToString(), StringComparison.OrdinalIgnoreCase));
-        }
-
-        var releaseCommandId = await GetLatestCommandIdAsync(nameof(ReleaseStockCommand));
-        var stockReleased = new StockReleasedEvent(orderId, [])
-        {
-            CausationId = releaseCommandId,
-            SagaId = sagaId,
-        };
-        await DispatchAsync<StockReleasedHandler, StockReleasedEvent>(stockReleased);
-
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
-            sagaContext.ChangeTracker.Clear();
-            var saga = await sagaContext.SagaInstances
-                .SingleAsync(s => s.SagaId == sagaId);
-            Assert.Equal(SagaStatus.Compensating, saga.Status);
-            Assert.Equal(OrderSagaStep.CancellingOrder.ToString(), saga.CurrentStep);
-        }
-
-        var cancelCommandId = await GetLatestCommandIdAsync(nameof(CancelOrderCommand));
-        var orderCancelled = new OrderCancelledEvent(orderId, "customer-1")
-        {
-            CausationId = cancelCommandId,
-            SagaId = sagaId,
-        };
-        await DispatchAsync<OrderCancelledHandler, OrderCancelledEvent>(orderCancelled);
-
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
-            sagaContext.ChangeTracker.Clear();
-            var saga = await sagaContext.SagaInstances
-                .SingleAsync(s => s.SagaId == sagaId);
-            Assert.Equal(SagaStatus.Compensated, saga.Status);
-            Assert.Equal(OrderSagaStep.Compensated.ToString(), saga.CurrentStep);
-        }
     }
 
     private async Task Handle(OrderCreatedEvent orderCreated)
