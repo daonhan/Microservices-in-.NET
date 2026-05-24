@@ -1,6 +1,7 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Saga.Service.Contracts.Integration.InboundEvents;
+using Saga.Service.Domain.Abstractions;
 
 namespace Saga.Service.Domain.RefundSaga;
 
@@ -12,7 +13,7 @@ internal static class RefundSagaStateMachine
 {
     private const string ShipmentCancelReason = "Refund saga: cancelling shipment for refunded order.";
 
-    public static RefundSagaTransitionResult Transition(RefundSagaStateSnapshot state, Event trigger)
+    public static TransitionResult<RefundSagaStateSnapshot> Transition(RefundSagaStateSnapshot state, Event trigger)
     {
         return trigger switch
         {
@@ -26,7 +27,7 @@ internal static class RefundSagaStateMachine
         };
     }
 
-    private static RefundSagaTransitionResult OnRefundRequested(
+    private static TransitionResult<RefundSagaStateSnapshot> OnRefundRequested(
         RefundSagaStateSnapshot state,
         RefundRequestedEvent @event)
     {
@@ -50,10 +51,10 @@ internal static class RefundSagaStateMachine
             LastStepResult = nameof(RefundPaymentCommand)
         };
 
-        return new RefundSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<RefundSagaStateSnapshot>(next, [command], Changed: true);
     }
 
-    private static RefundSagaTransitionResult OnPaymentRefunded(
+    private static TransitionResult<RefundSagaStateSnapshot> OnPaymentRefunded(
         RefundSagaStateSnapshot state,
         PaymentRefundedEvent @event)
     {
@@ -71,7 +72,7 @@ internal static class RefundSagaStateMachine
                 Status = SagaStatus.Completed,
                 LastStepResult = nameof(PaymentRefundedEvent)
             };
-            return new RefundSagaTransitionResult(done, [], Changed: true);
+            return new TransitionResult<RefundSagaStateSnapshot>(done, [], Changed: true);
         }
 
         var command = new CancelShipmentCommand(
@@ -89,10 +90,10 @@ internal static class RefundSagaStateMachine
             LastStepResult = nameof(CancelShipmentCommand)
         };
 
-        return new RefundSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<RefundSagaStateSnapshot>(next, [command], Changed: true);
     }
 
-    private static RefundSagaTransitionResult OnPaymentFailed(
+    private static TransitionResult<RefundSagaStateSnapshot> OnPaymentFailed(
         RefundSagaStateSnapshot state,
         PaymentFailedEvent @event)
     {
@@ -107,10 +108,10 @@ internal static class RefundSagaStateMachine
             Status = SagaStatus.Failed,
             LastStepResult = nameof(PaymentFailedEvent)
         };
-        return new RefundSagaTransitionResult(failed, [], Changed: true);
+        return new TransitionResult<RefundSagaStateSnapshot>(failed, [], Changed: true);
     }
 
-    private static RefundSagaTransitionResult OnShipmentCancelled(
+    private static TransitionResult<RefundSagaStateSnapshot> OnShipmentCancelled(
         RefundSagaStateSnapshot state,
         ShipmentCancelledEvent @event)
     {
@@ -125,10 +126,10 @@ internal static class RefundSagaStateMachine
             Status = SagaStatus.Completed,
             LastStepResult = nameof(ShipmentCancelledEvent)
         };
-        return new RefundSagaTransitionResult(completed, [], Changed: true);
+        return new TransitionResult<RefundSagaStateSnapshot>(completed, [], Changed: true);
     }
 
-    private static RefundSagaTransitionResult OnShipmentFailed(
+    private static TransitionResult<RefundSagaStateSnapshot> OnShipmentFailed(
         RefundSagaStateSnapshot state,
         ShipmentFailedEvent @event)
     {
@@ -151,10 +152,10 @@ internal static class RefundSagaStateMachine
             LastStepResult = nameof(CancelOrderCommand)
         };
 
-        return new RefundSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<RefundSagaStateSnapshot>(next, [command], Changed: true);
     }
 
-    private static RefundSagaTransitionResult OnOrderCancelled(
+    private static TransitionResult<RefundSagaStateSnapshot> OnOrderCancelled(
         RefundSagaStateSnapshot state,
         OrderCancelledEvent @event)
     {
@@ -171,7 +172,7 @@ internal static class RefundSagaStateMachine
             Status = SagaStatus.Compensated,
             LastStepResult = nameof(OrderCancelledEvent)
         };
-        return new RefundSagaTransitionResult(compensated, [], Changed: true);
+        return new TransitionResult<RefundSagaStateSnapshot>(compensated, [], Changed: true);
     }
 
     // A reply is acted on only when it matches the in-flight step for this saga.
@@ -185,6 +186,6 @@ internal static class RefundSagaStateMachine
         && state.Status == SagaStatus.Running
         && eventOrderId == state.OrderId;
 
-    private static RefundSagaTransitionResult NoChange(RefundSagaStateSnapshot state) =>
+    private static TransitionResult<RefundSagaStateSnapshot> NoChange(RefundSagaStateSnapshot state) =>
         new(state, [], Changed: false);
 }

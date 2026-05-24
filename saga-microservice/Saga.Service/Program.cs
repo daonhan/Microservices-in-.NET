@@ -10,7 +10,9 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
+using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Domain.RefundSaga;
 using Saga.Service.Endpoints;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Observability;
@@ -32,6 +34,12 @@ builder.Services.Configure<SagaReaperOptions>(
 builder.Services.Configure<OrderSagaTimeoutOptions>(
     builder.Configuration.GetSection("Saga:OrderSaga"));
 builder.Services.AddSingleton<OrderSagaTimeoutScheduler>();
+builder.Services.AddScoped<EfOrderSagaTransitionRunner>();
+builder.Services.AddScoped<ISagaTransitionRunner<OrderSagaStateSnapshot, Event>>(
+    sp => sp.GetRequiredService<EfOrderSagaTransitionRunner>());
+builder.Services.AddScoped<EfRefundSagaTransitionRunner>();
+builder.Services.AddScoped<ISagaTransitionRunner<RefundSagaStateSnapshot, Event>>(
+    sp => sp.GetRequiredService<EfRefundSagaTransitionRunner>());
 builder.Services.AddScoped<OrderSagaReplyProcessor>();
 builder.Services.AddScoped<RefundSagaReplyProcessor>();
 builder.Services.AddHostedService<SagaReaperService>();

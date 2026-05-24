@@ -1,12 +1,13 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Saga.Service.Contracts.Integration.InboundEvents;
+using Saga.Service.Domain.Abstractions;
 
 namespace Saga.Service.Domain.OrderSaga;
 
 internal static class OrderSagaStateMachine
 {
-    public static OrderSagaTransitionResult Transition(OrderSagaStateSnapshot state, Event trigger)
+    public static TransitionResult<OrderSagaStateSnapshot> Transition(OrderSagaStateSnapshot state, Event trigger)
     {
         return trigger switch
         {
@@ -31,7 +32,7 @@ internal static class OrderSagaStateMachine
     // Begin compensation for the given last-completed step. Caller maps origin
     // from the saga's current step (failure events) or supplies it directly
     // (operator-driven abort, reaper escalation).
-    public static OrderSagaTransitionResult BeginCompensation(
+    public static TransitionResult<OrderSagaStateSnapshot> BeginCompensation(
         OrderSagaStateSnapshot state,
         OrderSagaStep origin,
         Event trigger)
@@ -49,7 +50,7 @@ internal static class OrderSagaStateMachine
                 Status = SagaStatus.Failed,
                 LastStepResult = trigger.GetType().Name
             };
-            return new OrderSagaTransitionResult(failed, [], Changed: true);
+            return new TransitionResult<OrderSagaStateSnapshot>(failed, [], Changed: true);
         }
 
         var firstStep = sequence[0];
@@ -62,7 +63,7 @@ internal static class OrderSagaStateMachine
             LastStepResult = command.GetType().Name
         };
 
-        return new OrderSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<OrderSagaStateSnapshot>(next, [command], Changed: true);
     }
 
     public static OrderSagaStep GetLastCompletedStep(OrderSagaStep currentStep) =>
@@ -76,7 +77,7 @@ internal static class OrderSagaStateMachine
             _ => currentStep
         };
 
-    private static OrderSagaTransitionResult OnOrderCreated(
+    private static TransitionResult<OrderSagaStateSnapshot> OnOrderCreated(
         OrderSagaStateSnapshot state,
         OrderCreatedEvent @event)
     {
@@ -104,10 +105,10 @@ internal static class OrderSagaStateMachine
             LastStepResult = nameof(ReserveStockCommand)
         };
 
-        return new OrderSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<OrderSagaStateSnapshot>(next, [command], Changed: true);
     }
 
-    private static OrderSagaTransitionResult OnStockReserved(
+    private static TransitionResult<OrderSagaStateSnapshot> OnStockReserved(
         OrderSagaStateSnapshot state,
         StockReservedEvent @event)
     {
@@ -133,10 +134,10 @@ internal static class OrderSagaStateMachine
             Amount = @event.Amount
         };
 
-        return new OrderSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<OrderSagaStateSnapshot>(next, [command], Changed: true);
     }
 
-    private static OrderSagaTransitionResult OnPaymentAuthorized(
+    private static TransitionResult<OrderSagaStateSnapshot> OnPaymentAuthorized(
         OrderSagaStateSnapshot state,
         PaymentAuthorizedEvent @event)
     {
@@ -156,10 +157,10 @@ internal static class OrderSagaStateMachine
             LastStepResult = nameof(ConfirmOrderCommand)
         };
 
-        return new OrderSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<OrderSagaStateSnapshot>(next, [command], Changed: true);
     }
 
-    private static OrderSagaTransitionResult OnOrderConfirmed(
+    private static TransitionResult<OrderSagaStateSnapshot> OnOrderConfirmed(
         OrderSagaStateSnapshot state,
         OrderConfirmedEvent @event)
     {
@@ -179,10 +180,10 @@ internal static class OrderSagaStateMachine
             LastStepResult = nameof(CommitStockCommand)
         };
 
-        return new OrderSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<OrderSagaStateSnapshot>(next, [command], Changed: true);
     }
 
-    private static OrderSagaTransitionResult OnStockCommitted(
+    private static TransitionResult<OrderSagaStateSnapshot> OnStockCommitted(
         OrderSagaStateSnapshot state,
         StockCommittedEvent @event)
     {
@@ -208,10 +209,10 @@ internal static class OrderSagaStateMachine
             LastStepResult = nameof(CreateShipmentCommand)
         };
 
-        return new OrderSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<OrderSagaStateSnapshot>(next, [command], Changed: true);
     }
 
-    private static OrderSagaTransitionResult OnShipmentCreated(
+    private static TransitionResult<OrderSagaStateSnapshot> OnShipmentCreated(
         OrderSagaStateSnapshot state,
         ShipmentCreatedEvent @event)
     {
@@ -227,10 +228,10 @@ internal static class OrderSagaStateMachine
             LastStepResult = nameof(ShipmentCreatedEvent)
         };
 
-        return new OrderSagaTransitionResult(next, [], Changed: true);
+        return new TransitionResult<OrderSagaStateSnapshot>(next, [], Changed: true);
     }
 
-    private static OrderSagaTransitionResult OnStockReservationFailed(
+    private static TransitionResult<OrderSagaStateSnapshot> OnStockReservationFailed(
         OrderSagaStateSnapshot state,
         StockReservationFailedEvent @event)
     {
@@ -242,7 +243,7 @@ internal static class OrderSagaStateMachine
         return BeginCompensation(state, OrderSagaStep.Started, @event);
     }
 
-    private static OrderSagaTransitionResult OnPaymentFailed(
+    private static TransitionResult<OrderSagaStateSnapshot> OnPaymentFailed(
         OrderSagaStateSnapshot state,
         PaymentFailedEvent @event)
     {
@@ -254,7 +255,7 @@ internal static class OrderSagaStateMachine
         return BeginCompensation(state, OrderSagaStep.StockReserved, @event);
     }
 
-    private static OrderSagaTransitionResult OnShipmentFailed(
+    private static TransitionResult<OrderSagaStateSnapshot> OnShipmentFailed(
         OrderSagaStateSnapshot state,
         ShipmentFailedEvent @event)
     {
@@ -269,7 +270,7 @@ internal static class OrderSagaStateMachine
     // Compensation replies advance through the sequence keyed by CompensationOrigin.
     // If the saga is past `expectedStep`, the reply is dropped (at-least-once redelivery).
     // If a reply arrives without a known sequence, the saga parks in Failed.
-    private static OrderSagaTransitionResult OnCompensationReply(
+    private static TransitionResult<OrderSagaStateSnapshot> OnCompensationReply(
         OrderSagaStateSnapshot state,
         Event trigger,
         OrderSagaStep expectedStep)
@@ -286,7 +287,7 @@ internal static class OrderSagaStateMachine
                 Status = SagaStatus.Failed,
                 LastStepResult = trigger.GetType().Name
             };
-            return new OrderSagaTransitionResult(failed, [], Changed: true);
+            return new TransitionResult<OrderSagaStateSnapshot>(failed, [], Changed: true);
         }
 
         var sequence = GetCompensationSequence(origin);
@@ -304,7 +305,7 @@ internal static class OrderSagaStateMachine
                 Status = SagaStatus.Compensated,
                 LastStepResult = trigger.GetType().Name
             };
-            return new OrderSagaTransitionResult(completed, [], Changed: true);
+            return new TransitionResult<OrderSagaStateSnapshot>(completed, [], Changed: true);
         }
 
         var nextStep = sequence[index + 1];
@@ -315,7 +316,7 @@ internal static class OrderSagaStateMachine
             LastStepResult = command.GetType().Name
         };
 
-        return new OrderSagaTransitionResult(next, [command], Changed: true);
+        return new TransitionResult<OrderSagaStateSnapshot>(next, [command], Changed: true);
     }
 
     private static IReadOnlyList<OrderSagaStep> GetCompensationSequence(OrderSagaStep origin) =>
@@ -385,7 +386,7 @@ internal static class OrderSagaStateMachine
         && eventOrderId == state.OrderId
         && eventSagaId == state.SagaId;
 
-    private static OrderSagaTransitionResult NoChange(OrderSagaStateSnapshot state) =>
+    private static TransitionResult<OrderSagaStateSnapshot> NoChange(OrderSagaStateSnapshot state) =>
         new(state, [], Changed: false);
 
     private static int IndexOf(IReadOnlyList<OrderSagaStep> sequence, OrderSagaStep step)
