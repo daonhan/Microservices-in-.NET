@@ -30,9 +30,8 @@ public sealed class SagaEndToEndWebApplicationFactory : WebApplicationFactory<Pr
             configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:Default"] = _sqlConnectionString,
-                // RabbitMQ is only used to satisfy the eager singleton wired by AddPlatformEventBus.
                 // The RabbitMqHostedService is removed in ConfigureWebHost so no consumers run; we
-                // drive handlers directly via DI. The dev stack's rabbitmq on localhost:5672 is reused.
+                // drive handlers directly via DI.
                 ["RabbitMq:HostName"] = "localhost",
                 ["EventBus:QueueName"] = $"saga-end-to-end-{Guid.NewGuid():N}",
                 ["Outbox:PublishIntervalInSeconds"] = "60",
