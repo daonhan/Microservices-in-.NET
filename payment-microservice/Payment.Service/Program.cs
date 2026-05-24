@@ -7,7 +7,6 @@ using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using Payment.Service.Domain.Abstractions;
-using Payment.Service.Endpoints;
 using Payment.Service.Features.AuthorizePaymentCommand;
 using Payment.Service.Features.CapturePayment;
 using Payment.Service.Features.CapturePaymentCommand;
