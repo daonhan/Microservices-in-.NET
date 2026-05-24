@@ -4,8 +4,8 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.Outbox.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Contracts.Integration;
-using Payment.Service.Endpoints;
 using Payment.Service.Features.CapturePaymentCommand;
+using Payment.Service.Features.RefundPayment;
 using Payment.Service.Features.RefundPaymentCommand;
 
 namespace Payment.Tests.Api;
@@ -63,7 +63,7 @@ public class MultiProducerWiringTests : IntegrationTestBase
         var httpPaymentId = await SeedCapturedPaymentAsync(amount: 9.99m);
         var httpResponse = await CreateAuthenticatedClient().PostAsJsonAsync(
             $"/{httpPaymentId}/refund",
-            new PaymentApiEndpoints.RefundPaymentRequest(Amount: null));
+            new RefundPaymentRequest(Amount: null));
         httpResponse.EnsureSuccessStatusCode();
 
         var (sagaPaymentId, sagaOrderId) = await SeedCapturedPaymentWithOrderAsync(amount: 9.99m);

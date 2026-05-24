@@ -1,7 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
-using Payment.Service.Endpoints;
 using Payment.Tests.Authentication;
+using GetByIdPaymentResponse = Payment.Service.Features.GetPaymentById.PaymentResponse;
+using GetByOrderPaymentResponse = Payment.Service.Features.GetPaymentByOrder.PaymentResponse;
 
 namespace Payment.Tests.Api;
 
@@ -20,7 +21,7 @@ public class PaymentOwnershipTests : IntegrationTestBase
         var response = await CreateCustomerClient(customerId).GetAsync($"/by-order/{orderId}");
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<PaymentApiEndpoints.PaymentResponse>();
+        var body = await response.Content.ReadFromJsonAsync<GetByOrderPaymentResponse>();
         Assert.NotNull(body);
         Assert.Equal(paymentId, body.PaymentId);
         Assert.Equal(orderId, body.OrderId);
@@ -45,7 +46,7 @@ public class PaymentOwnershipTests : IntegrationTestBase
         var response = await CreateAuthenticatedClient().GetAsync($"/by-order/{orderId}");
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<PaymentApiEndpoints.PaymentResponse>();
+        var body = await response.Content.ReadFromJsonAsync<GetByOrderPaymentResponse>();
         Assert.NotNull(body);
         Assert.Equal(paymentId, body.PaymentId);
     }
@@ -74,7 +75,7 @@ public class PaymentOwnershipTests : IntegrationTestBase
         var response = await CreateCustomerClient(customerId).GetAsync($"/{paymentId}");
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<PaymentApiEndpoints.PaymentResponse>();
+        var body = await response.Content.ReadFromJsonAsync<GetByIdPaymentResponse>();
         Assert.NotNull(body);
         Assert.Equal(paymentId, body.PaymentId);
     }

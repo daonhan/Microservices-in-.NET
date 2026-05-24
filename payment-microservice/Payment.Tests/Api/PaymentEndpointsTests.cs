@@ -4,8 +4,10 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
-using Payment.Service.Endpoints;
 using Payment.Tests.Authentication;
+using CapturePaymentResponse = Payment.Service.Features.CapturePayment.PaymentResponse;
+using RefundPaymentRequest = Payment.Service.Features.RefundPayment.RefundPaymentRequest;
+using RefundPaymentResponse = Payment.Service.Features.RefundPayment.PaymentResponse;
 
 namespace Payment.Tests.Api;
 
@@ -26,7 +28,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
             content: null);
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<PaymentApiEndpoints.PaymentResponse>();
+        var body = await response.Content.ReadFromJsonAsync<CapturePaymentResponse>();
         Assert.NotNull(body);
         Assert.Equal(PaymentStatus.Captured.ToString(), body.Status);
 
@@ -43,7 +45,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
             content: null);
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<PaymentApiEndpoints.PaymentResponse>();
+        var body = await response.Content.ReadFromJsonAsync<CapturePaymentResponse>();
         Assert.NotNull(body);
         Assert.Equal(PaymentStatus.Captured.ToString(), body.Status);
 
@@ -101,10 +103,10 @@ public class PaymentEndpointsTests : IntegrationTestBase
 
         var response = await CreateAuthenticatedClient().PostAsJsonAsync(
             $"/{paymentId}/refund",
-            new PaymentApiEndpoints.RefundPaymentRequest(Amount: null));
+            new RefundPaymentRequest(Amount: null));
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<PaymentApiEndpoints.PaymentResponse>();
+        var body = await response.Content.ReadFromJsonAsync<RefundPaymentResponse>();
         Assert.NotNull(body);
         Assert.Equal(PaymentStatus.Refunded.ToString(), body.Status);
 
@@ -121,7 +123,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
             content: null);
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<PaymentApiEndpoints.PaymentResponse>();
+        var body = await response.Content.ReadFromJsonAsync<RefundPaymentResponse>();
         Assert.NotNull(body);
         Assert.Equal(PaymentStatus.Refunded.ToString(), body.Status);
     }
@@ -133,7 +135,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
 
         var response = await CreateAuthenticatedClient().PostAsJsonAsync(
             $"/{paymentId}/refund",
-            new PaymentApiEndpoints.RefundPaymentRequest(Amount: null));
+            new RefundPaymentRequest(Amount: null));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -145,7 +147,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
 
         var response = await CreateAuthenticatedClient().PostAsJsonAsync(
             $"/{paymentId}/refund",
-            new PaymentApiEndpoints.RefundPaymentRequest(Amount: null));
+            new RefundPaymentRequest(Amount: null));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         await AssertOutboxContainsAsync(nameof(PaymentRefundedEvent), paymentId, expectedCount: 0);
@@ -156,7 +158,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
     {
         var response = await CreateAuthenticatedClient().PostAsJsonAsync(
             $"/{Guid.NewGuid()}/refund",
-            new PaymentApiEndpoints.RefundPaymentRequest(Amount: null));
+            new RefundPaymentRequest(Amount: null));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -168,7 +170,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
 
         var response = await CreateCustomerClient("cust-1").PostAsJsonAsync(
             $"/{paymentId}/refund",
-            new PaymentApiEndpoints.RefundPaymentRequest(Amount: null));
+            new RefundPaymentRequest(Amount: null));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -178,7 +180,7 @@ public class PaymentEndpointsTests : IntegrationTestBase
     {
         var response = await HttpClient.PostAsJsonAsync(
             $"/{Guid.NewGuid()}/refund",
-            new PaymentApiEndpoints.RefundPaymentRequest(Amount: null));
+            new RefundPaymentRequest(Amount: null));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

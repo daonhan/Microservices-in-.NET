@@ -6,7 +6,6 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
-using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain.Abstractions;
 using Payment.Service.Endpoints;
 using Payment.Service.Features.AuthorizePaymentCommand;
@@ -14,6 +13,7 @@ using Payment.Service.Features.CapturePayment;
 using Payment.Service.Features.CapturePaymentCommand;
 using Payment.Service.Features.GetPaymentById;
 using Payment.Service.Features.GetPaymentByOrder;
+using Payment.Service.Features.OrderCreated;
 using Payment.Service.Features.RefundPayment;
 using Payment.Service.Features.RefundPaymentCommand;
 using Payment.Service.Features.VoidPaymentCommand;
@@ -21,7 +21,6 @@ using Payment.Service.Infrastructure.Data.EntityFramework;
 using Payment.Service.Infrastructure.Gateways;
 using Payment.Service.Infrastructure.Observability;
 using Payment.Service.Infrastructure.Outbox;
-using Payment.Service.IntegrationEvents.EventHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,14 +38,14 @@ builder.Services.AddAuthorizePaymentCommandSlice();
 builder.Services.AddCapturePaymentCommandSlice();
 builder.Services.AddVoidPaymentCommandSlice();
 builder.Services.AddRefundPaymentCommandSlice();
+builder.Services.AddOrderCreatedSlice();
 
 builder.Services.AddScoped<MessageCorrelationContext>();
 builder.Services.AddScoped<DomainEventOutboxInterceptor>();
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
-    .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>();
+    .AddPlatformSubscriberService(builder.Configuration);
 
 builder.AddPlatformObservability("Payment",
     customTracing: t => t.WithSqlInstrumentation());
@@ -91,7 +90,6 @@ app.MapGetPaymentById();
 app.MapGetPaymentByOrder();
 app.MapCapturePayment();
 app.MapRefundPayment();
-app.RegisterEndpoints();
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();

@@ -2,13 +2,13 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain.Abstractions;
 
-namespace Payment.Service.IntegrationEvents.EventHandlers;
+namespace Payment.Service.Features.OrderCreated;
 
-internal class OrderCreatedEventHandler : IEventHandler<OrderCreatedEvent>
+internal sealed class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
 {
     private readonly IPaymentStore _paymentStore;
 
-    public OrderCreatedEventHandler(IPaymentStore paymentStore)
+    public OrderCreatedHandler(IPaymentStore paymentStore)
     {
         _paymentStore = paymentStore;
     }
