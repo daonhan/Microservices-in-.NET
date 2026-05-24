@@ -6,20 +6,17 @@ using Payment.Service.LayoutAnalyzer;
 
 namespace Payment.Tests.Architecture;
 
-// Scaffolded in Phase 1 (issue #227) with every test skipped; the analyzer detection logic and
-// these tests are unskipped and enforced in Phase 10 (issue #240).
 public class LayoutAnalyzerTests
 {
-    private const string Phase10 = "enabled in Phase 10";
-
-    [Fact(Skip = Phase10)]
+    [Fact]
     public async Task Domain_WhenFullyQualifiedInfrastructureReference_ThenReportsDomainRule()
     {
         const string targetSource = """
+            using Payment.Service.Infrastructure.Data.EntityFramework;
             namespace Payment.Service.Domain;
             public sealed class Sample
             {
-                private Payment.Service.Infrastructure.Data.EntityFramework.PaymentContext? _context;
+                private PaymentContext? _context;
             }
             """;
         const string referencedSource = """
@@ -32,14 +29,15 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.DomainRuleId);
     }
 
-    [Fact(Skip = Phase10)]
+    [Fact]
     public async Task Feature_WhenFullyQualifiedOtherSliceReference_ThenReportsFeatureRule()
     {
         const string targetSource = """
+            using Payment.Service.Features.RefundPayment;
             namespace Payment.Service.Features.CapturePayment;
             public sealed class Sample
             {
-                private Payment.Service.Features.RefundPayment.RefundHandler? _handler;
+                private RefundHandler? _handler;
             }
             """;
         const string referencedSource = """
@@ -52,14 +50,15 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.FeatureSliceRuleId);
     }
 
-    [Fact(Skip = Phase10)]
+    [Fact]
     public async Task Infrastructure_WhenFullyQualifiedFeatureReference_ThenReportsInfrastructureRule()
     {
         const string targetSource = """
+            using Payment.Service.Features.CapturePayment;
             namespace Payment.Service.Infrastructure.Outbox;
             public sealed class Sample
             {
-                private Payment.Service.Features.CapturePayment.CaptureHandler? _handler;
+                private CaptureHandler? _handler;
             }
             """;
         const string referencedSource = """
@@ -70,6 +69,27 @@ public class LayoutAnalyzerTests
         var diagnostics = await GetDiagnosticsAsync(targetSource, referencedSource);
 
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.InfrastructureRuleId);
+    }
+
+    [Fact]
+    public async Task Contracts_WhenFullyQualifiedDomainReference_ThenReportsContractsRule()
+    {
+        const string targetSource = """
+            using Payment.Service.Domain;
+            namespace Payment.Service.Contracts.Integration;
+            public sealed class Sample
+            {
+                private PaymentAggregate? _aggregate;
+            }
+            """;
+        const string referencedSource = """
+            namespace Payment.Service.Domain;
+            public sealed class PaymentAggregate { }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(targetSource, referencedSource);
+
+        Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.ContractsRuleId);
     }
 
     private static async Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync(params string[] sources)

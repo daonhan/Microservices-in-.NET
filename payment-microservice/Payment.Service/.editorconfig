@@ -1,7 +1,0 @@
-# Payment.Service.LayoutAnalyzer boundary rules.
-# Phase 1 scaffold (issue #227): rules are off (silent); the analyzer has no detection logic yet.
-# Promoted to error in Phase 10 (issue #240) once the VSA layout is in place.
-[*.cs]
-dotnet_diagnostic.PAYLAY001.severity = silent
-dotnet_diagnostic.PAYLAY002.severity = silent
-dotnet_diagnostic.PAYLAY003.severity = silent
