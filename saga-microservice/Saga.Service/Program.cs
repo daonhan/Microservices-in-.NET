@@ -14,13 +14,18 @@ using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Domain.RefundSaga;
 using Saga.Service.Endpoints;
+using Saga.Service.Features.OrderSaga.OrderCancelled;
 using Saga.Service.Features.OrderSaga.OrderConfirmed;
 using Saga.Service.Features.OrderSaga.OrderCreated;
 using Saga.Service.Features.OrderSaga.PaymentAuthorized;
 using Saga.Service.Features.OrderSaga.PaymentFailed;
+using Saga.Service.Features.OrderSaga.PaymentRefunded;
+using Saga.Service.Features.OrderSaga.PaymentVoided;
+using Saga.Service.Features.OrderSaga.ShipmentCancelled;
 using Saga.Service.Features.OrderSaga.ShipmentCreated;
 using Saga.Service.Features.OrderSaga.ShipmentFailed;
 using Saga.Service.Features.OrderSaga.StockCommitted;
+using Saga.Service.Features.OrderSaga.StockReleased;
 using Saga.Service.Features.OrderSaga.StockReservationFailed;
 using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
@@ -49,7 +54,6 @@ builder.Services.AddScoped<ISagaTransitionRunner<OrderSagaStateSnapshot, Event>>
 builder.Services.AddScoped<EfRefundSagaTransitionRunner>();
 builder.Services.AddScoped<ISagaTransitionRunner<RefundSagaStateSnapshot, Event>>(
     sp => sp.GetRequiredService<EfRefundSagaTransitionRunner>());
-builder.Services.AddScoped<OrderSagaReplyProcessor>();
 builder.Services.AddScoped<RefundSagaReplyProcessor>();
 builder.Services.AddHostedService<SagaReaperService>();
 
@@ -62,19 +66,19 @@ builder.Services
     .AddOrderConfirmedSlice()
     .AddStockCommittedSlice()
     .AddShipmentCreatedSlice()
-    .AddShipmentFailedSlice();
+    .AddShipmentFailedSlice()
+    .AddStockReleasedSlice()
+    .AddPaymentVoidedSlice()
+    .AddPaymentRefundedSlice()
+    .AddOrderCancelledSlice()
+    .AddShipmentCancelledSlice();
 
 builder.AddPlatformOpenApi("saga");
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
     .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<RefundRequestedEvent, RefundRequestedEventHandler>()
-    .AddEventHandler<StockReleasedEvent, StockReleasedEventHandler>()
-    .AddEventHandler<PaymentVoidedEvent, PaymentVoidedEventHandler>()
-    .AddEventHandler<PaymentRefundedEvent, PaymentRefundedEventHandler>()
-    .AddEventHandler<OrderCancelledEvent, OrderCancelledEventHandler>()
-    .AddEventHandler<ShipmentCancelledEvent, ShipmentCancelledEventHandler>();
+    .AddEventHandler<RefundRequestedEvent, RefundRequestedEventHandler>();
 
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation().AddSource(SagaTelemetry.ActivitySourceName),

@@ -7,12 +7,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Features.OrderSaga.OrderCancelled;
 using Saga.Service.Features.OrderSaga.OrderConfirmed;
 using Saga.Service.Features.OrderSaga.OrderCreated;
 using Saga.Service.Features.OrderSaga.PaymentAuthorized;
 using Saga.Service.Features.OrderSaga.PaymentFailed;
 using Saga.Service.Features.OrderSaga.ShipmentCreated;
 using Saga.Service.Features.OrderSaga.StockCommitted;
+using Saga.Service.Features.OrderSaga.StockReleased;
 using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.IntegrationEvents.EventHandlers;
@@ -123,7 +125,7 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
         }
 
         var releaseId = await GetLatestCommandId(nameof(ReleaseStockCommand));
-        await Dispatch<StockReleasedEventHandler, StockReleasedEvent>(new StockReleasedEvent(orderId, [])
+        await Dispatch<StockReleasedHandler, StockReleasedEvent>(new StockReleasedEvent(orderId, [])
         {
             CausationId = releaseId,
             SagaId = sagaId,
@@ -140,7 +142,7 @@ public sealed class OrderSagaEndToEndTests : IClassFixture<SagaEndToEndFixture>
         }
 
         var cancelId = await GetLatestCommandId(nameof(CancelOrderCommand));
-        await Dispatch<OrderCancelledEventHandler, OrderCancelledEvent>(new OrderCancelledEvent(orderId, "customer-1")
+        await Dispatch<OrderCancelledHandler, OrderCancelledEvent>(new OrderCancelledEvent(orderId, "customer-1")
         {
             CausationId = cancelId,
             SagaId = sagaId,

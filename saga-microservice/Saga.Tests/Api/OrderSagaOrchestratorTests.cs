@@ -7,12 +7,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Features.OrderSaga.OrderCancelled;
 using Saga.Service.Features.OrderSaga.OrderConfirmed;
 using Saga.Service.Features.OrderSaga.OrderCreated;
 using Saga.Service.Features.OrderSaga.PaymentAuthorized;
 using Saga.Service.Features.OrderSaga.PaymentFailed;
 using Saga.Service.Features.OrderSaga.ShipmentCreated;
 using Saga.Service.Features.OrderSaga.StockCommitted;
+using Saga.Service.Features.OrderSaga.StockReleased;
 using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.IntegrationEvents.EventHandlers;
@@ -199,7 +201,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             CausationId = releaseCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<StockReleasedEventHandler, StockReleasedEvent>(stockReleased);
+        await DispatchAsync<StockReleasedHandler, StockReleasedEvent>(stockReleased);
 
         using (var scope = _factory.Services.CreateScope())
         {
@@ -217,7 +219,7 @@ public class OrderSagaOrchestratorTests : IClassFixture<SagaWebApplicationFactor
             CausationId = cancelCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<OrderCancelledEventHandler, OrderCancelledEvent>(orderCancelled);
+        await DispatchAsync<OrderCancelledHandler, OrderCancelledEvent>(orderCancelled);
 
         using (var scope = _factory.Services.CreateScope())
         {
