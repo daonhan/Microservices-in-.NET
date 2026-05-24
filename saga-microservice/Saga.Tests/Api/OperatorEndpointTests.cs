@@ -6,8 +6,9 @@ using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.ApiModels;
+using Saga.Service.Domain;
+using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Infrastructure.Data.EntityFramework;
-using Saga.Service.Models;
 using Saga.Tests.Authentication;
 
 namespace Saga.Tests.Api;

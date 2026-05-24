@@ -1,4 +1,7 @@
-namespace Saga.Service.Models;
+using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Domain.RefundSaga;
+
+namespace Saga.Service.Domain;
 
 internal sealed class SagaInstance
 {

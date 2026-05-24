@@ -1,6 +1,4 @@
-using Saga.Service.Models;
-
-namespace Saga.Service.StateMachines;
+namespace Saga.Service.Domain.RefundSaga;
 
 internal sealed record RefundSagaStateSnapshot(
     Guid SagaId,

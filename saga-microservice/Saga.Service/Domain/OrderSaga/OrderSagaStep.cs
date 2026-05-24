@@ -1,4 +1,4 @@
-namespace Saga.Service.Models;
+namespace Saga.Service.Domain.OrderSaga;
 
 internal enum OrderSagaStep
 {

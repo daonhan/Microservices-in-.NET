@@ -2,10 +2,10 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Saga.Service.Contracts.Integration.InboundEvents;
+using Saga.Service.Domain;
+using Saga.Service.Domain.RefundSaga;
 using Saga.Service.Infrastructure.Data.EntityFramework;
-using Saga.Service.Models;
 using Saga.Service.Observability;
-using Saga.Service.StateMachines;
 
 namespace Saga.Service.IntegrationEvents.EventHandlers;
 

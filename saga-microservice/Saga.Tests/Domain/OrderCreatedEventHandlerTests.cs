@@ -6,10 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Saga.Service.Contracts.Integration.InboundEvents;
+using Saga.Service.Domain;
+using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.IntegrationEvents.EventHandlers;
-using Saga.Service.Models;
 
 namespace Saga.Tests.Domain;
 

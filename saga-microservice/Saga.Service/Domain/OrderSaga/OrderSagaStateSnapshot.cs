@@ -1,6 +1,4 @@
-using Saga.Service.Models;
-
-namespace Saga.Service.StateMachines;
+namespace Saga.Service.Domain.OrderSaga;
 
 internal sealed record OrderSagaStateSnapshot(
     Guid SagaId,

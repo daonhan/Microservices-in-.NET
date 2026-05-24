@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Saga.Service.StateMachines;
+namespace Saga.Service.Domain.OrderSaga;
 
 internal sealed record OrderSagaTransitionResult(
     OrderSagaStateSnapshot State,

@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Saga.Service.Models;
+using Saga.Service.Domain;
+using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Domain.RefundSaga;
 
 namespace Saga.Service.Infrastructure.Data.EntityFramework;
 

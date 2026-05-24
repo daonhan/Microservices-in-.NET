@@ -1,9 +1,8 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Saga.Service.Contracts.Integration.InboundEvents;
-using Saga.Service.Models;
 
-namespace Saga.Service.StateMachines;
+namespace Saga.Service.Domain.RefundSaga;
 
 // Refund saga: Started -> PaymentRefunding -> (PaymentRefunded) ->
 // ShipmentCancellingOrReturning -> Completed. If the refund succeeds but the

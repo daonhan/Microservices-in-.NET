@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
-using Saga.Service.Models;
+using Saga.Service.Domain;
+using Saga.Service.Domain.OrderSaga;
 
 namespace Saga.Service.Infrastructure.Reaper;
 

@@ -2,10 +2,10 @@ using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Saga.Service.Domain;
+using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Infrastructure.Data.EntityFramework;
-using Saga.Service.Models;
 using Saga.Service.Observability;
-using Saga.Service.StateMachines;
 
 namespace Saga.Service.Infrastructure.Reaper;
 

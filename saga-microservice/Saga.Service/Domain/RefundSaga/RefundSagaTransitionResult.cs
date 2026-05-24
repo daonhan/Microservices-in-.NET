@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Saga.Service.StateMachines;
+namespace Saga.Service.Domain.RefundSaga;
 
 internal sealed record RefundSagaTransitionResult(
     RefundSagaStateSnapshot State,

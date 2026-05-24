@@ -9,11 +9,12 @@ using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using Saga.Service.Contracts.Integration.InboundEvents;
+using Saga.Service.Domain;
+using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Endpoints;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.IntegrationEvents.EventHandlers;
-using Saga.Service.Models;
 using Saga.Service.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
