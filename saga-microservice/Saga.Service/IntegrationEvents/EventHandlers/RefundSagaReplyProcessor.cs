@@ -1,29 +1,24 @@
 using ECommerce.Shared.Infrastructure.EventBus;
-using ECommerce.Shared.Infrastructure.Outbox;
-using Microsoft.EntityFrameworkCore;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
+using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.RefundSaga;
-using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Observability;
 
 namespace Saga.Service.IntegrationEvents.EventHandlers;
 
 internal sealed partial class RefundSagaReplyProcessor
 {
-    private readonly SagaContext _sagaContext;
-    private readonly IOutboxUnitOfWork _outboxUnitOfWork;
+    private readonly ISagaInstanceStore _sagaStore;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<RefundSagaReplyProcessor> _logger;
 
     public RefundSagaReplyProcessor(
-        SagaContext sagaContext,
-        IOutboxUnitOfWork outboxUnitOfWork,
+        ISagaInstanceStore sagaStore,
         TimeProvider timeProvider,
         ILogger<RefundSagaReplyProcessor> logger)
     {
-        _sagaContext = sagaContext;
-        _outboxUnitOfWork = outboxUnitOfWork;
+        _sagaStore = sagaStore;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -35,11 +30,9 @@ internal sealed partial class RefundSagaReplyProcessor
             return;
         }
 
-        await _outboxUnitOfWork.ExecuteAsync(_sagaContext.Database.CreateExecutionStrategy(), async () =>
+        await _sagaStore.ExecuteAsync(async () =>
         {
-            var saga = await _sagaContext.SagaInstances
-                .Include(s => s.RefundSagaState)
-                .FirstOrDefaultAsync(s => s.SagaId == sagaId);
+            var saga = await _sagaStore.GetRefundSagaBySagaId(sagaId);
             if (saga?.RefundSagaState is null)
             {
                 return [];
@@ -87,7 +80,7 @@ internal sealed partial class RefundSagaReplyProcessor
                 Error = ExtractError(@event)
             });
 
-            await _sagaContext.SaveChangesAsync();
+            await _sagaStore.SaveChangesAsync();
 
             RecordTransitionTelemetry(saga, previousStatus, currentStep, stepSeconds, @event);
 

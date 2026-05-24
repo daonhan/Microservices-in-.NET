@@ -1,10 +1,9 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Saga.Service.Domain;
+using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
-using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Observability;
 
 namespace Saga.Service.Infrastructure.Reaper;
@@ -49,22 +48,14 @@ internal sealed partial class SagaReaperService : BackgroundService
     {
         using var serviceScope = _serviceScopeFactory.CreateScope();
 
-        var sagaContext = serviceScope.ServiceProvider.GetRequiredService<SagaContext>();
-        var outboxUnitOfWork = serviceScope.ServiceProvider.GetRequiredService<IOutboxUnitOfWork>();
+        var sagaStore = serviceScope.ServiceProvider.GetRequiredService<ISagaInstanceStore>();
         var outboxStore = serviceScope.ServiceProvider.GetRequiredService<IOutboxStore>();
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
-        await outboxUnitOfWork.ExecuteAsync(sagaContext.Database.CreateExecutionStrategy(), async () =>
+        await sagaStore.ExecuteAsync(async () =>
         {
             var commands = new List<Event>();
-            var overdueSagas = await sagaContext.SagaInstances
-                .Include(s => s.OrderSagaState)
-                .Where(s => s.SagaType == OrderSagaType
-                    && s.Status == SagaStatus.Running
-                    && s.NextTimeoutAt != null
-                    && s.NextTimeoutAt <= now)
-                .OrderBy(s => s.NextTimeoutAt)
-                .ToListAsync(stoppingToken);
+            var overdueSagas = await sagaStore.GetOverdueOrderSagas(OrderSagaType, now, stoppingToken);
 
             foreach (var saga in overdueSagas)
             {
@@ -113,7 +104,7 @@ internal sealed partial class SagaReaperService : BackgroundService
                 });
             }
 
-            await sagaContext.SaveChangesAsync(stoppingToken);
+            await sagaStore.SaveChangesAsync(stoppingToken);
             return commands;
         });
     }

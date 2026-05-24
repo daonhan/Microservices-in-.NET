@@ -1,10 +1,8 @@
 using ECommerce.Shared.Infrastructure.EventBus;
-using ECommerce.Shared.Infrastructure.Outbox;
-using Microsoft.EntityFrameworkCore;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
+using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
-using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.Observability;
 
@@ -12,21 +10,18 @@ namespace Saga.Service.IntegrationEvents.EventHandlers;
 
 internal sealed partial class OrderSagaReplyProcessor
 {
-    private readonly SagaContext _sagaContext;
-    private readonly IOutboxUnitOfWork _outboxUnitOfWork;
+    private readonly ISagaInstanceStore _sagaStore;
     private readonly TimeProvider _timeProvider;
     private readonly OrderSagaTimeoutScheduler _timeoutScheduler;
     private readonly ILogger<OrderSagaReplyProcessor> _logger;
 
     public OrderSagaReplyProcessor(
-        SagaContext sagaContext,
-        IOutboxUnitOfWork outboxUnitOfWork,
+        ISagaInstanceStore sagaStore,
         TimeProvider timeProvider,
         OrderSagaTimeoutScheduler timeoutScheduler,
         ILogger<OrderSagaReplyProcessor> logger)
     {
-        _sagaContext = sagaContext;
-        _outboxUnitOfWork = outboxUnitOfWork;
+        _sagaStore = sagaStore;
         _timeProvider = timeProvider;
         _timeoutScheduler = timeoutScheduler;
         _logger = logger;
@@ -39,11 +34,9 @@ internal sealed partial class OrderSagaReplyProcessor
             return;
         }
 
-        await _outboxUnitOfWork.ExecuteAsync(_sagaContext.Database.CreateExecutionStrategy(), async () =>
+        await _sagaStore.ExecuteAsync(async () =>
         {
-            var saga = await _sagaContext.SagaInstances
-                .Include(s => s.OrderSagaState)
-                .FirstOrDefaultAsync(s => s.SagaId == sagaId);
+            var saga = await _sagaStore.GetOrderSagaBySagaId(sagaId);
             if (saga?.OrderSagaState is null)
             {
                 return [];
@@ -93,7 +86,7 @@ internal sealed partial class OrderSagaReplyProcessor
                 Error = ExtractError(@event)
             });
 
-            await _sagaContext.SaveChangesAsync();
+            await _sagaStore.SaveChangesAsync();
 
             RecordTransitionTelemetry(saga, previousStatus, currentStep, stepSeconds, @event);
 

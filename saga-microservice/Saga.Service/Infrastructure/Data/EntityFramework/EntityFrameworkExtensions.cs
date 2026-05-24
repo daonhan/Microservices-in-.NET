@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Saga.Service.Domain.Abstractions;
 
 namespace Saga.Service.Infrastructure.Data.EntityFramework;
 
@@ -16,6 +17,8 @@ public static class EntityFrameworkExtensions
                         maxRetryDelay: TimeSpan.FromSeconds(40),
                         errorNumbersToAdd: [0]);
                 }));
+
+        services.AddScoped<ISagaInstanceStore, EfSagaInstanceStore>();
     }
 
     public static void MigrateDatabase(this WebApplication webApp)
