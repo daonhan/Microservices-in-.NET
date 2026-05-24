@@ -17,7 +17,6 @@ using Saga.Service.Features.OrderSaga.StockCommitted;
 using Saga.Service.Features.OrderSaga.StockReleased;
 using Saga.Service.Features.OrderSaga.StockReserved;
 using Saga.Service.Infrastructure.Data.EntityFramework;
-using Saga.Service.IntegrationEvents.EventHandlers;
 
 namespace Saga.Tests.EndToEnd;
 

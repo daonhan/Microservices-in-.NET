@@ -7,11 +7,11 @@ using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.RefundSaga;
 using Saga.Service.Features.OrderSaga.OrderCancelled;
-using Saga.Service.Features.OrderSaga.PaymentRefunded;
 using Saga.Service.Features.OrderSaga.ShipmentCancelled;
 using Saga.Service.Features.OrderSaga.ShipmentFailed;
+using Saga.Service.Features.RefundSaga.RefundRequested;
 using Saga.Service.Infrastructure.Data.EntityFramework;
-using Saga.Service.IntegrationEvents.EventHandlers;
+using RefundSagaPaymentRefundedHandler = Saga.Service.Features.RefundSaga.PaymentRefunded.PaymentRefundedHandler;
 
 namespace Saga.Tests.Api;
 
@@ -68,7 +68,7 @@ public class RefundSagaOrchestratorTests : IClassFixture<SagaWebApplicationFacto
             CausationId = refundCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<PaymentRefundedHandler, PaymentRefundedEvent>(refunded);
+        await DispatchAsync<RefundSagaPaymentRefundedHandler, PaymentRefundedEvent>(refunded);
 
         var cancelShipmentCommandId = await GetLatestCommandIdAsync(nameof(CancelShipmentCommand));
         var shipmentCancelled = new ShipmentCancelledEvent(
@@ -104,7 +104,7 @@ public class RefundSagaOrchestratorTests : IClassFixture<SagaWebApplicationFacto
             CausationId = refundCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<PaymentRefundedHandler, PaymentRefundedEvent>(refunded);
+        await DispatchAsync<RefundSagaPaymentRefundedHandler, PaymentRefundedEvent>(refunded);
 
         var cancelShipmentCommandId = await GetLatestCommandIdAsync(nameof(CancelShipmentCommand));
         var shipmentFailed = new ShipmentFailedEvent(
@@ -152,7 +152,7 @@ public class RefundSagaOrchestratorTests : IClassFixture<SagaWebApplicationFacto
     private async Task Handle(RefundRequestedEvent requested)
     {
         using var scope = _factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<RefundRequestedEventHandler>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<RefundRequestedHandler>(scope.ServiceProvider);
 
         await handler.Handle(requested);
     }

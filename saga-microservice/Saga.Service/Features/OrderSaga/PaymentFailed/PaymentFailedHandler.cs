@@ -3,21 +3,21 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
-using Saga.Service.IntegrationEvents.EventHandlers;
+using Saga.Service.Domain.RefundSaga;
 
 namespace Saga.Service.Features.OrderSaga.PaymentFailed;
 
 internal sealed class PaymentFailedHandler : IEventHandler<PaymentFailedEvent>
 {
     private readonly ISagaTransitionRunner<OrderSagaStateSnapshot, Event> _runner;
-    private readonly RefundSagaReplyProcessor _refundProcessor;
+    private readonly ISagaTransitionRunner<RefundSagaStateSnapshot, Event> _refundRunner;
 
     public PaymentFailedHandler(
         ISagaTransitionRunner<OrderSagaStateSnapshot, Event> runner,
-        RefundSagaReplyProcessor refundProcessor)
+        ISagaTransitionRunner<RefundSagaStateSnapshot, Event> refundRunner)
     {
         _runner = runner;
-        _refundProcessor = refundProcessor;
+        _refundRunner = refundRunner;
     }
 
     public async Task Handle(PaymentFailedEvent @event)
@@ -25,8 +25,7 @@ internal sealed class PaymentFailedHandler : IEventHandler<PaymentFailedEvent>
         if (@event.SagaId is { } sagaId)
         {
             await _runner.RunAsync(sagaId, @event, OrderSagaStateMachine.Transition);
+            await _refundRunner.RunAsync(sagaId, @event, RefundSagaStateMachine.Transition);
         }
-
-        await _refundProcessor.Handle(@event);
     }
 }

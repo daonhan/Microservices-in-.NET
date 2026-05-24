@@ -8,7 +8,6 @@ using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
-using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
@@ -28,11 +27,12 @@ using Saga.Service.Features.OrderSaga.StockCommitted;
 using Saga.Service.Features.OrderSaga.StockReleased;
 using Saga.Service.Features.OrderSaga.StockReservationFailed;
 using Saga.Service.Features.OrderSaga.StockReserved;
+using Saga.Service.Features.RefundSaga.PaymentRefunded;
+using Saga.Service.Features.RefundSaga.RefundRequested;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Observability;
 using Saga.Service.Infrastructure.Outbox;
 using Saga.Service.Infrastructure.Reaper;
-using Saga.Service.IntegrationEvents.EventHandlers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,7 +54,6 @@ builder.Services.AddScoped<ISagaTransitionRunner<OrderSagaStateSnapshot, Event>>
 builder.Services.AddScoped<EfRefundSagaTransitionRunner>();
 builder.Services.AddScoped<ISagaTransitionRunner<RefundSagaStateSnapshot, Event>>(
     sp => sp.GetRequiredService<EfRefundSagaTransitionRunner>());
-builder.Services.AddScoped<RefundSagaReplyProcessor>();
 builder.Services.AddHostedService<SagaReaperService>();
 
 builder.Services
@@ -71,14 +70,15 @@ builder.Services
     .AddPaymentVoidedSlice()
     .AddPaymentRefundedSlice()
     .AddOrderCancelledSlice()
-    .AddShipmentCancelledSlice();
+    .AddShipmentCancelledSlice()
+    .AddRefundRequestedSlice()
+    .AddRefundSagaPaymentRefundedSlice();
 
 builder.AddPlatformOpenApi("saga");
 
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
-    .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<RefundRequestedEvent, RefundRequestedEventHandler>();
+    .AddPlatformSubscriberService(builder.Configuration);
 
 builder.AddPlatformObservability(serviceName,
     customTracing: t => t.WithSqlInstrumentation().AddSource(SagaTelemetry.ActivitySourceName),

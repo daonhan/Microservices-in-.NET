@@ -7,22 +7,22 @@ using Saga.Service.Domain.RefundSaga;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Observability;
 
-namespace Saga.Service.IntegrationEvents.EventHandlers;
+namespace Saga.Service.Features.RefundSaga.RefundRequested;
 
-internal sealed partial class RefundRequestedEventHandler : IEventHandler<RefundRequestedEvent>
+internal sealed partial class RefundRequestedHandler : IEventHandler<RefundRequestedEvent>
 {
     private const string SagaType = "Refund";
 
     private readonly SagaContext _sagaContext;
     private readonly IOutboxUnitOfWork _outboxUnitOfWork;
     private readonly TimeProvider _timeProvider;
-    private readonly ILogger<RefundRequestedEventHandler> _logger;
+    private readonly ILogger<RefundRequestedHandler> _logger;
 
-    public RefundRequestedEventHandler(
+    public RefundRequestedHandler(
         SagaContext sagaContext,
         IOutboxUnitOfWork outboxUnitOfWork,
         TimeProvider timeProvider,
-        ILogger<RefundRequestedEventHandler> logger)
+        ILogger<RefundRequestedHandler> logger)
     {
         _sagaContext = sagaContext;
         _outboxUnitOfWork = outboxUnitOfWork;
