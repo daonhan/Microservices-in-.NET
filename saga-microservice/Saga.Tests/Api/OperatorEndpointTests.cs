@@ -5,9 +5,10 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Saga.Service.ApiModels;
 using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Features.Operator.GetSaga;
+using Saga.Service.Features.Operator.ListSagas;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Tests.Authentication;
 
@@ -33,7 +34,7 @@ public class OperatorEndpointTests : IClassFixture<SagaWebApplicationFactory>
         var response = await client.GetAsync("/operator/api/sagas?type=Order&status=Running");
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<SagaListResponse>();
+        var body = await response.Content.ReadFromJsonAsync<ListSagasResponse>();
         Assert.NotNull(body);
         Assert.Contains(body.Items, item => item.SagaId == runningId && item.Status == SagaStatus.Running.ToString());
         Assert.DoesNotContain(body.Items, item => item.Status == SagaStatus.Completed.ToString());
@@ -53,7 +54,7 @@ public class OperatorEndpointTests : IClassFixture<SagaWebApplicationFactory>
         var response = await client.GetAsync("/operator/api/sagas?overdue=true");
 
         response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<SagaListResponse>();
+        var body = await response.Content.ReadFromJsonAsync<ListSagasResponse>();
         Assert.NotNull(body);
         Assert.Contains(body.Items, item => item.SagaId == overdueId);
         Assert.All(body.Items, item =>
@@ -73,7 +74,7 @@ public class OperatorEndpointTests : IClassFixture<SagaWebApplicationFactory>
         var response = await client.GetAsync($"/operator/api/sagas/{sagaId}");
 
         response.EnsureSuccessStatusCode();
-        var detail = await response.Content.ReadFromJsonAsync<SagaDetailResponse>();
+        var detail = await response.Content.ReadFromJsonAsync<GetSagaResponse>();
         Assert.NotNull(detail);
         Assert.Equal(sagaId, detail.SagaId);
         Assert.NotNull(detail.Order);

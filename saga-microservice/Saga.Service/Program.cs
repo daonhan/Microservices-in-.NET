@@ -12,7 +12,10 @@ using Saga.Service.Domain;
 using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Domain.RefundSaga;
-using Saga.Service.Endpoints;
+using Saga.Service.Features.Operator.AbortSaga;
+using Saga.Service.Features.Operator.GetSaga;
+using Saga.Service.Features.Operator.ListSagas;
+using Saga.Service.Features.Operator.RetrySaga;
 using Saga.Service.Features.OrderSaga.OrderCancelled;
 using Saga.Service.Features.OrderSaga.OrderConfirmed;
 using Saga.Service.Features.OrderSaga.OrderCreated;
@@ -72,7 +75,11 @@ builder.Services
     .AddOrderCancelledSlice()
     .AddShipmentCancelledSlice()
     .AddRefundRequestedSlice()
-    .AddRefundSagaPaymentRefundedSlice();
+    .AddRefundSagaPaymentRefundedSlice()
+    .AddListSagasSlice()
+    .AddGetSagaSlice()
+    .AddAbortSagaSlice()
+    .AddRetrySagaSlice();
 
 builder.AddPlatformOpenApi("saga");
 
@@ -105,7 +112,10 @@ if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 app.UsePlatformOpenApi();
 
 app.RegisterInternalOutboxEndpoints();
-app.RegisterOperatorSagaEndpoints();
+app.MapListSagasSlice();
+app.MapGetSagaSlice();
+app.MapAbortSagaSlice();
+app.MapRetrySagaSlice();
 
 app.UseHttpsRedirection();
 
