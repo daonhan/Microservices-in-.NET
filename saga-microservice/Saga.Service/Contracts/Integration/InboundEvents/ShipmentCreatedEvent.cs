@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Saga.Service.IntegrationEvents;
+namespace Saga.Service.Contracts.Integration.InboundEvents;
 
 public record ShipmentLineItem(int ProductId, int Quantity);
 

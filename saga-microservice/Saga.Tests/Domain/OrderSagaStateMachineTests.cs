@@ -1,5 +1,5 @@
 using ECommerce.Shared.IntegrationEvents.Commands;
-using Saga.Service.IntegrationEvents;
+using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Models;
 using Saga.Service.StateMachines;
 

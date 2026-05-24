@@ -1,4 +1,5 @@
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
+using Saga.Service.Contracts.Integration.InboundEvents;
 
 namespace Saga.Service.IntegrationEvents.EventHandlers;
 

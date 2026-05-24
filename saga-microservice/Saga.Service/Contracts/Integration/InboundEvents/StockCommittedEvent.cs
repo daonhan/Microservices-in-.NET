@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Saga.Service.IntegrationEvents;
+namespace Saga.Service.Contracts.Integration.InboundEvents;
 
 public record CommittedItem(int ProductId, int WarehouseId, int Quantity);
 

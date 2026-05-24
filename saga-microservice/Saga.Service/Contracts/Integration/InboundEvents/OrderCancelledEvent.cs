@@ -1,5 +1,5 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Saga.Service.IntegrationEvents;
+namespace Saga.Service.Contracts.Integration.InboundEvents;
 
 public record OrderCancelledEvent(Guid OrderId, string CustomerId) : Event;

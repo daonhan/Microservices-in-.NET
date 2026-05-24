@@ -1,6 +1,7 @@
 using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.EntityFrameworkCore;
+using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Models;
 using Saga.Service.Observability;

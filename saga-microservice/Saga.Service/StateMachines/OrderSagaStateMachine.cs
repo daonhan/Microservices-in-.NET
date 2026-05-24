@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.IntegrationEvents.Commands;
-using Saga.Service.IntegrationEvents;
+using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Models;
 
 namespace Saga.Service.StateMachines;

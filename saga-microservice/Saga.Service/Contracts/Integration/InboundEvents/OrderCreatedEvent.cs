@@ -1,6 +1,6 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 
-namespace Saga.Service.IntegrationEvents;
+namespace Saga.Service.Contracts.Integration.InboundEvents;
 
 public record OrderItem(string ProductId, int Quantity, decimal UnitPrice = 0m);
 
