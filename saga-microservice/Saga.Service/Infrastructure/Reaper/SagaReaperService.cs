@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using Saga.Service.Domain;
 using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
-using Saga.Service.Observability;
+using Saga.Service.Infrastructure.Observability;
 
 namespace Saga.Service.Infrastructure.Reaper;
 

@@ -3,7 +3,7 @@ using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.RefundSaga;
-using Saga.Service.Observability;
+using Saga.Service.Infrastructure.Observability;
 
 namespace Saga.Service.IntegrationEvents.EventHandlers;
 

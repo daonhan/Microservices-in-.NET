@@ -13,9 +13,10 @@ using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Endpoints;
 using Saga.Service.Infrastructure.Data.EntityFramework;
+using Saga.Service.Infrastructure.Observability;
+using Saga.Service.Infrastructure.Outbox;
 using Saga.Service.Infrastructure.Reaper;
 using Saga.Service.IntegrationEvents.EventHandlers;
-using Saga.Service.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
 

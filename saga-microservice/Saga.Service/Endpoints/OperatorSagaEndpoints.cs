@@ -6,8 +6,8 @@ using Saga.Service.ApiModels;
 using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Infrastructure.Data.EntityFramework;
+using Saga.Service.Infrastructure.Observability;
 using Saga.Service.Infrastructure.Reaper;
-using Saga.Service.Observability;
 
 namespace Saga.Service.Endpoints;
 

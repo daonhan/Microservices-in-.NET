@@ -8,8 +8,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Infrastructure.Data.EntityFramework;
+using Saga.Service.Infrastructure.Observability;
 using Saga.Service.IntegrationEvents.EventHandlers;
-using Saga.Service.Observability;
 
 namespace Saga.Tests.Api;
 

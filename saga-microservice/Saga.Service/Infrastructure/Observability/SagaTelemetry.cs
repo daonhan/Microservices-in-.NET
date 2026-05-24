@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
-namespace Saga.Service.Observability;
+namespace Saga.Service.Infrastructure.Observability;
 
 internal static class SagaTelemetry
 {

@@ -2,7 +2,7 @@ using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Saga.Service.Endpoints;
+namespace Saga.Service.Infrastructure.Outbox;
 
 public static class InternalOutboxEndpoints
 {
