@@ -5,7 +5,7 @@ using ECommerce.Shared.Infrastructure.Outbox;
 using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Contracts.Integration;
 
-namespace Payment.Tests.Api;
+namespace Payment.Tests.Infrastructure.Outbox;
 
 public class InternalOutboxEndpointsTests : IntegrationTestBase
 {

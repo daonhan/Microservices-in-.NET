@@ -1,7 +1,7 @@
 using Payment.Service.Domain;
 using Payment.Service.Domain.Events;
 
-namespace Payment.Tests.Models;
+namespace Payment.Tests.Domain;
 
 public class PaymentStateMachineTests
 {

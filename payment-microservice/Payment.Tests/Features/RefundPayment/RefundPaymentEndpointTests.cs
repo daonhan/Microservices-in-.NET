@@ -1,0 +1,167 @@
+using System.Net;
+using System.Net.Http.Json;
+using ECommerce.Shared.Infrastructure.Outbox;
+using Microsoft.Extensions.DependencyInjection;
+using Payment.Service.Contracts.Integration;
+using Payment.Service.Domain;
+using Payment.Tests.Authentication;
+using RefundPaymentRequest = Payment.Service.Features.RefundPayment.RefundPaymentRequest;
+using RefundPaymentResponse = Payment.Service.Features.RefundPayment.PaymentResponse;
+
+namespace Payment.Tests.Features.RefundPayment;
+
+public class RefundPaymentEndpointTests : IntegrationTestBase
+{
+    public RefundPaymentEndpointTests(PaymentWebApplicationFactory webApplicationFactory)
+        : base(webApplicationFactory)
+    {
+    }
+
+    [Fact]
+    public async Task Refund_WhenAdminAndCaptured_TransitionsToRefunded()
+    {
+        var paymentId = await SeedPaymentAsync(PaymentStatus.Captured);
+
+        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
+            $"/{paymentId}/refund",
+            new RefundPaymentRequest(Amount: null));
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<RefundPaymentResponse>();
+        Assert.NotNull(body);
+        Assert.Equal(PaymentStatus.Refunded.ToString(), body.Status);
+
+        await AssertOutboxContainsAsync(nameof(PaymentRefundedEvent), paymentId, expectedCount: 1);
+    }
+
+    [Fact]
+    public async Task Refund_WithEmptyBody_DefaultsToFullAmount()
+    {
+        var paymentId = await SeedPaymentAsync(PaymentStatus.Captured);
+
+        var response = await CreateAuthenticatedClient().PostAsync(
+            $"/{paymentId}/refund",
+            content: null);
+
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadFromJsonAsync<RefundPaymentResponse>();
+        Assert.NotNull(body);
+        Assert.Equal(PaymentStatus.Refunded.ToString(), body.Status);
+    }
+
+    [Fact]
+    public async Task Refund_WhenStatusNotCaptured_ReturnsConflict()
+    {
+        var paymentId = await SeedPaymentAsync(PaymentStatus.Authorized);
+
+        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
+            $"/{paymentId}/refund",
+            new RefundPaymentRequest(Amount: null));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refund_WhenAlreadyRefunded_ReturnsConflict()
+    {
+        var paymentId = await SeedPaymentAsync(PaymentStatus.Refunded);
+
+        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
+            $"/{paymentId}/refund",
+            new RefundPaymentRequest(Amount: null));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        await AssertOutboxContainsAsync(nameof(PaymentRefundedEvent), paymentId, expectedCount: 0);
+    }
+
+    [Fact]
+    public async Task Refund_WhenNotFound_ReturnsNotFound()
+    {
+        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
+            $"/{Guid.NewGuid()}/refund",
+            new RefundPaymentRequest(Amount: null));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refund_WhenCallerIsCustomer_ReturnsForbidden()
+    {
+        var paymentId = await SeedPaymentAsync(PaymentStatus.Captured);
+
+        var response = await CreateCustomerClient("cust-1").PostAsJsonAsync(
+            $"/{paymentId}/refund",
+            new RefundPaymentRequest(Amount: null));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refund_WhenUnauthenticated_ReturnsUnauthorized()
+    {
+        var response = await HttpClient.PostAsJsonAsync(
+            $"/{Guid.NewGuid()}/refund",
+            new RefundPaymentRequest(Amount: null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    private async Task<Guid> SeedPaymentAsync(PaymentStatus status)
+    {
+        var paymentId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+        var payment = Service.Domain.Payment.Create(
+            paymentId: paymentId,
+            orderId: orderId,
+            customerId: $"cust-{Guid.NewGuid():N}",
+            amount: 75.00m,
+            currency: "USD",
+            createdAt: now);
+
+        if (status == PaymentStatus.Failed)
+        {
+            payment.Fail("seed", now);
+        }
+        else if (status != PaymentStatus.Pending)
+        {
+            payment.Authorize($"INMEM-{Guid.NewGuid():N}", now);
+
+            if (status == PaymentStatus.Captured || status == PaymentStatus.Refunded)
+            {
+                payment.Capture(now);
+            }
+
+            if (status == PaymentStatus.Refunded)
+            {
+                payment.Refund(payment.Amount, now);
+            }
+        }
+
+        PaymentContext.Payments.Add(payment);
+        await PaymentContext.SaveChangesAsync();
+        PaymentContext.ChangeTracker.Clear();
+        return paymentId;
+    }
+
+    private async Task AssertOutboxContainsAsync(string eventTypeName, Guid paymentId, int expectedCount)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
+
+        var matching = outboxEvents.Where(e =>
+            e.EventType.Contains(eventTypeName, StringComparison.Ordinal) &&
+            e.Data.Contains(paymentId.ToString(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        Assert.Equal(expectedCount, matching.Count);
+    }
+
+    private HttpClient CreateCustomerClient(string customerId)
+    {
+        var client = Factory.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.RoleHeader, "Customer");
+        client.DefaultRequestHeaders.Add(TestAuthHandler.CustomerIdHeader, customerId);
+        return client;
+    }
+}

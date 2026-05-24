@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace Payment.Tests.Api;
+namespace Payment.Tests;
 
 public class HealthEndpointTests : IntegrationTestBase
 {

@@ -1,12 +1,12 @@
 using System.Text.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
-using Payment.Service.Features.RefundPaymentCommand;
+using SharedCommands = ECommerce.Shared.IntegrationEvents.Commands;
+using SliceHandlers = Payment.Service.Features.RefundPaymentCommand;
 
-namespace Payment.Tests.Api;
+namespace Payment.Tests.Features.RefundPaymentCommand;
 
 public class RefundPaymentCommandHandlerTests : IntegrationTestBase
 {
@@ -22,7 +22,7 @@ public class RefundPaymentCommandHandlerTests : IntegrationTestBase
         var command = NewRefund(orderId, amount: 75.00m);
 
         using var scope = Factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<RefundPaymentCommandHandler>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<SliceHandlers.RefundPaymentCommandHandler>(scope.ServiceProvider);
         await handler.Handle(command);
 
         PaymentContext.ChangeTracker.Clear();
@@ -40,7 +40,7 @@ public class RefundPaymentCommandHandlerTests : IntegrationTestBase
         var first = NewRefund(orderId, amount: 9.99m);
         using (var scope = Factory.Services.CreateScope())
         {
-            var handler = ActivatorUtilities.CreateInstance<RefundPaymentCommandHandler>(scope.ServiceProvider);
+            var handler = ActivatorUtilities.CreateInstance<SliceHandlers.RefundPaymentCommandHandler>(scope.ServiceProvider);
             await handler.Handle(first);
         }
 
@@ -49,7 +49,7 @@ public class RefundPaymentCommandHandlerTests : IntegrationTestBase
         var replay = NewRefund(orderId, amount: 9.99m);
         using (var scope = Factory.Services.CreateScope())
         {
-            var handler = ActivatorUtilities.CreateInstance<RefundPaymentCommandHandler>(scope.ServiceProvider);
+            var handler = ActivatorUtilities.CreateInstance<SliceHandlers.RefundPaymentCommandHandler>(scope.ServiceProvider);
             await handler.Handle(replay);
         }
 
@@ -77,13 +77,13 @@ public class RefundPaymentCommandHandlerTests : IntegrationTestBase
         return (paymentId, orderId);
     }
 
-    private static RefundPaymentCommand NewRefund(Guid orderId, decimal amount) =>
+    private static SharedCommands.RefundPaymentCommand NewRefund(Guid orderId, decimal amount) =>
         new(orderId, amount, causationId: Guid.NewGuid(), sagaId: Guid.NewGuid())
         {
             CorrelationId = Guid.NewGuid(),
         };
 
-    private async Task AssertRefundedReplyAsync(Guid paymentId, RefundPaymentCommand command)
+    private async Task AssertRefundedReplyAsync(Guid paymentId, SharedCommands.RefundPaymentCommand command)
     {
         using var scope = Factory.Services.CreateScope();
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();

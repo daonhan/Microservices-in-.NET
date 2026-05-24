@@ -1,60 +1,59 @@
 using System.Text.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
-using Payment.Service.Features.CapturePaymentCommand;
+using SharedCommands = ECommerce.Shared.IntegrationEvents.Commands;
+using SliceHandlers = Payment.Service.Features.VoidPaymentCommand;
 
-namespace Payment.Tests.Api;
+namespace Payment.Tests.Features.VoidPaymentCommand;
 
-public class CapturePaymentCommandHandlerTests : IntegrationTestBase
+public class VoidPaymentCommandHandlerTests : IntegrationTestBase
 {
-    public CapturePaymentCommandHandlerTests(PaymentWebApplicationFactory factory)
+    public VoidPaymentCommandHandlerTests(PaymentWebApplicationFactory factory)
         : base(factory)
     {
     }
 
     [Fact]
-    public async Task Given_AuthorizedPayment_When_CaptureCommandHandled_Then_CapturesAndEmitsCapturedReply()
+    public async Task Given_AuthorizedPayment_When_VoidCommandHandled_Then_VoidsAndEmitsVoidedReply()
     {
-        var (paymentId, orderId) = await SeedAuthorizedPaymentAsync(amount: 75.00m);
-        var command = NewCapture(orderId, paymentId, amount: 75.00m);
+        var (paymentId, orderId) = await SeedAuthorizedPaymentAsync(amount: 50.00m);
+        var command = NewVoid(orderId);
 
         using var scope = Factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<CapturePaymentCommandHandler>(scope.ServiceProvider);
-
+        var handler = ActivatorUtilities.CreateInstance<SliceHandlers.VoidPaymentCommandHandler>(scope.ServiceProvider);
         await handler.Handle(command);
 
         PaymentContext.ChangeTracker.Clear();
         var payment = PaymentContext.Payments.Single(p => p.PaymentId == paymentId);
-        Assert.Equal(PaymentStatus.Captured, payment.Status);
+        Assert.Equal(PaymentStatus.Voided, payment.Status);
 
-        await AssertCapturedReplyAsync(paymentId, command);
+        await AssertVoidedReplyAsync(paymentId, command);
     }
 
     [Fact]
-    public async Task Given_AlreadyCapturedPayment_When_CaptureCommandReplayed_Then_EmitsCapturedReplyIdempotently()
+    public async Task Given_AlreadyVoidedPayment_When_VoidCommandReplayed_Then_EmitsVoidedReplyIdempotently()
     {
-        var (paymentId, orderId) = await SeedAuthorizedPaymentAsync(amount: 12.34m);
+        var (paymentId, orderId) = await SeedAuthorizedPaymentAsync(amount: 12.50m);
 
-        var first = NewCapture(orderId, paymentId, amount: 12.34m);
+        var first = NewVoid(orderId);
         using (var scope = Factory.Services.CreateScope())
         {
-            var handler = ActivatorUtilities.CreateInstance<CapturePaymentCommandHandler>(scope.ServiceProvider);
+            var handler = ActivatorUtilities.CreateInstance<SliceHandlers.VoidPaymentCommandHandler>(scope.ServiceProvider);
             await handler.Handle(first);
         }
 
         await ClearOutboxAsync();
 
-        var replay = NewCapture(orderId, paymentId, amount: 12.34m);
+        var replay = NewVoid(orderId);
         using (var scope = Factory.Services.CreateScope())
         {
-            var handler = ActivatorUtilities.CreateInstance<CapturePaymentCommandHandler>(scope.ServiceProvider);
+            var handler = ActivatorUtilities.CreateInstance<SliceHandlers.VoidPaymentCommandHandler>(scope.ServiceProvider);
             await handler.Handle(replay);
         }
 
-        await AssertCapturedReplyAsync(paymentId, replay);
+        await AssertVoidedReplyAsync(paymentId, replay);
     }
 
     private async Task<(Guid PaymentId, Guid OrderId)> SeedAuthorizedPaymentAsync(decimal amount)
@@ -77,20 +76,20 @@ public class CapturePaymentCommandHandlerTests : IntegrationTestBase
         return (paymentId, orderId);
     }
 
-    private static CapturePaymentCommand NewCapture(Guid orderId, Guid paymentId, decimal amount) =>
-        new(orderId, paymentId, amount, causationId: Guid.NewGuid(), sagaId: Guid.NewGuid())
+    private static SharedCommands.VoidPaymentCommand NewVoid(Guid orderId) =>
+        new(orderId, "Saga compensation.", causationId: Guid.NewGuid(), sagaId: Guid.NewGuid())
         {
             CorrelationId = Guid.NewGuid(),
         };
 
-    private async Task AssertCapturedReplyAsync(Guid paymentId, CapturePaymentCommand command)
+    private async Task AssertVoidedReplyAsync(Guid paymentId, SharedCommands.VoidPaymentCommand command)
     {
         using var scope = Factory.Services.CreateScope();
         var outboxStore = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
         var outboxEvents = await outboxStore.GetUnpublishedOutboxEvents();
 
         var match = outboxEvents.Single(e =>
-            e.EventType.Contains(nameof(PaymentCapturedEvent), StringComparison.Ordinal)
+            e.EventType.Contains(nameof(PaymentVoidedEvent), StringComparison.Ordinal)
             && e.Data.Contains(paymentId.ToString(), StringComparison.OrdinalIgnoreCase));
 
         using var document = JsonDocument.Parse(match.Data);
@@ -98,7 +97,7 @@ public class CapturePaymentCommandHandlerTests : IntegrationTestBase
         Assert.Equal(command.Id, root.GetProperty("CausationId").GetGuid());
         Assert.Equal(command.SagaId, root.GetProperty("SagaId").GetGuid());
         Assert.Equal(command.CorrelationId, root.GetProperty("CorrelationId").GetGuid());
-        Assert.Equal(paymentId, root.GetProperty(nameof(PaymentCapturedEvent.PaymentId)).GetGuid());
+        Assert.Equal(paymentId, root.GetProperty(nameof(PaymentVoidedEvent.PaymentId)).GetGuid());
     }
 
     private async Task ClearOutboxAsync()

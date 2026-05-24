@@ -1,12 +1,12 @@
 using System.Text.Json;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
-using Payment.Service.Features.AuthorizePaymentCommand;
+using SharedCommands = ECommerce.Shared.IntegrationEvents.Commands;
+using SliceHandlers = Payment.Service.Features.AuthorizePaymentCommand;
 
-namespace Payment.Tests.Api;
+namespace Payment.Tests.Features.AuthorizePaymentCommand;
 
 public class AuthorizePaymentCommandHandlerTests : IntegrationTestBase
 {
@@ -30,7 +30,7 @@ public class AuthorizePaymentCommandHandlerTests : IntegrationTestBase
         });
         await PaymentContext.SaveChangesAsync();
 
-        var command = new AuthorizePaymentCommand(
+        var command = new SharedCommands.AuthorizePaymentCommand(
             orderId,
             amount: 42.50m,
             currency: "USD",
@@ -41,7 +41,7 @@ public class AuthorizePaymentCommandHandlerTests : IntegrationTestBase
         };
 
         using var scope = Factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<AuthorizePaymentCommandHandler>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<SliceHandlers.AuthorizePaymentCommandHandler>(scope.ServiceProvider);
 
         await handler.Handle(command);
 
@@ -84,7 +84,7 @@ public class AuthorizePaymentCommandHandlerTests : IntegrationTestBase
         await PaymentContext.SaveChangesAsync();
         PaymentContext.ChangeTracker.Clear();
 
-        var command = new AuthorizePaymentCommand(
+        var command = new SharedCommands.AuthorizePaymentCommand(
             orderId,
             amount: 42.50m,
             currency: "USD",
@@ -95,7 +95,7 @@ public class AuthorizePaymentCommandHandlerTests : IntegrationTestBase
         };
 
         using var scope = Factory.Services.CreateScope();
-        var handler = ActivatorUtilities.CreateInstance<AuthorizePaymentCommandHandler>(scope.ServiceProvider);
+        var handler = ActivatorUtilities.CreateInstance<SliceHandlers.AuthorizePaymentCommandHandler>(scope.ServiceProvider);
 
         await handler.Handle(command);
 
@@ -105,7 +105,7 @@ public class AuthorizePaymentCommandHandlerTests : IntegrationTestBase
 
     private async Task AssertOutboxReplyAsync<TReply>(
         Guid orderId,
-        AuthorizePaymentCommand command,
+        SharedCommands.AuthorizePaymentCommand command,
         Action<JsonElement> additionalAssertions)
         where TReply : ECommerce.Shared.Infrastructure.EventBus.Event
     {

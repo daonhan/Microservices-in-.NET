@@ -6,14 +6,12 @@ using Payment.Service.Contracts.Integration;
 using Payment.Service.Domain;
 using Payment.Tests.Authentication;
 using CapturePaymentResponse = Payment.Service.Features.CapturePayment.PaymentResponse;
-using RefundPaymentRequest = Payment.Service.Features.RefundPayment.RefundPaymentRequest;
-using RefundPaymentResponse = Payment.Service.Features.RefundPayment.PaymentResponse;
 
-namespace Payment.Tests.Api;
+namespace Payment.Tests.Features.CapturePayment;
 
-public class PaymentEndpointsTests : IntegrationTestBase
+public class CapturePaymentEndpointTests : IntegrationTestBase
 {
-    public PaymentEndpointsTests(PaymentWebApplicationFactory webApplicationFactory)
+    public CapturePaymentEndpointTests(PaymentWebApplicationFactory webApplicationFactory)
         : base(webApplicationFactory)
     {
     }
@@ -92,95 +90,6 @@ public class PaymentEndpointsTests : IntegrationTestBase
         var response = await HttpClient.PostAsync(
             $"/{Guid.NewGuid()}/capture",
             content: null);
-
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Refund_WhenAdminAndCaptured_TransitionsToRefunded()
-    {
-        var paymentId = await SeedPaymentAsync(PaymentStatus.Captured);
-
-        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
-            $"/{paymentId}/refund",
-            new RefundPaymentRequest(Amount: null));
-
-        response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<RefundPaymentResponse>();
-        Assert.NotNull(body);
-        Assert.Equal(PaymentStatus.Refunded.ToString(), body.Status);
-
-        await AssertOutboxContainsAsync(nameof(PaymentRefundedEvent), paymentId, expectedCount: 1);
-    }
-
-    [Fact]
-    public async Task Refund_WithEmptyBody_DefaultsToFullAmount()
-    {
-        var paymentId = await SeedPaymentAsync(PaymentStatus.Captured);
-
-        var response = await CreateAuthenticatedClient().PostAsync(
-            $"/{paymentId}/refund",
-            content: null);
-
-        response.EnsureSuccessStatusCode();
-        var body = await response.Content.ReadFromJsonAsync<RefundPaymentResponse>();
-        Assert.NotNull(body);
-        Assert.Equal(PaymentStatus.Refunded.ToString(), body.Status);
-    }
-
-    [Fact]
-    public async Task Refund_WhenStatusNotCaptured_ReturnsConflict()
-    {
-        var paymentId = await SeedPaymentAsync(PaymentStatus.Authorized);
-
-        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
-            $"/{paymentId}/refund",
-            new RefundPaymentRequest(Amount: null));
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Refund_WhenAlreadyRefunded_ReturnsConflict()
-    {
-        var paymentId = await SeedPaymentAsync(PaymentStatus.Refunded);
-
-        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
-            $"/{paymentId}/refund",
-            new RefundPaymentRequest(Amount: null));
-
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        await AssertOutboxContainsAsync(nameof(PaymentRefundedEvent), paymentId, expectedCount: 0);
-    }
-
-    [Fact]
-    public async Task Refund_WhenNotFound_ReturnsNotFound()
-    {
-        var response = await CreateAuthenticatedClient().PostAsJsonAsync(
-            $"/{Guid.NewGuid()}/refund",
-            new RefundPaymentRequest(Amount: null));
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Refund_WhenCallerIsCustomer_ReturnsForbidden()
-    {
-        var paymentId = await SeedPaymentAsync(PaymentStatus.Captured);
-
-        var response = await CreateCustomerClient("cust-1").PostAsJsonAsync(
-            $"/{paymentId}/refund",
-            new RefundPaymentRequest(Amount: null));
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task Refund_WhenUnauthenticated_ReturnsUnauthorized()
-    {
-        var response = await HttpClient.PostAsJsonAsync(
-            $"/{Guid.NewGuid()}/refund",
-            new RefundPaymentRequest(Amount: null));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

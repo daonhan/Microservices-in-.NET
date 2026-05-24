@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Payment.Service.Domain;
 using Payment.Service.Infrastructure.Data.EntityFramework;
 
-namespace Payment.Tests.Api;
+namespace Payment.Tests;
 
 public class QaSeedPresenceTests : IntegrationTestBase
 {
