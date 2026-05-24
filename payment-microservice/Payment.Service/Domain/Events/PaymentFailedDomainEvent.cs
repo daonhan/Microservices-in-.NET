@@ -1,0 +1,7 @@
+namespace Payment.Service.Domain.Events;
+
+public sealed record PaymentFailedDomainEvent(
+    Guid PaymentId,
+    Guid OrderId,
+    string CustomerId,
+    string Reason) : IDomainEvent;

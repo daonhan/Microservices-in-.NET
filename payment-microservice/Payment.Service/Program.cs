@@ -3,17 +3,23 @@ using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.IntegrationEvents.Commands;
 using ECommerce.Shared.Observability;
 using ECommerce.Shared.OpenApi;
 using ECommerce.Shared.Qa;
-using Payment.Service.Endpoints;
-using Payment.Service.Infrastructure.Data;
+using Payment.Service.Domain.Abstractions;
+using Payment.Service.Features.AuthorizePaymentCommand;
+using Payment.Service.Features.CapturePayment;
+using Payment.Service.Features.CapturePaymentCommand;
+using Payment.Service.Features.GetPaymentById;
+using Payment.Service.Features.GetPaymentByOrder;
+using Payment.Service.Features.OrderCreated;
+using Payment.Service.Features.RefundPayment;
+using Payment.Service.Features.RefundPaymentCommand;
+using Payment.Service.Features.VoidPaymentCommand;
 using Payment.Service.Infrastructure.Data.EntityFramework;
 using Payment.Service.Infrastructure.Gateways;
-using Payment.Service.IntegrationEvents.EventHandlers;
-using Payment.Service.IntegrationEvents.Events;
-using Payment.Service.Observability;
+using Payment.Service.Infrastructure.Observability;
+using Payment.Service.Infrastructure.Outbox;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,14 +29,22 @@ builder.Services.AddOutbox(builder.Configuration);
 
 builder.Services.AddSingleton<IPaymentGateway, InMemoryPaymentGateway>();
 
+builder.Services.AddGetPaymentByIdSlice();
+builder.Services.AddGetPaymentByOrderSlice();
+builder.Services.AddCapturePaymentSlice();
+builder.Services.AddRefundPaymentSlice();
+builder.Services.AddAuthorizePaymentCommandSlice();
+builder.Services.AddCapturePaymentCommandSlice();
+builder.Services.AddVoidPaymentCommandSlice();
+builder.Services.AddRefundPaymentCommandSlice();
+builder.Services.AddOrderCreatedSlice();
+
+builder.Services.AddScoped<MessageCorrelationContext>();
+builder.Services.AddScoped<DomainEventOutboxInterceptor>();
+
 builder.Services.AddPlatformEventBus(builder.Configuration)
     .AddPlatformEventPublisher(builder.Configuration)
-    .AddPlatformSubscriberService(builder.Configuration)
-    .AddEventHandler<OrderCreatedEvent, OrderCreatedEventHandler>()
-    .AddEventHandler<AuthorizePaymentCommand, AuthorizePaymentCommandHandler>()
-    .AddEventHandler<CapturePaymentCommand, CapturePaymentCommandHandler>()
-    .AddEventHandler<VoidPaymentCommand, VoidPaymentCommandHandler>()
-    .AddEventHandler<RefundPaymentCommand, RefundPaymentCommandHandler>();
+    .AddPlatformSubscriberService(builder.Configuration);
 
 builder.AddPlatformObservability("Payment",
     customTracing: t => t.WithSqlInstrumentation());
@@ -71,7 +85,10 @@ app.SeedQaData();
 // before any traffic flows.
 app.Services.GetRequiredService<PaymentMetrics>();
 
-app.RegisterEndpoints();
+app.MapGetPaymentById();
+app.MapGetPaymentByOrder();
+app.MapCapturePayment();
+app.MapRefundPayment();
 app.RegisterInternalOutboxEndpoints();
 
 app.UseHttpsRedirection();

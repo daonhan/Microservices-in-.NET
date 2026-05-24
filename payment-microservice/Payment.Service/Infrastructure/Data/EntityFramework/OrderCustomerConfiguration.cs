@@ -1,7 +1,7 @@
 using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Payment.Service.Models;
+using Payment.Service.Domain;
 
 namespace Payment.Service.Infrastructure.Data.EntityFramework;
 

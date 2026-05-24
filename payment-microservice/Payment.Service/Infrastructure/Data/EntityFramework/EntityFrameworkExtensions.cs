@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Payment.Service.Domain.Abstractions;
 
 namespace Payment.Service.Infrastructure.Data.EntityFramework;
 
@@ -16,6 +17,6 @@ public static class EntityFrameworkExtensions
                         errorNumbersToAdd: [0]);
                 }));
 
-        services.AddScoped<IPaymentStore, PaymentContext>();
+        services.AddScoped<IPaymentStore, EfPaymentStore>();
     }
 }

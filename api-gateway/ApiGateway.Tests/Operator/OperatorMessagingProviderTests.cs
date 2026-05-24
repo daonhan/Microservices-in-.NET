@@ -49,6 +49,22 @@ public sealed class OperatorMessagingProviderTests
     }
 
     [Fact]
+    public void Given_RabbitMq_messaging_provider_When_operator_services_are_added_Then_broker_connection_is_lazy()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Messaging:Provider"] = MessagingOptions.RabbitMqProvider,
+            ["RabbitMq:HostName"] = "definitely-not-resolvable.invalid"
+        });
+
+        OperatorModule.AddServices(builder);
+
+        Assert.Contains(builder.Services, descriptor =>
+            descriptor.ServiceType.FullName == "ECommerce.Shared.Infrastructure.RabbitMq.IRabbitMqConnection");
+    }
+
+    [Fact]
     public void Given_AzureServiceBus_messaging_provider_When_operator_services_are_added_Then_dead_letter_services_are_provider_selected()
     {
         var builder = WebApplication.CreateBuilder();

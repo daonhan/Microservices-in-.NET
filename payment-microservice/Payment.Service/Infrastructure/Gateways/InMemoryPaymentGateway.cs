@@ -1,3 +1,5 @@
+using Payment.Service.Domain.Abstractions;
+
 namespace Payment.Service.Infrastructure.Gateways;
 
 /// <summary>

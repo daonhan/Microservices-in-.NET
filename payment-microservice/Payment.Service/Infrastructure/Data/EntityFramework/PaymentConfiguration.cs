@@ -1,14 +1,15 @@
 using ECommerce.Shared.Qa;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Payment.Service.Domain;
 
 namespace Payment.Service.Infrastructure.Data.EntityFramework;
 
-internal class PaymentConfiguration : IEntityTypeConfiguration<Models.Payment>
+internal class PaymentConfiguration : IEntityTypeConfiguration<Domain.Payment>
 {
     private static readonly DateTime SeedEpoch = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    public void Configure(EntityTypeBuilder<Models.Payment> builder)
+    public void Configure(EntityTypeBuilder<Domain.Payment> builder)
     {
         builder.HasKey(p => p.PaymentId);
 
@@ -40,7 +41,7 @@ internal class PaymentConfiguration : IEntityTypeConfiguration<Models.Payment>
                 CustomerId = QaPersonas.CustomerHappyId.ToString(),
                 Amount = QaPersonas.PaymentHappyAmount,
                 Currency = "USD",
-                Status = Models.PaymentStatus.Authorized,
+                Status = PaymentStatus.Authorized,
                 ProviderReference = QaPersonas.PaymentAuthorizedProviderRef,
                 CreatedAt = SeedEpoch,
                 UpdatedAt = SeedEpoch,
@@ -52,7 +53,7 @@ internal class PaymentConfiguration : IEntityTypeConfiguration<Models.Payment>
                 CustomerId = QaPersonas.CustomerHappyId.ToString(),
                 Amount = QaPersonas.PaymentHappyAmount,
                 Currency = "USD",
-                Status = Models.PaymentStatus.Captured,
+                Status = PaymentStatus.Captured,
                 ProviderReference = QaPersonas.PaymentCapturedProviderRef,
                 CreatedAt = SeedEpoch,
                 UpdatedAt = SeedEpoch,
