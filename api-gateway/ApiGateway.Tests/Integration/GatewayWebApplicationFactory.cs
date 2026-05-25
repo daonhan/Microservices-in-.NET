@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using ApiGateway.Features.Operator.ListFailures;
 using ApiGateway.Infrastructure.Proxy;
 using ApiGateway.Operator;
 using ECommerce.Shared.Authentication;
@@ -104,6 +105,7 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
             builder.Services.AddSingleton(deadLetterStore ?? new NoopDeadLetterStore());
             builder.Services.AddSingleton(deadLetterReplayer ?? new NoopDeadLetterReplayer());
             builder.Services.AddSingleton(deadLetterDiscarder ?? new NoopDeadLetterDiscarder());
+            builder.Services.AddListFailuresSlice();
         }
 
         var gatewayPort = AllocatePort();
@@ -115,6 +117,9 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         app.UseJwtAuthentication();
         if (operatorEnabled)
         {
+            var operatorGroup = app.MapGroup("/operator/api/failures")
+                .RequireAuthorization(AuthorizationPolicies.RequireOperatorPolicy);
+            operatorGroup.MapListFailuresSlice();
             OperatorModule.MapEndpoints(app);
         }
         await app.UseConfiguredGatewayAsync();

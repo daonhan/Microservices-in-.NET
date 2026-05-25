@@ -35,23 +35,6 @@ public static class OperatorModule
         var group = app.MapGroup("/operator/api/failures")
             .RequireAuthorization(AuthorizationPolicies.RequireOperatorPolicy);
 
-        group.MapGet("/", async (
-            IDeadLetterStore store,
-            string? service,
-            string? eventType,
-            DeadLetterStatus? status,
-            DateTime? from,
-            DateTime? to,
-            DeadLetterOrigin? origin,
-            int page = 1,
-            int pageSize = 50,
-            CancellationToken cancellationToken = default) =>
-        {
-            var filter = new DeadLetterFilter(service, eventType, status, from, to, page, pageSize, origin);
-            var result = await store.ListAsync(filter, cancellationToken);
-            return Results.Ok(result);
-        });
-
         group.MapGet("/{id:guid}", async (
             Guid id,
             IDeadLetterStore store,

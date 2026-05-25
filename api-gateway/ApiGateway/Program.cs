@@ -1,3 +1,4 @@
+using ApiGateway.Features.Operator.ListFailures;
 using ApiGateway.Infrastructure.Proxy;
 using ApiGateway.Operator;
 using ECommerce.Shared.Authentication;
@@ -9,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddConfiguredGateway();
 OperatorModule.AddServices(builder);
+builder.Services.AddListFailuresSlice();
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.AddPlatformObservability(
     "ApiGateway",
@@ -25,6 +27,11 @@ if (app.Environment.IsDevelopment())
 app.UsePrometheusExporter();
 app.MapPlatformHealthChecks();
 app.UseJwtAuthentication();
+
+var operatorGroup = app.MapGroup("/operator/api/failures")
+    .RequireAuthorization(AuthorizationPolicies.RequireOperatorPolicy);
+operatorGroup.MapListFailuresSlice();
+
 OperatorModule.MapEndpoints(app);
 await app.UseConfiguredGatewayAsync();
 
