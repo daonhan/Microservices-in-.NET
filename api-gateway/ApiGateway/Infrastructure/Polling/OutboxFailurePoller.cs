@@ -2,7 +2,7 @@ using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace ApiGateway.Operator.OutboxPolling;
+namespace ApiGateway.Infrastructure.Polling;
 
 public sealed partial class OutboxFailurePoller : BackgroundService
 {

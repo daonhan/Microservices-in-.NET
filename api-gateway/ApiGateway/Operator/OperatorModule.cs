@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using ApiGateway.Infrastructure.Auth;
-using ApiGateway.Operator.OutboxPolling;
+using ApiGateway.Infrastructure.Polling;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;

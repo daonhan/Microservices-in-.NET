@@ -3,7 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace ApiGateway.Operator.OutboxPolling;
+namespace ApiGateway.Infrastructure.Polling;
 
 public interface IOutboxFailureClient
 {

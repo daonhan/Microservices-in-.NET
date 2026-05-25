@@ -1,4 +1,4 @@
-namespace ApiGateway.Operator.OutboxPolling;
+namespace ApiGateway.Infrastructure.Polling;
 
 public sealed record OutboxFailureItem(
     Guid Id,

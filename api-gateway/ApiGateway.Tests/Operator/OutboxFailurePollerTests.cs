@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
-using ApiGateway.Operator.OutboxPolling;
+using ApiGateway.Infrastructure.Polling;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
 using Microsoft.EntityFrameworkCore;

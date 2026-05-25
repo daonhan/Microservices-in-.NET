@@ -1,4 +1,4 @@
-namespace ApiGateway.Operator.OutboxPolling;
+namespace ApiGateway.Infrastructure.Polling;
 
 public sealed class OutboxPollerOptions
 {
