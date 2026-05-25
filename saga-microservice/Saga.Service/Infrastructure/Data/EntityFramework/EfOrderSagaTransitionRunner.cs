@@ -9,7 +9,7 @@ using Saga.Service.Infrastructure.Reaper;
 namespace Saga.Service.Infrastructure.Data.EntityFramework;
 
 internal sealed partial class EfOrderSagaTransitionRunner
-    : ISagaTransitionRunner<OrderSagaStateSnapshot, Event>
+    : IOrderSagaTransitionRunner
 {
     private readonly ISagaInstanceStore _sagaStore;
     private readonly TimeProvider _timeProvider;
@@ -80,29 +80,79 @@ internal sealed partial class EfOrderSagaTransitionRunner
         });
     }
 
-    public async Task BeginCompensation(
+    public async Task<SagaCompensationOutcome> BeginCompensation(
         Guid sagaId,
-        OrderSagaStep origin,
         Event trigger,
+        SagaTriggerKind triggerKind,
+        string error,
         CancellationToken cancellationToken = default)
     {
+        var outcome = new SagaCompensationOutcome(SagaCompensationOutcomeStatus.NotFound, sagaId);
+
         await _sagaStore.ExecuteAsync(async () =>
         {
             var saga = await _sagaStore.GetOrderSagaBySagaId(sagaId, cancellationToken);
-            if (saga?.OrderSagaState is null)
+            if (saga is null)
             {
+                outcome = new SagaCompensationOutcome(SagaCompensationOutcomeStatus.NotFound, sagaId);
                 return [];
             }
 
-            var currentStep = Enum.Parse<OrderSagaStep>(saga.CurrentStep);
+            if (saga.OrderSagaState is null)
+            {
+                outcome = new SagaCompensationOutcome(
+                    SagaCompensationOutcomeStatus.UnsupportedSagaType,
+                    saga.SagaId,
+                    saga.Status.ToString(),
+                    saga.CurrentStep,
+                    saga.LastCommandId,
+                    "unsupported_saga_type");
+                return [];
+            }
+
+            if (saga.Status != SagaStatus.Running)
+            {
+                outcome = new SagaCompensationOutcome(
+                    SagaCompensationOutcomeStatus.InvalidStatus,
+                    saga.SagaId,
+                    saga.Status.ToString(),
+                    saga.CurrentStep,
+                    saga.LastCommandId,
+                    $"status_{saga.Status}");
+                return [];
+            }
+
+            if (!Enum.TryParse<OrderSagaStep>(saga.CurrentStep, out var currentStep))
+            {
+                outcome = new SagaCompensationOutcome(
+                    SagaCompensationOutcomeStatus.UnknownCurrentStep,
+                    saga.SagaId,
+                    saga.Status.ToString(),
+                    saga.CurrentStep,
+                    saga.LastCommandId,
+                    "unknown_current_step");
+                return [];
+            }
+
             var snapshot = SnapshotFromSaga(saga, currentStep);
+            var origin = OrderSagaStateMachine.GetLastCompletedStep(currentStep);
             var result = OrderSagaStateMachine.BeginCompensation(snapshot, origin, trigger);
             if (!result.Changed)
             {
+                outcome = new SagaCompensationOutcome(
+                    SagaCompensationOutcomeStatus.NotStarted,
+                    saga.SagaId,
+                    saga.Status.ToString(),
+                    saga.CurrentStep,
+                    saga.LastCommandId,
+                    "compensation_not_started");
                 return [];
             }
 
             var now = _timeProvider.GetUtcNow().UtcDateTime;
+
+            trigger.CorrelationId ??= saga.CorrelationId;
+            trigger.SagaId ??= saga.SagaId;
 
             ApplyTransitionToSaga(saga, result, now);
             _timeoutScheduler.Apply(saga, now);
@@ -113,8 +163,8 @@ internal sealed partial class EfOrderSagaTransitionRunner
                 ToStep = result.State.CurrentStep.ToString(),
                 Timestamp = now,
                 TriggerMessageId = trigger.Id,
-                TriggerKind = SagaTriggerKind.Timeout,
-                Error = "Saga step exceeded max retries; compensation started."
+                TriggerKind = triggerKind,
+                Error = error
             });
 
             await _sagaStore.SaveChangesAsync(cancellationToken);
@@ -123,8 +173,17 @@ internal sealed partial class EfOrderSagaTransitionRunner
                 new KeyValuePair<string, object?>("type", saga.SagaType));
             LogSagaCompensating(_logger, saga.SagaId, saga.SagaType, currentStep.ToString(), origin.ToString());
 
+            outcome = new SagaCompensationOutcome(
+                SagaCompensationOutcomeStatus.Applied,
+                saga.SagaId,
+                saga.Status.ToString(),
+                saga.CurrentStep,
+                saga.LastCommandId);
+
             return result.Commands;
         });
+
+        return outcome;
     }
 
     private void RecordTransitionTelemetry(

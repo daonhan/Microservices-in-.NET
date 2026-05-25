@@ -109,8 +109,13 @@ public class EfOrderSagaTransitionRunnerTests : IClassFixture<SagaWebApplication
 
         using (var scope = _factory.Services.CreateScope())
         {
-            var runner = scope.ServiceProvider.GetRequiredService<EfOrderSagaTransitionRunner>();
-            await runner.BeginCompensation(sagaId, OrderSagaStep.StockReserved, trigger);
+            var runner = scope.ServiceProvider.GetRequiredService<IOrderSagaTransitionRunner>();
+            var outcome = await runner.BeginCompensation(
+                sagaId,
+                trigger,
+                SagaTriggerKind.Timeout,
+                "Saga step exceeded max retries; compensation started.");
+            Assert.Equal(SagaCompensationOutcomeStatus.Applied, outcome.Status);
         }
 
         using var assertScope = _factory.Services.CreateScope();
