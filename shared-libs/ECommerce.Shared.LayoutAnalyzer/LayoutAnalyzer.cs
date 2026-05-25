@@ -76,6 +76,14 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
                 "ECommerce.Shared.Infrastructure.Messaging",
                 "ECommerce.Shared.Observability.Metrics",
                 "ECommerce.Shared.Kernel.TelemetryConventions"),
+            ["Testing.Qa"] = ImmutableArray.Create(
+                // Own namespace (Testing.Qa package)
+                "ECommerce.Shared.Qa",
+                // Kernel-owned namespaces
+                "ECommerce.Shared.Infrastructure.EventBus",
+                "ECommerce.Shared.Infrastructure.Messaging",
+                "ECommerce.Shared.Observability.Metrics",
+                "ECommerce.Shared.Kernel.TelemetryConventions"),
         };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
