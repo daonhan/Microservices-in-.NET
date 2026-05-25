@@ -1,4 +1,6 @@
-using ApiGateway.Operator;
+using System.Security.Claims;
+using ApiGateway.Features.Operator.BatchReplayFailures;
+using ApiGateway.Infrastructure.Auth;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -10,12 +12,16 @@ public sealed class DeadLetterReplayBatchEndpointTests
     private static int StatusOf(IResult result) =>
         Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode ?? 0;
 
+    private static ClaimsPrincipal AsUser(string sub) =>
+        new(new ClaimsIdentity([new Claim(JwtClaimTypes.Subject, sub)]));
+
     [Fact]
     public async Task Given_null_request_When_BatchReplay_Then_returns_BadRequest_and_does_not_call_replayer()
     {
         var replayer = new FakeReplayer();
+        var handler = new BatchReplayFailuresHandler(replayer);
 
-        var result = await OperatorModule.BatchReplay(request: null, "alice", replayer, CancellationToken.None);
+        var result = await handler.HandleAsync(request: null, AsUser("alice"), CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status400BadRequest, StatusOf(result));
         Assert.Equal(0, replayer.CallCount);
@@ -25,8 +31,9 @@ public sealed class DeadLetterReplayBatchEndpointTests
     public async Task Given_empty_ids_When_BatchReplay_Then_returns_BadRequest_and_does_not_call_replayer()
     {
         var replayer = new FakeReplayer();
+        var handler = new BatchReplayFailuresHandler(replayer);
 
-        var result = await OperatorModule.BatchReplay(new BatchReplayRequest(Array.Empty<Guid>()), "alice", replayer, CancellationToken.None);
+        var result = await handler.HandleAsync(new BatchReplayRequest(Array.Empty<Guid>()), AsUser("alice"), CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status400BadRequest, StatusOf(result));
         Assert.Equal(0, replayer.CallCount);
@@ -51,11 +58,11 @@ public sealed class DeadLetterReplayBatchEndpointTests
                 [failed] = new DeadLetterReplayResult(DeadLetterReplayOutcome.PublishFailed, null, "broker_down", null)
             }
         };
+        var handler = new BatchReplayFailuresHandler(replayer);
 
-        var result = await OperatorModule.BatchReplay(
+        var result = await handler.HandleAsync(
             new BatchReplayRequest([ok, missing, conflict, failed]),
-            "alice",
-            replayer,
+            AsUser("alice"),
             CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status200OK, StatusOf(result));

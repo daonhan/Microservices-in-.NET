@@ -1,22 +1,38 @@
+using ApiGateway.Features.Operator.BatchReplayFailures;
 using ApiGateway.Features.Operator.DiscardFailure;
 using ApiGateway.Features.Operator.GetFailureDetail;
 using ApiGateway.Features.Operator.ListFailures;
 using ApiGateway.Features.Operator.ReplayFailure;
+using ApiGateway.Infrastructure.Polling;
 using ApiGateway.Infrastructure.Proxy;
-using ApiGateway.Operator;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.DeadLetter;
+using ECommerce.Shared.Infrastructure.Messaging;
 using ECommerce.Shared.Observability;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddConfiguredGateway();
-OperatorModule.AddServices(builder);
+builder.Services.AddPlatformEventBus(builder.Configuration);
+builder.Services.AddDeadLetter(builder.Configuration);
+builder.Services.AddRequireOperatorPolicy();
+
+var pollerOptions = new OutboxPollerOptions();
+builder.Configuration.GetSection(OutboxPollerOptions.SectionName).Bind(pollerOptions);
+builder.Services.AddSingleton(pollerOptions);
+
+if (pollerOptions.Enabled)
+{
+    builder.Services.AddHttpClient<IOutboxFailureClient, OutboxFailureClient>();
+    builder.Services.AddHostedService<OutboxFailurePoller>();
+}
+
 builder.Services.AddListFailuresSlice();
 builder.Services.AddGetFailureDetailSlice();
 builder.Services.AddReplayFailureSlice();
 builder.Services.AddDiscardFailureSlice();
+builder.Services.AddBatchReplayFailuresSlice();
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.AddPlatformObservability(
     "ApiGateway",
@@ -40,8 +56,8 @@ operatorGroup.MapListFailuresSlice();
 operatorGroup.MapGetFailureDetailSlice();
 operatorGroup.MapReplayFailureSlice();
 operatorGroup.MapDiscardFailureSlice();
+operatorGroup.MapBatchReplayFailuresSlice();
 
-OperatorModule.MapEndpoints(app);
 await app.UseConfiguredGatewayAsync();
 
 app.Run();

@@ -4,12 +4,12 @@ using System.Net.Sockets;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using ApiGateway.Features.Operator.BatchReplayFailures;
 using ApiGateway.Features.Operator.DiscardFailure;
 using ApiGateway.Features.Operator.GetFailureDetail;
 using ApiGateway.Features.Operator.ListFailures;
 using ApiGateway.Features.Operator.ReplayFailure;
 using ApiGateway.Infrastructure.Proxy;
-using ApiGateway.Operator;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.DeadLetter;
@@ -112,6 +112,7 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
             builder.Services.AddGetFailureDetailSlice();
             builder.Services.AddReplayFailureSlice();
             builder.Services.AddDiscardFailureSlice();
+            builder.Services.AddBatchReplayFailuresSlice();
         }
 
         var gatewayPort = AllocatePort();
@@ -129,7 +130,7 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
             operatorGroup.MapGetFailureDetailSlice();
             operatorGroup.MapReplayFailureSlice();
             operatorGroup.MapDiscardFailureSlice();
-            OperatorModule.MapEndpoints(app);
+            operatorGroup.MapBatchReplayFailuresSlice();
         }
         await app.UseConfiguredGatewayAsync();
         await app.StartAsync();

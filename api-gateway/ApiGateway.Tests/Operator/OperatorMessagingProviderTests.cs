@@ -1,4 +1,5 @@
-using ApiGateway.Operator;
+using ECommerce.Shared.Authentication;
+using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.Messaging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,7 +41,7 @@ public sealed class OperatorMessagingProviderTests
             ["AzureServiceBus:TopicName"] = "ecommerce-topic"
         });
 
-        OperatorModule.AddServices(builder);
+        AddOperatorServices(builder);
 
         Assert.Contains(builder.Services, descriptor =>
             descriptor.ServiceType.FullName == "Azure.Messaging.ServiceBus.ServiceBusClient");
@@ -58,7 +59,7 @@ public sealed class OperatorMessagingProviderTests
             ["RabbitMq:HostName"] = "definitely-not-resolvable.invalid"
         });
 
-        OperatorModule.AddServices(builder);
+        AddOperatorServices(builder);
 
         Assert.Contains(builder.Services, descriptor =>
             descriptor.ServiceType.FullName == "ECommerce.Shared.Infrastructure.RabbitMq.IRabbitMqConnection");
@@ -75,7 +76,7 @@ public sealed class OperatorMessagingProviderTests
             ["AzureServiceBus:TopicName"] = "ecommerce-topic"
         });
 
-        OperatorModule.AddServices(builder);
+        AddOperatorServices(builder);
 
         Assert.Contains(builder.Services, descriptor =>
             descriptor.ServiceType.FullName == "ECommerce.Shared.Infrastructure.DeadLetter.IDeadLetterCapture"
@@ -96,4 +97,11 @@ public sealed class OperatorMessagingProviderTests
 
     private static string GatewayAppSettingsPath =>
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "ApiGateway", "appsettings.json"));
+
+    private static void AddOperatorServices(WebApplicationBuilder builder)
+    {
+        builder.Services.AddPlatformEventBus(builder.Configuration);
+        builder.Services.AddDeadLetter(builder.Configuration);
+        builder.Services.AddRequireOperatorPolicy();
+    }
 }
