@@ -50,12 +50,15 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
         {
             ["Kernel"] = ImmutableArray.Create(
                 "ECommerce.Shared.Observability.Metrics"),
+            ["EventBus"] = ImmutableArray.Create(
+                "ECommerce.Shared.Infrastructure.Outbox.Migrations"),
         };
 
     private static readonly Dictionary<string, ImmutableArray<string>> KernelCompositionNamespaces =
         new(StringComparer.Ordinal)
         {
             ["Kernel"] = ImmutableArray<string>.Empty,
+            ["EventBus"] = ImmutableArray<string>.Empty,
         };
 
     // Per-source-package cross-package using allowlist. Activated incrementally
@@ -83,6 +86,15 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
                 "ECommerce.Shared.Infrastructure.EventBus",
                 "ECommerce.Shared.Infrastructure.Messaging",
                 "ECommerce.Shared.Observability.Metrics",
+                "ECommerce.Shared.Kernel.TelemetryConventions"),
+            ["EventBus"] = ImmutableArray.Create(
+                // Own namespaces (EventBus package)
+                "ECommerce.Shared.Infrastructure.EventBus",
+                "ECommerce.Shared.Infrastructure.EventBus.Abstractions",
+                "ECommerce.Shared.Infrastructure.Outbox",
+                "ECommerce.Shared.Infrastructure.Outbox.Models",
+                "ECommerce.Shared.Infrastructure.Outbox.Migrations",
+                // Kernel-owned namespaces
                 "ECommerce.Shared.Kernel.TelemetryConventions"),
         };
 

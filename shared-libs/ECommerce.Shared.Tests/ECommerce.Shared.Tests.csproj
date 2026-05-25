@@ -30,6 +30,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ECommerce.Shared\ECommerce.Shared.csproj" />
     <ProjectReference Include="..\ECommerce.Shared.Kernel\ECommerce.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\ECommerce.Shared.EventBus\ECommerce.Shared.EventBus.csproj" />
   </ItemGroup>
 
 </Project>
