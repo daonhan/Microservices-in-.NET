@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using ApiGateway.Features.Operator.GetFailureDetail;
 using ApiGateway.Features.Operator.ListFailures;
 using ApiGateway.Infrastructure.Proxy;
 using ApiGateway.Operator;
@@ -106,6 +107,7 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
             builder.Services.AddSingleton(deadLetterReplayer ?? new NoopDeadLetterReplayer());
             builder.Services.AddSingleton(deadLetterDiscarder ?? new NoopDeadLetterDiscarder());
             builder.Services.AddListFailuresSlice();
+            builder.Services.AddGetFailureDetailSlice();
         }
 
         var gatewayPort = AllocatePort();
@@ -120,6 +122,7 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
             var operatorGroup = app.MapGroup("/operator/api/failures")
                 .RequireAuthorization(AuthorizationPolicies.RequireOperatorPolicy);
             operatorGroup.MapListFailuresSlice();
+            operatorGroup.MapGetFailureDetailSlice();
             OperatorModule.MapEndpoints(app);
         }
         await app.UseConfiguredGatewayAsync();

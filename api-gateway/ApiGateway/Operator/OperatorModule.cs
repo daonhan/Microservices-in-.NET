@@ -3,7 +3,6 @@ using ApiGateway.Infrastructure.Auth;
 using ApiGateway.Infrastructure.Polling;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Infrastructure.DeadLetter;
-using ECommerce.Shared.Infrastructure.DeadLetter.Models;
 using ECommerce.Shared.Infrastructure.Messaging;
 using Microsoft.AspNetCore.Mvc;
 
@@ -34,15 +33,6 @@ public static class OperatorModule
     {
         var group = app.MapGroup("/operator/api/failures")
             .RequireAuthorization(AuthorizationPolicies.RequireOperatorPolicy);
-
-        group.MapGet("/{id:guid}", async (
-            Guid id,
-            IDeadLetterStore store,
-            IConfiguration configuration,
-            CancellationToken cancellationToken) =>
-        {
-            return await GetFailureDetail(id, store, configuration, cancellationToken);
-        });
 
         group.MapPost("/{id:guid}/replay", async (
             Guid id,
@@ -101,28 +91,6 @@ public static class OperatorModule
 
             return await BatchReplay(request, replayedBy, replayer, cancellationToken);
         });
-    }
-
-    public static async Task<IResult> GetFailureDetail(
-        Guid id,
-        IDeadLetterStore store,
-        IConfiguration configuration,
-        CancellationToken cancellationToken)
-    {
-        var message = await store.GetAsync(id, cancellationToken);
-        if (message is null)
-        {
-            return Results.NotFound();
-        }
-
-        var traceUiBaseUrl = configuration["Operator:TraceUiBaseUrl"];
-        string? traceUrl = null;
-        if (message.CorrelationId.HasValue && !string.IsNullOrWhiteSpace(traceUiBaseUrl))
-        {
-            traceUrl = traceUiBaseUrl.TrimEnd('/') + "/" + message.CorrelationId.Value;
-        }
-
-        return Results.Ok(new DeadLetterDetailResponse(message, traceUrl));
     }
 
     public static async Task<IResult> DiscardFailure(
@@ -187,8 +155,6 @@ public static class OperatorModule
         return Results.Ok(new BatchReplayResponse(items));
     }
 }
-
-public sealed record DeadLetterDetailResponse(DeadLetterMessage Message, string? TraceUrl);
 
 public sealed record DiscardRequest(string Reason);
 

@@ -1,4 +1,4 @@
-using ApiGateway.Operator;
+using ApiGateway.Features.Operator.GetFailureDetail;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
 using Microsoft.AspNetCore.Http;
@@ -23,8 +23,9 @@ public sealed class DeadLetterDetailEndpointTests
     {
         await using var ctx = NewContext();
         var configuration = new ConfigurationBuilder().Build();
+        var handler = new GetFailureDetailHandler(ctx, configuration);
 
-        var result = await OperatorModule.GetFailureDetail(Guid.NewGuid(), ctx, configuration, CancellationToken.None);
+        var result = await handler.HandleAsync(Guid.NewGuid(), CancellationToken.None);
 
         Assert.IsType<NotFound>(result);
     }
@@ -44,8 +45,9 @@ public sealed class DeadLetterDetailEndpointTests
                 ["Operator:TraceUiBaseUrl"] = "http://jaeger:16686/trace/",
             })
             .Build();
+        var handler = new GetFailureDetailHandler(ctx, configuration);
 
-        var result = await OperatorModule.GetFailureDetail(msg.Id, ctx, configuration, CancellationToken.None);
+        var result = await handler.HandleAsync(msg.Id, CancellationToken.None);
 
         var ok = Assert.IsType<Ok<DeadLetterDetailResponse>>(result);
         Assert.Equal($"http://jaeger:16686/trace/{correlationId}", ok.Value!.TraceUrl);
@@ -61,8 +63,9 @@ public sealed class DeadLetterDetailEndpointTests
         await ctx.SaveChangesAsync();
 
         var configuration = new ConfigurationBuilder().Build();
+        var handler = new GetFailureDetailHandler(ctx, configuration);
 
-        var result = await OperatorModule.GetFailureDetail(msg.Id, ctx, configuration, CancellationToken.None);
+        var result = await handler.HandleAsync(msg.Id, CancellationToken.None);
 
         var ok = Assert.IsType<Ok<DeadLetterDetailResponse>>(result);
         Assert.Null(ok.Value!.TraceUrl);
@@ -82,8 +85,9 @@ public sealed class DeadLetterDetailEndpointTests
                 ["Operator:TraceUiBaseUrl"] = "http://jaeger:16686/trace/",
             })
             .Build();
+        var handler = new GetFailureDetailHandler(ctx, configuration);
 
-        var result = await OperatorModule.GetFailureDetail(msg.Id, ctx, configuration, CancellationToken.None);
+        var result = await handler.HandleAsync(msg.Id, CancellationToken.None);
 
         var ok = Assert.IsType<Ok<DeadLetterDetailResponse>>(result);
         Assert.Null(ok.Value!.TraceUrl);
