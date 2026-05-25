@@ -1,4 +1,6 @@
-using ApiGateway.Operator;
+using System.Security.Claims;
+using ApiGateway.Features.Operator.DiscardFailure;
+using ApiGateway.Infrastructure.Auth;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using Microsoft.AspNetCore.Http;
 
@@ -11,12 +13,16 @@ public sealed class DeadLetterDiscardEndpointTests
     private static int StatusOf(IResult result) =>
         Assert.IsAssignableFrom<IStatusCodeHttpResult>(result).StatusCode ?? 0;
 
+    private static ClaimsPrincipal AsUser(string sub) =>
+        new(new ClaimsIdentity([new Claim(JwtClaimTypes.Subject, sub)]));
+
     [Fact]
     public async Task Given_null_request_When_DiscardFailure_Then_returns_BadRequest_and_does_not_call_discarder()
     {
         var discarder = new FakeDiscarder();
+        var handler = new DiscardFailureHandler(discarder);
 
-        var result = await OperatorModule.DiscardFailure(SampleId, request: null, "alice", discarder, CancellationToken.None);
+        var result = await handler.HandleAsync(SampleId, request: null, AsUser("alice"), CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status400BadRequest, StatusOf(result));
         Assert.Equal(0, discarder.CallCount);
@@ -26,8 +32,9 @@ public sealed class DeadLetterDiscardEndpointTests
     public async Task Given_blank_reason_When_DiscardFailure_Then_returns_BadRequest_and_does_not_call_discarder()
     {
         var discarder = new FakeDiscarder();
+        var handler = new DiscardFailureHandler(discarder);
 
-        var result = await OperatorModule.DiscardFailure(SampleId, new DiscardRequest("   "), "alice", discarder, CancellationToken.None);
+        var result = await handler.HandleAsync(SampleId, new DiscardRequest("   "), AsUser("alice"), CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status400BadRequest, StatusOf(result));
         Assert.Equal(0, discarder.CallCount);
@@ -40,8 +47,9 @@ public sealed class DeadLetterDiscardEndpointTests
         {
             Result = new DeadLetterDiscardResult(DeadLetterDiscardOutcome.Success, null, null)
         };
+        var handler = new DiscardFailureHandler(discarder);
 
-        var result = await OperatorModule.DiscardFailure(SampleId, new DiscardRequest("duplicate event"), "alice", discarder, CancellationToken.None);
+        var result = await handler.HandleAsync(SampleId, new DiscardRequest("duplicate event"), AsUser("alice"), CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status202Accepted, StatusOf(result));
         Assert.Equal(1, discarder.CallCount);
@@ -57,8 +65,9 @@ public sealed class DeadLetterDiscardEndpointTests
         {
             Result = new DeadLetterDiscardResult(DeadLetterDiscardOutcome.NotFound, "not_found", null)
         };
+        var handler = new DiscardFailureHandler(discarder);
 
-        var result = await OperatorModule.DiscardFailure(SampleId, new DiscardRequest("duplicate event"), "alice", discarder, CancellationToken.None);
+        var result = await handler.HandleAsync(SampleId, new DiscardRequest("duplicate event"), AsUser("alice"), CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status404NotFound, StatusOf(result));
     }
@@ -70,8 +79,9 @@ public sealed class DeadLetterDiscardEndpointTests
         {
             Result = new DeadLetterDiscardResult(DeadLetterDiscardOutcome.NotPending, "status_Replayed", null)
         };
+        var handler = new DiscardFailureHandler(discarder);
 
-        var result = await OperatorModule.DiscardFailure(SampleId, new DiscardRequest("duplicate event"), "alice", discarder, CancellationToken.None);
+        var result = await handler.HandleAsync(SampleId, new DiscardRequest("duplicate event"), AsUser("alice"), CancellationToken.None);
 
         Assert.Equal(StatusCodes.Status409Conflict, StatusOf(result));
     }

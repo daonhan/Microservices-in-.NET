@@ -1,5 +1,7 @@
+using ApiGateway.Features.Operator.DiscardFailure;
 using ApiGateway.Features.Operator.GetFailureDetail;
 using ApiGateway.Features.Operator.ListFailures;
+using ApiGateway.Features.Operator.ReplayFailure;
 using ApiGateway.Infrastructure.Proxy;
 using ApiGateway.Operator;
 using ECommerce.Shared.Authentication;
@@ -13,6 +15,8 @@ builder.AddConfiguredGateway();
 OperatorModule.AddServices(builder);
 builder.Services.AddListFailuresSlice();
 builder.Services.AddGetFailureDetailSlice();
+builder.Services.AddReplayFailureSlice();
+builder.Services.AddDiscardFailureSlice();
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.AddPlatformObservability(
     "ApiGateway",
@@ -34,6 +38,8 @@ var operatorGroup = app.MapGroup("/operator/api/failures")
     .RequireAuthorization(AuthorizationPolicies.RequireOperatorPolicy);
 operatorGroup.MapListFailuresSlice();
 operatorGroup.MapGetFailureDetailSlice();
+operatorGroup.MapReplayFailureSlice();
+operatorGroup.MapDiscardFailureSlice();
 
 OperatorModule.MapEndpoints(app);
 await app.UseConfiguredGatewayAsync();
