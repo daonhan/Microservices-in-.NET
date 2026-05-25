@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using ApiGateway.Gateway;
+using ApiGateway.Infrastructure.Proxy;
 using ApiGateway.Operator;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;

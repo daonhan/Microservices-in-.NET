@@ -1,4 +1,4 @@
-namespace ApiGateway.Gateway;
+namespace ApiGateway.Infrastructure.Proxy;
 
 public enum GatewayProvider
 {

@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using ApiGateway.Gateway.SwaggerAggregation;
+using ApiGateway.Infrastructure.Proxy.SwaggerAggregation;
 
 namespace ApiGateway.Tests.Gateway.SwaggerAggregation;
 

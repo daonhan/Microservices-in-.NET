@@ -1,4 +1,4 @@
-namespace ApiGateway.Gateway.SwaggerAggregation;
+namespace ApiGateway.Infrastructure.Proxy.SwaggerAggregation;
 
 public sealed record GatewayRouteInfo(
     string RouteId,

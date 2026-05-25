@@ -1,7 +1,7 @@
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 
-namespace ApiGateway.Gateway;
+namespace ApiGateway.Infrastructure.Proxy.Ocelot;
 
 public static class OcelotGatewayModule
 {

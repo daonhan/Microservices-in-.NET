@@ -1,6 +1,6 @@
 using Yarp.ReverseProxy.Configuration;
 
-namespace ApiGateway.Gateway.SwaggerAggregation;
+namespace ApiGateway.Infrastructure.Proxy.SwaggerAggregation;
 
 public static class GatewayRouteDiscovery
 {

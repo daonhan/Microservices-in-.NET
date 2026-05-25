@@ -1,4 +1,4 @@
-using ApiGateway.Gateway;
+using ApiGateway.Infrastructure.Proxy;
 using ApiGateway.Operator;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;

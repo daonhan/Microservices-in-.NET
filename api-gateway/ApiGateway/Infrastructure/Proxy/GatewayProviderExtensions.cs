@@ -1,6 +1,8 @@
+using ApiGateway.Infrastructure.Proxy.Ocelot;
+using ApiGateway.Infrastructure.Proxy.Yarp;
 using Microsoft.Extensions.Options;
 
-namespace ApiGateway.Gateway;
+namespace ApiGateway.Infrastructure.Proxy;
 
 public static class GatewayProviderExtensions
 {

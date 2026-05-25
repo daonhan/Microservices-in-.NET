@@ -3,7 +3,7 @@ using Yarp.ReverseProxy.Configuration;
 using Yarp.ReverseProxy.Transforms;
 using Yarp.ReverseProxy.Transforms.Builder;
 
-namespace ApiGateway.Gateway.SwaggerAggregation;
+namespace ApiGateway.Infrastructure.Proxy.SwaggerAggregation;
 
 public static class SwaggerAggregationModule
 {

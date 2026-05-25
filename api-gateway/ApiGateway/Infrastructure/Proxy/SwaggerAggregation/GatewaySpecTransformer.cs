@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace ApiGateway.Gateway.SwaggerAggregation;
+namespace ApiGateway.Infrastructure.Proxy.SwaggerAggregation;
 
 public static class GatewaySpecTransformer
 {

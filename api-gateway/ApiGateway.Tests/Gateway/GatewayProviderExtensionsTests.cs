@@ -1,4 +1,4 @@
-using ApiGateway.Gateway;
+using ApiGateway.Infrastructure.Proxy;
 
 namespace ApiGateway.Tests.Gateway;
 

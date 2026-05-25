@@ -1,6 +1,6 @@
-using ApiGateway.Gateway.SwaggerAggregation;
+using ApiGateway.Infrastructure.Proxy.SwaggerAggregation;
 
-namespace ApiGateway.Gateway;
+namespace ApiGateway.Infrastructure.Proxy.Yarp;
 
 public static class YarpGatewayModule
 {

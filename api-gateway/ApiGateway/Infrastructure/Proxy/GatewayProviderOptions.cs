@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ApiGateway.Gateway;
+namespace ApiGateway.Infrastructure.Proxy;
 
 public class GatewayProviderOptions
 {
