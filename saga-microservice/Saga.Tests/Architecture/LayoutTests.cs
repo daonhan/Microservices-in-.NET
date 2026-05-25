@@ -6,27 +6,32 @@ public class LayoutTests
 {
     private static readonly System.Reflection.Assembly SagaServiceAssembly = typeof(Program).Assembly;
 
-    [Fact(Skip = "enabled in Phase 10")]
-    public void Domain_DoesNotReference_InfrastructureFeaturesOrContracts()
+    [Fact]
+    public void Domain_DoesNotReference_InfrastructureOrFeatures()
     {
+        // Saga Domain depends on Contracts.Integration.InboundEvents by design — the pure state
+        // machines pattern-match on inbound integration event types and saga emits commands directly
+        // (no IIntegrationMap seam). Contracts is therefore not on the forbidden list for Domain.
         var result = Types.InAssembly(SagaServiceAssembly)
             .That()
             .ResideInNamespaceStartingWith("Saga.Service.Domain")
             .ShouldNot()
             .HaveDependencyOnAny(
                 "Saga.Service.Infrastructure",
-                "Saga.Service.Features",
-                "Saga.Service.Contracts")
+                "Saga.Service.Features")
             .GetResult();
 
         Assert.True(result.IsSuccessful,
-            "Domain types may not reference Infrastructure, Features or Contracts: "
+            "Domain types may not reference Infrastructure or Features: "
             + string.Join(", ", result.FailingTypeNames ?? []));
     }
 
-    [Fact(Skip = "enabled in Phase 10")]
+    [Fact]
     public void Features_DoNotReference_OtherFeatureSlices()
     {
+        // Two-level slice identity: slice = first TWO segments after "Saga.Service.Features."
+        // (e.g. "OrderSaga.StockReserved" vs "OrderSaga.PaymentAuthorized" are distinct,
+        // and "OrderSaga.PaymentRefunded" vs "RefundSaga.PaymentRefunded" are distinct).
         var featureTypes = Types.InAssembly(SagaServiceAssembly)
             .That()
             .ResideInNamespaceStartingWith("Saga.Service.Features")
@@ -36,7 +41,9 @@ public class LayoutTests
         var slices = featureTypes
             .Select(t => t.Namespace ?? string.Empty)
             .Where(ns => ns.StartsWith("Saga.Service.Features.", StringComparison.Ordinal))
-            .Select(ns => ns.Split('.')[3])
+            .Select(GetSliceSegment)
+            .Where(s => s is not null)
+            .Select(s => s!)
             .Distinct()
             .ToList();
 
@@ -55,9 +62,11 @@ public class LayoutTests
             }
 
             // Anchored regex for the same boundary reason on the selector side.
+            // Escape dots in the slice path (e.g. "OrderSaga.StockReserved") for the regex.
+            var sliceRegex = slice.Replace(".", @"\.");
             var result = Types.InAssembly(SagaServiceAssembly)
                 .That()
-                .ResideInNamespaceMatching($@"^Saga\.Service\.Features\.{slice}(\.|$)")
+                .ResideInNamespaceMatching($@"^Saga\.Service\.Features\.{sliceRegex}(\.|$)")
                 .ShouldNot()
                 .HaveDependencyOnAny(otherSlices)
                 .GetResult();
@@ -72,7 +81,7 @@ public class LayoutTests
             "Features.<X> may not reference Features.<Y> for X != Y: " + string.Join(", ", offenders));
     }
 
-    [Fact(Skip = "enabled in Phase 10")]
+    [Fact]
     public void Infrastructure_DoesNotReference_Features()
     {
         var result = Types.InAssembly(SagaServiceAssembly)
@@ -87,7 +96,7 @@ public class LayoutTests
             + string.Join(", ", result.FailingTypeNames ?? []));
     }
 
-    [Fact(Skip = "enabled in Phase 10")]
+    [Fact]
     public void Contracts_DoNotReference_InternalLayers()
     {
         var result = Types.InAssembly(SagaServiceAssembly)
@@ -103,5 +112,26 @@ public class LayoutTests
         Assert.True(result.IsSuccessful,
             "Contracts types may not reference Domain, Infrastructure or Features: "
             + string.Join(", ", result.FailingTypeNames ?? []));
+    }
+
+    private static string? GetSliceSegment(string ns)
+    {
+        const string prefix = "Saga.Service.Features.";
+        if (!ns.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var remainder = ns.Substring(prefix.Length);
+        var firstDot = remainder.IndexOf('.');
+        if (firstDot < 0)
+        {
+            return null;
+        }
+
+        var afterFirst = remainder.Substring(firstDot + 1);
+        var secondDot = afterFirst.IndexOf('.');
+        var secondSegment = secondDot < 0 ? afterFirst : afterFirst.Substring(0, secondDot);
+        return string.Concat(remainder.Substring(0, firstDot), ".", secondSegment);
     }
 }

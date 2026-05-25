@@ -8,7 +8,7 @@ namespace Saga.Tests.Architecture;
 
 public class LayoutAnalyzerTests
 {
-    [Fact(Skip = "enabled in Phase 10")]
+    [Fact]
     public async Task Domain_WhenFullyQualifiedInfrastructureReference_ThenReportsDomainRule()
     {
         const string targetSource = """
@@ -29,9 +29,10 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.DomainRuleId);
     }
 
-    [Fact(Skip = "enabled in Phase 10")]
-    public async Task Feature_WhenFullyQualifiedOtherSliceReference_ThenReportsFeatureRule()
+    [Fact]
+    public async Task Feature_WhenFullyQualifiedCrossSagaSliceReference_ThenReportsFeatureRule()
     {
+        // OrderSaga.OrderCreated using RefundSaga.RefundRequested — distinct sagas, distinct slices.
         const string targetSource = """
             using Saga.Service.Features.RefundSaga.RefundRequested;
             namespace Saga.Service.Features.OrderSaga.OrderCreated;
@@ -50,7 +51,52 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.FeatureSliceRuleId);
     }
 
-    [Fact(Skip = "enabled in Phase 10")]
+    [Fact]
+    public async Task Feature_WhenFullyQualifiedSameSagaSiblingSliceReference_ThenReportsFeatureRule()
+    {
+        // Two-level slice identity: OrderSaga.StockReserved and OrderSaga.PaymentAuthorized
+        // share the OrderSaga prefix but are still distinct slices.
+        const string targetSource = """
+            using Saga.Service.Features.OrderSaga.PaymentAuthorized;
+            namespace Saga.Service.Features.OrderSaga.StockReserved;
+            public sealed class Sample
+            {
+                private PaymentAuthorizedHandler? _handler;
+            }
+            """;
+        const string referencedSource = """
+            namespace Saga.Service.Features.OrderSaga.PaymentAuthorized;
+            public sealed class PaymentAuthorizedHandler { }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(targetSource, referencedSource);
+
+        Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.FeatureSliceRuleId);
+    }
+
+    [Fact]
+    public async Task Feature_WhenSameSliceReference_ThenDoesNotReportFeatureRule()
+    {
+        // Same two-level slice path — intra-slice usings are allowed.
+        const string targetSource = """
+            using Saga.Service.Features.OrderSaga.StockReserved;
+            namespace Saga.Service.Features.OrderSaga.StockReserved;
+            public sealed class Sample
+            {
+                private Helper? _helper;
+            }
+            """;
+        const string referencedSource = """
+            namespace Saga.Service.Features.OrderSaga.StockReserved;
+            public sealed class Helper { }
+            """;
+
+        var diagnostics = await GetDiagnosticsAsync(targetSource, referencedSource);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == LayoutAnalyzer.FeatureSliceRuleId);
+    }
+
+    [Fact]
     public async Task Infrastructure_WhenFullyQualifiedFeatureReference_ThenReportsInfrastructureRule()
     {
         const string targetSource = """
@@ -71,7 +117,7 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.InfrastructureRuleId);
     }
 
-    [Fact(Skip = "enabled in Phase 10")]
+    [Fact]
     public async Task Contracts_WhenFullyQualifiedDomainReference_ThenReportsContractsRule()
     {
         const string targetSource = """
