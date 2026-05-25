@@ -17,6 +17,11 @@ builder.AddConfiguredGateway();
 builder.Services.AddPlatformEventBus(builder.Configuration);
 builder.Services.AddDeadLetter(builder.Configuration);
 builder.Services.AddRequireOperatorPolicy();
+builder.Services.AddJwtAuthentication(builder.Configuration);
+builder.AddPlatformObservability(
+    "ApiGateway",
+    customTracing: tracing => tracing.AddSource("Yarp.ReverseProxy"));
+builder.Services.AddPlatformHealthChecks();
 
 var pollerOptions = new OutboxPollerOptions();
 builder.Configuration.GetSection(OutboxPollerOptions.SectionName).Bind(pollerOptions);
@@ -28,16 +33,12 @@ if (pollerOptions.Enabled)
     builder.Services.AddHostedService<OutboxFailurePoller>();
 }
 
-builder.Services.AddListFailuresSlice();
-builder.Services.AddGetFailureDetailSlice();
-builder.Services.AddReplayFailureSlice();
-builder.Services.AddDiscardFailureSlice();
-builder.Services.AddBatchReplayFailuresSlice();
-builder.Services.AddJwtAuthentication(builder.Configuration);
-builder.AddPlatformObservability(
-    "ApiGateway",
-    customTracing: tracing => tracing.AddSource("Yarp.ReverseProxy"));
-builder.Services.AddPlatformHealthChecks();
+builder.Services
+    .AddListFailuresSlice()
+    .AddGetFailureDetailSlice()
+    .AddReplayFailureSlice()
+    .AddDiscardFailureSlice()
+    .AddBatchReplayFailuresSlice();
 
 var app = builder.Build();
 
