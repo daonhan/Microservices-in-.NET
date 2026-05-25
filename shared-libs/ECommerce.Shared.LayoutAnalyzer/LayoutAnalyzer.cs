@@ -56,6 +56,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
             ["AzureServiceBus"] = ImmutableArray<string>.Empty,
             ["DeadLetter"] = ImmutableArray.Create(
                 "ECommerce.Shared.Infrastructure.DeadLetter.Migrations"),
+            ["Platform"] = ImmutableArray<string>.Empty,
         };
 
     private static readonly Dictionary<string, ImmutableArray<string>> KernelCompositionNamespaces =
@@ -66,6 +67,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
             ["RabbitMq"] = ImmutableArray<string>.Empty,
             ["AzureServiceBus"] = ImmutableArray<string>.Empty,
             ["DeadLetter"] = ImmutableArray<string>.Empty,
+            ["Platform"] = ImmutableArray<string>.Empty,
         };
 
     // Per-source-package cross-package using allowlist. Activated incrementally
@@ -133,6 +135,15 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
                 "ECommerce.Shared.Infrastructure.RabbitMq",
                 // AzureServiceBus-owned namespaces
                 "ECommerce.Shared.Infrastructure.AzureServiceBus"),
+            ["Platform"] = ImmutableArray.Create(
+                // Own namespaces (Platform package — Auth + Obs + HealthChecks + OpenApi)
+                "ECommerce.Shared.Authentication",
+                "ECommerce.Shared.Observability",
+                "ECommerce.Shared.HealthChecks",
+                "ECommerce.Shared.OpenApi",
+                // Kernel-owned namespaces
+                "ECommerce.Shared.Observability.Metrics",
+                "ECommerce.Shared.Kernel.TelemetryConventions"),
         };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>

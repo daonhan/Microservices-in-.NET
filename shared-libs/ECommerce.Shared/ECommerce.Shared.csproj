@@ -14,6 +14,7 @@
     <ProjectReference Include="..\ECommerce.Shared.RabbitMq\ECommerce.Shared.RabbitMq.csproj" />
     <ProjectReference Include="..\ECommerce.Shared.AzureServiceBus\ECommerce.Shared.AzureServiceBus.csproj" />
     <ProjectReference Include="..\ECommerce.Shared.DeadLetter\ECommerce.Shared.DeadLetter.csproj" />
+    <ProjectReference Include="..\ECommerce.Shared.Platform\ECommerce.Shared.Platform.csproj" />
     <ProjectReference Include="..\ECommerce.Shared.Contracts\ECommerce.Shared.Contracts.csproj" />
     <ProjectReference Include="..\ECommerce.Shared.Testing.Qa\ECommerce.Shared.Testing.Qa.csproj" />
     <ProjectReference Include="..\ECommerce.Shared.LayoutAnalyzer\ECommerce.Shared.LayoutAnalyzer.csproj"
