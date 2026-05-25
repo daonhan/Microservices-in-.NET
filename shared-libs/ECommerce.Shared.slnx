@@ -1,4 +1,13 @@
 <Solution>
   <Project Path="ECommerce.Shared/ECommerce.Shared.csproj" />
+  <Project Path="ECommerce.Shared.Kernel/ECommerce.Shared.Kernel.csproj" />
+  <Project Path="ECommerce.Shared.EventBus/ECommerce.Shared.EventBus.csproj" />
+  <Project Path="ECommerce.Shared.RabbitMq/ECommerce.Shared.RabbitMq.csproj" />
+  <Project Path="ECommerce.Shared.AzureServiceBus/ECommerce.Shared.AzureServiceBus.csproj" />
+  <Project Path="ECommerce.Shared.DeadLetter/ECommerce.Shared.DeadLetter.csproj" />
+  <Project Path="ECommerce.Shared.Platform/ECommerce.Shared.Platform.csproj" />
+  <Project Path="ECommerce.Shared.Contracts/ECommerce.Shared.Contracts.csproj" />
+  <Project Path="ECommerce.Shared.Testing.Qa/ECommerce.Shared.Testing.Qa.csproj" />
+  <Project Path="ECommerce.Shared.LayoutAnalyzer/ECommerce.Shared.LayoutAnalyzer.csproj" />
   <Project Path="ECommerce.Shared.Tests/ECommerce.Shared.Tests.csproj" />
 </Solution>
