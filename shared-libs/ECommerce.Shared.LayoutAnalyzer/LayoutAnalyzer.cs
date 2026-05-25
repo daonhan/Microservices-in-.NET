@@ -52,6 +52,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
                 "ECommerce.Shared.Observability.Metrics"),
             ["EventBus"] = ImmutableArray.Create(
                 "ECommerce.Shared.Infrastructure.Outbox.Migrations"),
+            ["RabbitMq"] = ImmutableArray<string>.Empty,
         };
 
     private static readonly Dictionary<string, ImmutableArray<string>> KernelCompositionNamespaces =
@@ -59,6 +60,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
         {
             ["Kernel"] = ImmutableArray<string>.Empty,
             ["EventBus"] = ImmutableArray<string>.Empty,
+            ["RabbitMq"] = ImmutableArray<string>.Empty,
         };
 
     // Per-source-package cross-package using allowlist. Activated incrementally
@@ -96,6 +98,15 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
                 "ECommerce.Shared.Infrastructure.Outbox.Migrations",
                 // Kernel-owned namespaces
                 "ECommerce.Shared.Kernel.TelemetryConventions"),
+            ["RabbitMq"] = ImmutableArray.Create(
+                // Own namespace (RabbitMq package)
+                "ECommerce.Shared.Infrastructure.RabbitMq",
+                // Kernel-owned namespaces
+                "ECommerce.Shared.Observability",
+                "ECommerce.Shared.Kernel.TelemetryConventions",
+                // EventBus-owned namespaces
+                "ECommerce.Shared.Infrastructure.EventBus",
+                "ECommerce.Shared.Infrastructure.EventBus.Abstractions"),
         };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
