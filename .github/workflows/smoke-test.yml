@@ -24,7 +24,7 @@ jobs:
       - name: Pack shared library
         run: |
           mkdir -p local-nuget-packages
-          dotnet pack shared-libs/ECommerce.Shared/ECommerce.Shared.csproj \
+          dotnet pack shared-libs/ECommerce.Shared.slnx \
             --configuration Release --output local-nuget-packages
 
       - name: Boot stack
@@ -100,7 +100,7 @@ jobs:
       - name: Pack shared library
         run: |
           mkdir -p local-nuget-packages
-          dotnet pack shared-libs/ECommerce.Shared/ECommerce.Shared.csproj \
+          dotnet pack shared-libs/ECommerce.Shared.slnx \
             --configuration Release --output local-nuget-packages
 
       - name: Boot stack
