@@ -3,20 +3,29 @@ using ECommerce.Shared.Infrastructure.EventBus.Abstractions;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain.Abstractions;
 using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Domain.RefundSaga;
 
 namespace Saga.Service.Features.OrderSaga.ShipmentFailed;
 
 internal sealed class ShipmentFailedHandler : IEventHandler<ShipmentFailedEvent>
 {
     private readonly ISagaTransitionRunner<OrderSagaStateSnapshot, Event> _runner;
+    private readonly ISagaTransitionRunner<RefundSagaStateSnapshot, Event> _refundRunner;
 
-    public ShipmentFailedHandler(ISagaTransitionRunner<OrderSagaStateSnapshot, Event> runner)
+    public ShipmentFailedHandler(
+        ISagaTransitionRunner<OrderSagaStateSnapshot, Event> runner,
+        ISagaTransitionRunner<RefundSagaStateSnapshot, Event> refundRunner)
     {
         _runner = runner;
+        _refundRunner = refundRunner;
     }
 
-    public Task Handle(ShipmentFailedEvent @event) =>
-        @event.SagaId is { } sagaId
-            ? _runner.RunAsync(sagaId, @event, OrderSagaStateMachine.Transition)
-            : Task.CompletedTask;
+    public async Task Handle(ShipmentFailedEvent @event)
+    {
+        if (@event.SagaId is { } sagaId)
+        {
+            await _runner.RunAsync(sagaId, @event, OrderSagaStateMachine.Transition);
+            await _refundRunner.RunAsync(sagaId, @event, RefundSagaStateMachine.Transition);
+        }
+    }
 }

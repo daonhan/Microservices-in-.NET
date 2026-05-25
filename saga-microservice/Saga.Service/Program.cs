@@ -30,12 +30,8 @@ using Saga.Service.Features.OrderSaga.StockCommitted;
 using Saga.Service.Features.OrderSaga.StockReleased;
 using Saga.Service.Features.OrderSaga.StockReservationFailed;
 using Saga.Service.Features.OrderSaga.StockReserved;
-using Saga.Service.Features.RefundSaga.OrderCancelled;
-using Saga.Service.Features.RefundSaga.PaymentFailed;
 using Saga.Service.Features.RefundSaga.PaymentRefunded;
 using Saga.Service.Features.RefundSaga.RefundRequested;
-using Saga.Service.Features.RefundSaga.ShipmentCancelled;
-using Saga.Service.Features.RefundSaga.ShipmentFailed;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Observability;
 using Saga.Service.Infrastructure.Outbox;
@@ -56,8 +52,6 @@ builder.Services.Configure<OrderSagaTimeoutOptions>(
     builder.Configuration.GetSection("Saga:OrderSaga"));
 builder.Services.AddSingleton<OrderSagaTimeoutScheduler>();
 builder.Services.AddScoped<EfOrderSagaTransitionRunner>();
-builder.Services.AddScoped<IOrderSagaTransitionRunner>(
-    sp => sp.GetRequiredService<EfOrderSagaTransitionRunner>());
 builder.Services.AddScoped<ISagaTransitionRunner<OrderSagaStateSnapshot, Event>>(
     sp => sp.GetRequiredService<EfOrderSagaTransitionRunner>());
 builder.Services.AddScoped<EfRefundSagaTransitionRunner>();
@@ -71,19 +65,15 @@ builder.Services
     .AddStockReservationFailedSlice()
     .AddPaymentAuthorizedSlice()
     .AddPaymentFailedSlice()
-    .AddRefundSagaPaymentFailedSlice()
     .AddOrderConfirmedSlice()
     .AddStockCommittedSlice()
     .AddShipmentCreatedSlice()
     .AddShipmentFailedSlice()
-    .AddRefundSagaShipmentFailedSlice()
     .AddStockReleasedSlice()
     .AddPaymentVoidedSlice()
     .AddPaymentRefundedSlice()
     .AddOrderCancelledSlice()
-    .AddRefundSagaOrderCancelledSlice()
     .AddShipmentCancelledSlice()
-    .AddRefundSagaShipmentCancelledSlice()
     .AddRefundRequestedSlice()
     .AddRefundSagaPaymentRefundedSlice()
     .AddListSagasSlice()

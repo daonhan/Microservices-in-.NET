@@ -51,10 +51,10 @@ internal sealed partial class SagaReaperService : BackgroundService
 
         var sagaStore = serviceScope.ServiceProvider.GetRequiredService<ISagaInstanceStore>();
         var outboxStore = serviceScope.ServiceProvider.GetRequiredService<IOutboxStore>();
-        var runner = serviceScope.ServiceProvider.GetRequiredService<IOrderSagaTransitionRunner>();
+        var runner = serviceScope.ServiceProvider.GetRequiredService<EfOrderSagaTransitionRunner>();
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
-        var compensationCandidates = new List<(Guid SagaId, Event Trigger)>();
+        var compensationCandidates = new List<(Guid SagaId, OrderSagaStep Origin, Event Trigger)>();
 
         await sagaStore.ExecuteAsync(async () =>
         {
@@ -86,7 +86,8 @@ internal sealed partial class SagaReaperService : BackgroundService
                         CorrelationId = saga.CorrelationId,
                         SagaId = saga.SagaId
                     };
-                    compensationCandidates.Add((saga.SagaId, trigger));
+                    var origin = OrderSagaStateMachine.GetLastCompletedStep(currentStep);
+                    compensationCandidates.Add((saga.SagaId, origin, trigger));
                     continue;
                 }
 
@@ -116,14 +117,9 @@ internal sealed partial class SagaReaperService : BackgroundService
             return [];
         });
 
-        foreach (var (sagaId, trigger) in compensationCandidates)
+        foreach (var (sagaId, origin, trigger) in compensationCandidates)
         {
-            await runner.BeginCompensation(
-                sagaId,
-                trigger,
-                SagaTriggerKind.Timeout,
-                "Saga step exceeded max retries; compensation started.",
-                stoppingToken);
+            await runner.BeginCompensation(sagaId, origin, trigger, stoppingToken);
         }
     }
 

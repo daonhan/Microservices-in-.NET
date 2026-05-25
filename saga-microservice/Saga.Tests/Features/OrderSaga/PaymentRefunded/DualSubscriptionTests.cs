@@ -6,16 +6,8 @@ using Saga.Service.Domain;
 using Saga.Service.Domain.OrderSaga;
 using Saga.Service.Domain.RefundSaga;
 using Saga.Service.Infrastructure.Data.EntityFramework;
-using OrderSagaOrderCancelledHandler = Saga.Service.Features.OrderSaga.OrderCancelled.OrderCancelledHandler;
-using OrderSagaPaymentFailedHandler = Saga.Service.Features.OrderSaga.PaymentFailed.PaymentFailedHandler;
 using OrderSagaPaymentRefundedHandler = Saga.Service.Features.OrderSaga.PaymentRefunded.PaymentRefundedHandler;
-using OrderSagaShipmentCancelledHandler = Saga.Service.Features.OrderSaga.ShipmentCancelled.ShipmentCancelledHandler;
-using OrderSagaShipmentFailedHandler = Saga.Service.Features.OrderSaga.ShipmentFailed.ShipmentFailedHandler;
-using RefundSagaOrderCancelledHandler = Saga.Service.Features.RefundSaga.OrderCancelled.OrderCancelledHandler;
-using RefundSagaPaymentFailedHandler = Saga.Service.Features.RefundSaga.PaymentFailed.PaymentFailedHandler;
 using RefundSagaPaymentRefundedHandler = Saga.Service.Features.RefundSaga.PaymentRefunded.PaymentRefundedHandler;
-using RefundSagaShipmentCancelledHandler = Saga.Service.Features.RefundSaga.ShipmentCancelled.ShipmentCancelledHandler;
-using RefundSagaShipmentFailedHandler = Saga.Service.Features.RefundSaga.ShipmentFailed.ShipmentFailedHandler;
 
 namespace Saga.Tests.Features.OrderSaga.PaymentRefunded;
 
@@ -28,21 +20,17 @@ public class DualSubscriptionTests : IClassFixture<SagaWebApplicationFactory>
         _factory = factory;
     }
 
-    [Theory]
-    [MemberData(nameof(SharedRefundReplyRegistrations))]
-    public void Given_SharedRefundReplyEvent_Then_OrderAndRefundHandlersRegistered(
-        Type eventType,
-        Type orderHandlerType,
-        Type refundHandlerType)
+    [Fact]
+    public void Given_PaymentRefundedEvent_Then_TwoEventHandlersRegistered()
     {
         using var scope = _factory.Services.CreateScope();
         var handlers = scope.ServiceProvider
-            .GetKeyedServices<IEventHandler>(eventType)
+            .GetKeyedServices<IEventHandler>(typeof(PaymentRefundedEvent))
             .ToList();
 
         Assert.Equal(2, handlers.Count);
-        Assert.Contains(handlers, h => h.GetType() == orderHandlerType);
-        Assert.Contains(handlers, h => h.GetType() == refundHandlerType);
+        Assert.Contains(handlers, h => h.GetType() == typeof(OrderSagaPaymentRefundedHandler));
+        Assert.Contains(handlers, h => h.GetType() == typeof(RefundSagaPaymentRefundedHandler));
     }
 
     [Fact]
@@ -136,15 +124,6 @@ public class DualSubscriptionTests : IClassFixture<SagaWebApplicationFactory>
             await handler.Handle(@event);
         }
     }
-
-    public static TheoryData<Type, Type, Type> SharedRefundReplyRegistrations() => new()
-    {
-        { typeof(PaymentFailedEvent), typeof(OrderSagaPaymentFailedHandler), typeof(RefundSagaPaymentFailedHandler) },
-        { typeof(ShipmentFailedEvent), typeof(OrderSagaShipmentFailedHandler), typeof(RefundSagaShipmentFailedHandler) },
-        { typeof(ShipmentCancelledEvent), typeof(OrderSagaShipmentCancelledHandler), typeof(RefundSagaShipmentCancelledHandler) },
-        { typeof(OrderCancelledEvent), typeof(OrderSagaOrderCancelledHandler), typeof(RefundSagaOrderCancelledHandler) },
-        { typeof(PaymentRefundedEvent), typeof(OrderSagaPaymentRefundedHandler), typeof(RefundSagaPaymentRefundedHandler) }
-    };
 
     private async Task<Guid> SeedOrderSagaInRefundingPayment(Guid orderId, decimal amount)
     {

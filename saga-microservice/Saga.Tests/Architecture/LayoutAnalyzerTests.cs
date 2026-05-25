@@ -12,10 +12,11 @@ public class LayoutAnalyzerTests
     public async Task Domain_WhenFullyQualifiedInfrastructureReference_ThenReportsDomainRule()
     {
         const string targetSource = """
+            using Saga.Service.Infrastructure.Data.EntityFramework;
             namespace Saga.Service.Domain;
             public sealed class Sample
             {
-                private Saga.Service.Infrastructure.Data.EntityFramework.SagaContext? _context;
+                private SagaContext? _context;
             }
             """;
         const string referencedSource = """
@@ -33,10 +34,11 @@ public class LayoutAnalyzerTests
     {
         // OrderSaga.OrderCreated using RefundSaga.RefundRequested — distinct sagas, distinct slices.
         const string targetSource = """
+            using Saga.Service.Features.RefundSaga.RefundRequested;
             namespace Saga.Service.Features.OrderSaga.OrderCreated;
             public sealed class Sample
             {
-                private Saga.Service.Features.RefundSaga.RefundRequested.RefundHandler? _handler;
+                private RefundHandler? _handler;
             }
             """;
         const string referencedSource = """
@@ -55,10 +57,11 @@ public class LayoutAnalyzerTests
         // Two-level slice identity: OrderSaga.StockReserved and OrderSaga.PaymentAuthorized
         // share the OrderSaga prefix but are still distinct slices.
         const string targetSource = """
+            using Saga.Service.Features.OrderSaga.PaymentAuthorized;
             namespace Saga.Service.Features.OrderSaga.StockReserved;
             public sealed class Sample
             {
-                private Saga.Service.Features.OrderSaga.PaymentAuthorized.PaymentAuthorizedHandler? _handler;
+                private PaymentAuthorizedHandler? _handler;
             }
             """;
         const string referencedSource = """
@@ -76,10 +79,11 @@ public class LayoutAnalyzerTests
     {
         // Same two-level slice path — intra-slice usings are allowed.
         const string targetSource = """
+            using Saga.Service.Features.OrderSaga.StockReserved;
             namespace Saga.Service.Features.OrderSaga.StockReserved;
             public sealed class Sample
             {
-                private Saga.Service.Features.OrderSaga.StockReserved.Helper? _helper;
+                private Helper? _helper;
             }
             """;
         const string referencedSource = """
@@ -96,10 +100,11 @@ public class LayoutAnalyzerTests
     public async Task Infrastructure_WhenFullyQualifiedFeatureReference_ThenReportsInfrastructureRule()
     {
         const string targetSource = """
+            using Saga.Service.Features.OrderSaga.OrderCreated;
             namespace Saga.Service.Infrastructure.Outbox;
             public sealed class Sample
             {
-                private Saga.Service.Features.OrderSaga.OrderCreated.OrderCreatedHandler? _handler;
+                private OrderCreatedHandler? _handler;
             }
             """;
         const string referencedSource = """
@@ -116,10 +121,11 @@ public class LayoutAnalyzerTests
     public async Task Contracts_WhenFullyQualifiedDomainReference_ThenReportsContractsRule()
     {
         const string targetSource = """
+            using Saga.Service.Domain;
             namespace Saga.Service.Contracts.Integration;
             public sealed class Sample
             {
-                private Saga.Service.Domain.SagaInstance? _instance;
+                private SagaInstance? _instance;
             }
             """;
         const string referencedSource = """

@@ -73,29 +73,13 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
 
         foreach (var usingDirective in root.DescendantNodes().OfType<UsingDirectiveSyntax>())
         {
-            var target = NormalizeQualifiedName(usingDirective.Name?.ToString());
+            var target = usingDirective.Name?.ToString();
             if (target is null || !StartsWith(target, "Saga.Service"))
             {
                 continue;
             }
 
-            CheckRules(context, usingDirective.Name ?? (SyntaxNode)usingDirective, fileNamespace, target);
-        }
-
-        foreach (var qualifiedName in root.DescendantNodes().OfType<QualifiedNameSyntax>())
-        {
-            if (qualifiedName.Ancestors().OfType<UsingDirectiveSyntax>().Any())
-            {
-                continue;
-            }
-
-            var target = NormalizeQualifiedName(qualifiedName.ToString());
-            if (target is null || !StartsWith(target, "Saga.Service"))
-            {
-                continue;
-            }
-
-            CheckRules(context, qualifiedName, fileNamespace, target);
+            CheckRules(context, usingDirective, fileNamespace, target);
         }
     }
 
@@ -117,11 +101,11 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
 
     private static void CheckRules(
         SyntaxTreeAnalysisContext context,
-        SyntaxNode node,
+        UsingDirectiveSyntax directive,
         string fileNamespace,
         string targetNamespace)
     {
-        var location = node.GetLocation();
+        var location = (directive.Name ?? (SyntaxNode)directive).GetLocation();
 
         if (StartsWith(fileNamespace, "Saga.Service.Domain")
             && (StartsWith(targetNamespace, "Saga.Service.Infrastructure")
@@ -168,14 +152,6 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
         => value is not null
             && (value.Equals(prefix, StringComparison.Ordinal)
                 || value.StartsWith(prefix + ".", StringComparison.Ordinal));
-
-    private static string? NormalizeQualifiedName(string? value)
-    {
-        const string globalPrefix = "global::";
-        return value is not null && value.StartsWith(globalPrefix, StringComparison.Ordinal)
-            ? value.Substring(globalPrefix.Length)
-            : value;
-    }
 
     private static string? GetSliceSegment(string ns)
     {

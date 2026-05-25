@@ -6,12 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Saga.Service.Contracts.Integration.InboundEvents;
 using Saga.Service.Domain;
 using Saga.Service.Domain.RefundSaga;
+using Saga.Service.Features.OrderSaga.OrderCancelled;
+using Saga.Service.Features.OrderSaga.ShipmentCancelled;
+using Saga.Service.Features.OrderSaga.ShipmentFailed;
 using Saga.Service.Features.RefundSaga.RefundRequested;
 using Saga.Service.Infrastructure.Data.EntityFramework;
-using RefundSagaOrderCancelledHandler = Saga.Service.Features.RefundSaga.OrderCancelled.OrderCancelledHandler;
 using RefundSagaPaymentRefundedHandler = Saga.Service.Features.RefundSaga.PaymentRefunded.PaymentRefundedHandler;
-using RefundSagaShipmentCancelledHandler = Saga.Service.Features.RefundSaga.ShipmentCancelled.ShipmentCancelledHandler;
-using RefundSagaShipmentFailedHandler = Saga.Service.Features.RefundSaga.ShipmentFailed.ShipmentFailedHandler;
 
 namespace Saga.Tests.Features.RefundSaga.PaymentRefunded;
 
@@ -47,7 +47,7 @@ public class EndpointTests : IClassFixture<SagaWebApplicationFactory>
             CausationId = cancelShipmentCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<RefundSagaShipmentCancelledHandler, ShipmentCancelledEvent>(shipmentCancelled);
+        await DispatchAsync<ShipmentCancelledHandler, ShipmentCancelledEvent>(shipmentCancelled);
 
         using var scope = _factory.Services.CreateScope();
         var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
@@ -83,7 +83,7 @@ public class EndpointTests : IClassFixture<SagaWebApplicationFactory>
             CausationId = cancelShipmentCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<RefundSagaShipmentFailedHandler, ShipmentFailedEvent>(shipmentFailed);
+        await DispatchAsync<ShipmentFailedHandler, ShipmentFailedEvent>(shipmentFailed);
 
         using (var scope = _factory.Services.CreateScope())
         {
@@ -107,7 +107,7 @@ public class EndpointTests : IClassFixture<SagaWebApplicationFactory>
             CausationId = cancelOrderCommandId,
             SagaId = sagaId,
         };
-        await DispatchAsync<RefundSagaOrderCancelledHandler, OrderCancelledEvent>(orderCancelled);
+        await DispatchAsync<OrderCancelledHandler, OrderCancelledEvent>(orderCancelled);
 
         using (var scope = _factory.Services.CreateScope())
         {
