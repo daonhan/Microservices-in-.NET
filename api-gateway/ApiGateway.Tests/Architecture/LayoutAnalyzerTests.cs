@@ -8,7 +8,7 @@ namespace ApiGateway.Tests.Architecture;
 
 public class LayoutAnalyzerTests
 {
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public async Task Feature_WhenFullyQualifiedCrossSliceReference_ThenReportsFeatureRule()
     {
         const string targetSource = """
@@ -29,7 +29,7 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.FeatureSliceRuleId);
     }
 
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public async Task Infrastructure_WhenFullyQualifiedFeatureReference_ThenReportsInfrastructureRule()
     {
         const string targetSource = """
@@ -50,7 +50,7 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.InfrastructureRuleId);
     }
 
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public async Task Domain_WhenAnyTypeDeclared_ThenReportsDomainRule()
     {
         const string targetSource = """
@@ -63,7 +63,7 @@ public class LayoutAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == LayoutAnalyzer.DomainRuleId);
     }
 
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public async Task Contracts_WhenAnyTypeDeclared_ThenReportsContractsRule()
     {
         const string targetSource = """

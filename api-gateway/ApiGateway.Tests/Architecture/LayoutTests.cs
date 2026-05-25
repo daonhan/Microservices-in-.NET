@@ -6,7 +6,7 @@ public class LayoutTests
 {
     private static readonly System.Reflection.Assembly ApiGatewayAssembly = typeof(Program).Assembly;
 
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public void Features_DoNotReference_OtherFeatureSlices()
     {
         var featureTypes = Types.InAssembly(ApiGatewayAssembly)
@@ -54,7 +54,7 @@ public class LayoutTests
             "Features.<X> may not reference Features.<Y> for X != Y: " + string.Join(", ", offenders));
     }
 
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public void Infrastructure_DoesNotReference_Features()
     {
         var result = Types.InAssembly(ApiGatewayAssembly)
@@ -69,7 +69,7 @@ public class LayoutTests
             + string.Join(", ", result.FailingTypeNames ?? []));
     }
 
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public void Features_OnlyReference_InfrastructureOrShared()
     {
         var result = Types.InAssembly(ApiGatewayAssembly)
@@ -86,7 +86,7 @@ public class LayoutTests
             + string.Join(", ", result.FailingTypeNames ?? []));
     }
 
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public void LegacyTopLevelFolders_DoNotExist()
     {
         string[] forbiddenNamespaces =
@@ -110,7 +110,7 @@ public class LayoutTests
             "Legacy top-level folders must not exist: " + string.Join(", ", offenders));
     }
 
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public void Domain_FolderDoesNotExist()
     {
         var offenders = Types.InAssembly(ApiGatewayAssembly)
@@ -125,7 +125,7 @@ public class LayoutTests
             + string.Join(", ", offenders));
     }
 
-    [Fact(Skip = "enabled in Phase 11")]
+    [Fact]
     public void Contracts_FolderDoesNotExist()
     {
         var offenders = Types.InAssembly(ApiGatewayAssembly)

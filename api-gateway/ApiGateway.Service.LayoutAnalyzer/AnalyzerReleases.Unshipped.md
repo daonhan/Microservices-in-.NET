@@ -5,7 +5,7 @@
 
 Rule ID | Category | Severity | Notes
 --------|----------|----------|-------
-AGWLAY001 | Layout | Disabled | Domain may not exist in ApiGateway (gateway owns no aggregate)
-AGWLAY002 | Layout | Disabled | Feature slice may not reference another feature slice
-AGWLAY003 | Layout | Disabled | Infrastructure may not reference Features
-AGWLAY004 | Layout | Disabled | Contracts may not exist in ApiGateway (gateway publishes no integration events)
+AGWLAY001 | Layout | Error | Domain may not exist in ApiGateway (gateway owns no aggregate)
+AGWLAY002 | Layout | Error | Feature slice may not reference another feature slice
+AGWLAY003 | Layout | Error | Infrastructure may not reference Features
+AGWLAY004 | Layout | Error | Contracts may not exist in ApiGateway (gateway publishes no integration events)
