@@ -58,6 +58,26 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
             ["Kernel"] = ImmutableArray<string>.Empty,
         };
 
+    // Per-source-package cross-package using allowlist. Activated incrementally
+    // per carve phase (Phase 3: Contracts → Kernel-only). For each source package
+    // listed here, every `using ECommerce.Shared.*` directive must be either the
+    // source package's own namespace or one of the allowed cross-package namespaces.
+    // Entries are matched by exact namespace string — sub-namespaces (e.g.
+    // ECommerce.Shared.Infrastructure.EventBus.Abstractions, owned by EventBus pkg)
+    // are NOT silently allowed by listing the parent.
+    private static readonly Dictionary<string, ImmutableArray<string>> CrossPackageAllowlist =
+        new(StringComparer.Ordinal)
+        {
+            ["Contracts"] = ImmutableArray.Create(
+                // Own namespace (Contracts package)
+                "ECommerce.Shared.IntegrationEvents.Commands",
+                // Kernel-owned namespaces
+                "ECommerce.Shared.Infrastructure.EventBus",
+                "ECommerce.Shared.Infrastructure.Messaging",
+                "ECommerce.Shared.Observability.Metrics",
+                "ECommerce.Shared.Kernel.TelemetryConventions"),
+        };
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(AbstractionsToImplRule, ImplToCompositionRule, CrossPackageRule);
 
@@ -113,6 +133,14 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
         {
             context.ReportDiagnostic(Diagnostic.Create(
                 ImplToCompositionRule, location, package + "/Impl", targetNamespace));
+        }
+
+        if (CrossPackageAllowlist.TryGetValue(package, out var allowed)
+            && targetNamespace.StartsWith("ECommerce.Shared.", StringComparison.Ordinal)
+            && !allowed.Contains(targetNamespace))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                CrossPackageRule, location, package, targetNamespace));
         }
     }
 

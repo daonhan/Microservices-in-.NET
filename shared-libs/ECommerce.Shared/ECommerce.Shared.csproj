@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ECommerce.Shared.Kernel\ECommerce.Shared.Kernel.csproj" />
+    <ProjectReference Include="..\ECommerce.Shared.Contracts\ECommerce.Shared.Contracts.csproj" />
     <ProjectReference Include="..\ECommerce.Shared.LayoutAnalyzer\ECommerce.Shared.LayoutAnalyzer.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
