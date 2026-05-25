@@ -13,4 +13,10 @@
     <PackageReference Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ApiGateway.Service.LayoutAnalyzer\ApiGateway.Service.LayoutAnalyzer.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
 </Project>
