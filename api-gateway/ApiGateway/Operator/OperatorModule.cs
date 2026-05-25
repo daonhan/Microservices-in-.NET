@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using ApiGateway.Infrastructure.Auth;
 using ApiGateway.Operator.OutboxPolling;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.Infrastructure.DeadLetter;
@@ -213,8 +214,3 @@ public sealed record BatchReplayRequest(IReadOnlyList<Guid> Ids);
 public sealed record BatchReplayItem(Guid Id, string Status, Guid? NewMessageId, string? Reason);
 
 public sealed record BatchReplayResponse(IReadOnlyList<BatchReplayItem> Items);
-
-internal static class JwtClaimTypes
-{
-    public const string Subject = "sub";
-}
