@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
 using System.Text.Json;
 using ApiGateway.Infrastructure.Polling;
 using ECommerce.Shared.Infrastructure.DeadLetter;
@@ -154,17 +152,10 @@ public sealed class OutboxFailurePollerTests : IAsyncLifetime, IDisposable
         return (poller, scopeFactory);
     }
 
-    private static int AllocatePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
     internal sealed class StubAuthServer : IAsyncDisposable
     {
         private readonly WebApplication _app;
-        public string BaseUrl { get; }
+        public string BaseUrl { get; private set; } = null!;
         public string IssuedToken { get; set; } = "test-token";
         public string? LastClientId { get; private set; }
         public string? LastClientSecret { get; private set; }
@@ -172,10 +163,8 @@ public sealed class OutboxFailurePollerTests : IAsyncLifetime, IDisposable
 
         public StubAuthServer()
         {
-            var port = AllocatePort();
-            BaseUrl = $"http://localhost:{port}";
             var builder = WebApplication.CreateBuilder();
-            builder.WebHost.UseUrls(BaseUrl);
+            builder.WebHost.UseUrls(TestServerAddresses.DynamicLoopbackUrl);
             builder.Logging.ClearProviders();
             _app = builder.Build();
 
@@ -190,7 +179,11 @@ public sealed class OutboxFailurePollerTests : IAsyncLifetime, IDisposable
             });
         }
 
-        public Task StartAsync() => _app.StartAsync();
+        public async Task StartAsync()
+        {
+            await _app.StartAsync();
+            BaseUrl = TestServerAddresses.GetBoundAddress(_app);
+        }
 
         public async ValueTask DisposeAsync()
         {
@@ -202,16 +195,14 @@ public sealed class OutboxFailurePollerTests : IAsyncLifetime, IDisposable
     internal sealed class StubOutboxService : IAsyncDisposable
     {
         private readonly WebApplication _app;
-        public string BaseUrl { get; }
+        public string BaseUrl { get; private set; } = null!;
         public IReadOnlyList<OutboxFailureItem> Failures { get; set; } = Array.Empty<OutboxFailureItem>();
         public string? LastAuthorizationHeader { get; private set; }
 
         public StubOutboxService()
         {
-            var port = AllocatePort();
-            BaseUrl = $"http://localhost:{port}";
             var builder = WebApplication.CreateBuilder();
-            builder.WebHost.UseUrls(BaseUrl);
+            builder.WebHost.UseUrls(TestServerAddresses.DynamicLoopbackUrl);
             builder.Logging.ClearProviders();
             _app = builder.Build();
 
@@ -223,7 +214,11 @@ public sealed class OutboxFailurePollerTests : IAsyncLifetime, IDisposable
             });
         }
 
-        public Task StartAsync() => _app.StartAsync();
+        public async Task StartAsync()
+        {
+            await _app.StartAsync();
+            BaseUrl = TestServerAddresses.GetBoundAddress(_app);
+        }
 
         public async ValueTask DisposeAsync()
         {
