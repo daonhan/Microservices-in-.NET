@@ -1,12 +1,13 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using ECommerce.Shared.Kernel.TelemetryConventions;
 
 namespace ECommerce.Shared.Infrastructure.DeadLetter;
 
 internal static class DeadLetterMetrics
 {
-    public const string MeterName = "ECommerce.Shared.DeadLetter";
-    public const string ActivitySourceName = "ECommerce.Shared.DeadLetter";
+    public const string MeterName = DeadLetterTelemetryNames.MeterName;
+    public const string ActivitySourceName = DeadLetterTelemetryNames.ActivitySourceName;
 
     public static readonly Meter Meter = new(MeterName);
 

@@ -1,12 +1,13 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using ECommerce.Shared.Kernel.TelemetryConventions;
 
 namespace ECommerce.Shared.Infrastructure.Outbox;
 
 internal static class OutboxTelemetry
 {
-    public const string ActivitySourceName = "ECommerce.Shared.Outbox";
-    public const string MeterName = "ECommerce.Shared.Outbox";
+    public const string ActivitySourceName = OutboxTelemetryNames.ActivitySourceName;
+    public const string MeterName = OutboxTelemetryNames.MeterName;
 
     public static readonly ActivitySource ActivitySource = new(ActivitySourceName);
 

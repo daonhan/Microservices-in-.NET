@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 namespace ECommerce.Shared.LayoutAnalyzer;
@@ -37,6 +41,23 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    // Per-package layer namespace allowlists. Populated incrementally per carve phase
+    // (Phase 2: Kernel). For each package, list the namespaces declared by files
+    // physically located under that layer folder. Used to detect cross-layer
+    // `using` violations (SHALAY001/002).
+    private static readonly Dictionary<string, ImmutableArray<string>> KernelImplNamespaces =
+        new(StringComparer.Ordinal)
+        {
+            ["Kernel"] = ImmutableArray.Create(
+                "ECommerce.Shared.Observability.Metrics"),
+        };
+
+    private static readonly Dictionary<string, ImmutableArray<string>> KernelCompositionNamespaces =
+        new(StringComparer.Ordinal)
+        {
+            ["Kernel"] = ImmutableArray<string>.Empty,
+        };
+
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(AbstractionsToImplRule, ImplToCompositionRule, CrossPackageRule);
 
@@ -49,7 +70,103 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
 
     private static void AnalyzeSyntaxTree(SyntaxTreeAnalysisContext context)
     {
-        // Phase 1: descriptors registered but analyzer is inert.
-        // Per-package allowlist data + rule firing logic is populated in phases 2-9.
+        var classification = ClassifyFilePath(context.Tree.FilePath);
+        if (classification.Package is null || classification.Layer is null)
+        {
+            return;
+        }
+
+        var root = context.Tree.GetRoot(context.CancellationToken);
+        foreach (var usingDirective in root.DescendantNodes().OfType<UsingDirectiveSyntax>())
+        {
+            var target = usingDirective.Name?.ToString();
+            if (string.IsNullOrEmpty(target))
+            {
+                continue;
+            }
+
+            CheckLayerRules(context, usingDirective, classification.Package!, classification.Layer!, target!);
+        }
+    }
+
+    private static void CheckLayerRules(
+        SyntaxTreeAnalysisContext context,
+        UsingDirectiveSyntax directive,
+        string package,
+        string layer,
+        string targetNamespace)
+    {
+        var location = (directive.Name ?? (SyntaxNode)directive).GetLocation();
+
+        if (string.Equals(layer, "Abstractions", StringComparison.Ordinal)
+            && KernelImplNamespaces.TryGetValue(package, out var implNs)
+            && MatchesAny(targetNamespace, implNs))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                AbstractionsToImplRule, location, package + "/Abstractions", targetNamespace));
+            return;
+        }
+
+        if (string.Equals(layer, "Impl", StringComparison.Ordinal)
+            && KernelCompositionNamespaces.TryGetValue(package, out var compNs)
+            && MatchesAny(targetNamespace, compNs))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                ImplToCompositionRule, location, package + "/Impl", targetNamespace));
+        }
+    }
+
+    private static bool MatchesAny(string targetNamespace, ImmutableArray<string> candidates)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (targetNamespace.Equals(candidate, StringComparison.Ordinal)
+                || targetNamespace.StartsWith(candidate + ".", StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Returns (Package, Layer) for files under shared-libs/ECommerce.Shared.<Package>/<Layer>/...
+    // where Layer ∈ { Abstractions, Impl, Composition }. Returns (null, null) for everything else.
+    private static (string? Package, string? Layer) ClassifyFilePath(string? filePath)
+    {
+        if (string.IsNullOrEmpty(filePath))
+        {
+            return (null, null);
+        }
+
+        var normalized = filePath!.Replace('\\', '/');
+        const string marker = "/ECommerce.Shared.";
+        var markerIdx = normalized.LastIndexOf(marker, StringComparison.Ordinal);
+        if (markerIdx < 0)
+        {
+            return (null, null);
+        }
+
+        var afterMarker = normalized.Substring(markerIdx + marker.Length);
+        var firstSlash = afterMarker.IndexOf('/');
+        if (firstSlash <= 0)
+        {
+            return (null, null);
+        }
+
+        var package = afterMarker.Substring(0, firstSlash);
+        var afterPackage = afterMarker.Substring(firstSlash + 1);
+        var secondSlash = afterPackage.IndexOf('/');
+        if (secondSlash <= 0)
+        {
+            return (null, null);
+        }
+
+        var layer = afterPackage.Substring(0, secondSlash);
+        if (layer != "Abstractions" && layer != "Impl" && layer != "Composition")
+        {
+            return (null, null);
+        }
+
+        return (package, layer);
     }
 }

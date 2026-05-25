@@ -1,7 +1,5 @@
 using Azure.Monitor.OpenTelemetry.Exporter;
-using ECommerce.Shared.Infrastructure.DeadLetter;
-using ECommerce.Shared.Infrastructure.Outbox;
-using ECommerce.Shared.Infrastructure.RabbitMq;
+using ECommerce.Shared.Kernel.TelemetryConventions;
 using ECommerce.Shared.Observability.Metrics;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -98,9 +96,9 @@ public static class OpenTelemetryStartupExtensions
                 builder
                     .SetSampler(new ParentBasedSampler(new TraceIdRatioBasedSampler(opts.SamplingRatio)))
                     .AddAspNetCoreInstrumentation()
-                    .AddSource(RabbitMqTelemetry.ActivitySourceName)
-                    .AddSource(DeadLetterMetrics.ActivitySourceName)
-                    .AddSource(OutboxTelemetry.ActivitySourceName)
+                    .AddSource(RabbitMqTelemetryNames.ActivitySourceName)
+                    .AddSource(DeadLetterTelemetryNames.ActivitySourceName)
+                    .AddSource(OutboxTelemetryNames.ActivitySourceName)
                     .AddOtlpExporter(o => o.Endpoint = new Uri(opts.OtlpExporterEndpoint));
 
                 if (opts.UseAzureMonitor)
@@ -124,8 +122,8 @@ public static class OpenTelemetryStartupExtensions
                 builder
                     .AddAspNetCoreInstrumentation()
                     .AddMeter(serviceName)
-                    .AddMeter(DeadLetterMetrics.MeterName)
-                    .AddMeter(OutboxTelemetry.MeterName)
+                    .AddMeter(DeadLetterTelemetryNames.MeterName)
+                    .AddMeter(OutboxTelemetryNames.MeterName)
                     .AddPrometheusExporter();
 
                 if (opts.UseAzureMonitor)
@@ -162,8 +160,8 @@ public static class OpenTelemetryStartupExtensions
                 builder
                     .AddConsoleExporter()
                     .AddAspNetCoreInstrumentation()
-                    .AddSource(RabbitMqTelemetry.ActivitySourceName)
-                    .AddSource(OutboxTelemetry.ActivitySourceName)
+                    .AddSource(RabbitMqTelemetryNames.ActivitySourceName)
+                    .AddSource(OutboxTelemetryNames.ActivitySourceName)
                     .AddOtlpExporter(options => options.Endpoint =
                         new Uri(openTelemetryOptions.OtlpExporterEndpoint));
 
@@ -188,7 +186,7 @@ public static class OpenTelemetryStartupExtensions
                     .AddConsoleExporter()
                     .AddAspNetCoreInstrumentation()
                     .AddMeter(serviceName)
-                    .AddMeter(OutboxTelemetry.MeterName)
+                    .AddMeter(OutboxTelemetryNames.MeterName)
                     .AddPrometheusExporter();
 
                 customMetrics?.Invoke(builder);

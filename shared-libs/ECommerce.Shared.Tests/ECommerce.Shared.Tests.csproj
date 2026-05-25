@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ECommerce.Shared\ECommerce.Shared.csproj" />
+    <ProjectReference Include="..\ECommerce.Shared.Kernel\ECommerce.Shared.Kernel.csproj" />
   </ItemGroup>
 
 </Project>
