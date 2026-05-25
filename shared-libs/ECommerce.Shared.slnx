@@ -9,5 +9,13 @@
   <Project Path="ECommerce.Shared.Contracts/ECommerce.Shared.Contracts.csproj" />
   <Project Path="ECommerce.Shared.Testing.Qa/ECommerce.Shared.Testing.Qa.csproj" />
   <Project Path="ECommerce.Shared.LayoutAnalyzer/ECommerce.Shared.LayoutAnalyzer.csproj" />
-  <Project Path="ECommerce.Shared.Tests/ECommerce.Shared.Tests.csproj" />
+  <Project Path="tests/ECommerce.Shared.Kernel.Tests/ECommerce.Shared.Kernel.Tests.csproj" />
+  <Project Path="tests/ECommerce.Shared.EventBus.Tests/ECommerce.Shared.EventBus.Tests.csproj" />
+  <Project Path="tests/ECommerce.Shared.RabbitMq.Tests/ECommerce.Shared.RabbitMq.Tests.csproj" />
+  <Project Path="tests/ECommerce.Shared.AzureServiceBus.Tests/ECommerce.Shared.AzureServiceBus.Tests.csproj" />
+  <Project Path="tests/ECommerce.Shared.DeadLetter.Tests/ECommerce.Shared.DeadLetter.Tests.csproj" />
+  <Project Path="tests/ECommerce.Shared.Platform.Tests/ECommerce.Shared.Platform.Tests.csproj" />
+  <Project Path="tests/ECommerce.Shared.Contracts.Tests/ECommerce.Shared.Contracts.Tests.csproj" />
+  <Project Path="tests/ECommerce.Shared.Testing.Qa.Tests/ECommerce.Shared.Testing.Qa.Tests.csproj" />
+  <Project Path="tests/ECommerce.Shared.LayoutAnalyzer.Tests/ECommerce.Shared.LayoutAnalyzer.Tests.csproj" />
 </Solution>

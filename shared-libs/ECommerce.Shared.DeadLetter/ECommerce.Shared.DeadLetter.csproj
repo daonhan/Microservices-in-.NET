@@ -2,7 +2,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="ECommerce.Shared" />
-    <InternalsVisibleTo Include="ECommerce.Shared.Tests" />
+    <InternalsVisibleTo Include="ECommerce.Shared.DeadLetter.Tests" />
+    <InternalsVisibleTo Include="ECommerce.Shared.RabbitMq.Tests" />
   </ItemGroup>
 
   <ItemGroup>

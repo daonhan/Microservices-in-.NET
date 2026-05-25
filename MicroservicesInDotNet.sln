@@ -1,4 +1,3 @@
-
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -12,7 +11,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
-
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "kubernetes", "kubernetes", "{77777777-7777-7777-7777-777777777777}"
 	ProjectSection(SolutionItems) = preProject
 		kubernetes\alertmanager.yaml = kubernetes\alertmanager.yaml
@@ -156,8 +154,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Product.Tests", "product-microservice\Product.Tests\Product.Tests.csproj", "{93FEFE70-9B7A-4F36-9C2B-28DC22CDAC4B}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shipping.Tests", "shipping-microservice\Shipping.Tests\Shipping.Tests.csproj", "{7804695A-5105-4000-AD2B-6D061E52955B}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerce.Shared.Tests", "shared-libs\ECommerce.Shared.Tests\ECommerce.Shared.Tests.csproj", "{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -373,18 +369,6 @@ Global
 		{7804695A-5105-4000-AD2B-6D061E52955B}.Release|x64.Build.0 = Release|Any CPU
 		{7804695A-5105-4000-AD2B-6D061E52955B}.Release|x86.ActiveCfg = Release|Any CPU
 		{7804695A-5105-4000-AD2B-6D061E52955B}.Release|x86.Build.0 = Release|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Debug|x64.Build.0 = Debug|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Debug|x86.Build.0 = Debug|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Release|x64.ActiveCfg = Release|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Release|x64.Build.0 = Release|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Release|x86.ActiveCfg = Release|Any CPU
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -407,7 +391,5 @@ Global
 		{5F5122B4-D67F-4CC7-AFC5-9117D2900E2B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{93FEFE70-9B7A-4F36-9C2B-28DC22CDAC4B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{7804695A-5105-4000-AD2B-6D061E52955B} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
-		{B710778D-B3BE-43D1-8FA4-6C4FDE69D4D9} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
-

@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="ECommerce.Shared" />
-    <InternalsVisibleTo Include="ECommerce.Shared.Tests" />
+    <InternalsVisibleTo Include="ECommerce.Shared.Platform.Tests" />
   </ItemGroup>
 
   <ItemGroup>

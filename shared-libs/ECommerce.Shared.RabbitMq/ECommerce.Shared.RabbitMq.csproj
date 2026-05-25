@@ -1,7 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <InternalsVisibleTo Include="ECommerce.Shared.Tests" />
+    <InternalsVisibleTo Include="ECommerce.Shared.RabbitMq.Tests" />
+    <InternalsVisibleTo Include="ECommerce.Shared.DeadLetter.Tests" />
   </ItemGroup>
 
   <ItemGroup>

@@ -3,7 +3,8 @@
   <ItemGroup>
     <InternalsVisibleTo Include="ECommerce.Shared" />
     <InternalsVisibleTo Include="ECommerce.Shared.DeadLetter" />
-    <InternalsVisibleTo Include="ECommerce.Shared.Tests" />
+    <InternalsVisibleTo Include="ECommerce.Shared.AzureServiceBus.Tests" />
+    <InternalsVisibleTo Include="ECommerce.Shared.DeadLetter.Tests" />
   </ItemGroup>
 
   <ItemGroup>
