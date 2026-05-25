@@ -10,8 +10,10 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.5" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="NetArchTest.Rules" Version="1.3.2" />
     <PackageReference Include="Testcontainers.MsSql" Version="4.11.0" />
     <PackageReference Include="Testcontainers.RabbitMq" Version="4.11.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -23,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Saga.Service.LayoutAnalyzer\Saga.Service.LayoutAnalyzer.csproj" />
     <ProjectReference Include="..\Saga.Service\Saga.Service.csproj" />
   </ItemGroup>
 

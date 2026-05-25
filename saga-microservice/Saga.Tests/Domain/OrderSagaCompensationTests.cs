@@ -1,8 +1,8 @@
 using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.IntegrationEvents.Commands;
-using Saga.Service.IntegrationEvents;
-using Saga.Service.Models;
-using Saga.Service.StateMachines;
+using Saga.Service.Contracts.Integration.InboundEvents;
+using Saga.Service.Domain;
+using Saga.Service.Domain.OrderSaga;
 
 namespace Saga.Tests.Domain;
 

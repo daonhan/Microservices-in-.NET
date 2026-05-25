@@ -25,7 +25,7 @@ namespace Saga.Service.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("Saga.Service.Models.OrderSagaState", b =>
+            modelBuilder.Entity("Saga.Service.Domain.OrderSaga.OrderSagaState", b =>
                 {
                     b.Property<Guid>("SagaId")
                         .HasColumnType("uniqueidentifier");
@@ -54,7 +54,7 @@ namespace Saga.Service.Migrations
                     b.ToTable("OrderSagaStates");
                 });
 
-            modelBuilder.Entity("Saga.Service.Models.SagaInstance", b =>
+            modelBuilder.Entity("Saga.Service.Domain.SagaInstance", b =>
                 {
                     b.Property<Guid>("SagaId")
                         .ValueGeneratedOnAdd()
@@ -103,7 +103,7 @@ namespace Saga.Service.Migrations
                     b.ToTable("SagaInstances");
                 });
 
-            modelBuilder.Entity("Saga.Service.Models.SagaTransition", b =>
+            modelBuilder.Entity("Saga.Service.Domain.SagaTransition", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -146,20 +146,20 @@ namespace Saga.Service.Migrations
                     b.ToTable("SagaTransitions");
                 });
 
-            modelBuilder.Entity("Saga.Service.Models.OrderSagaState", b =>
+            modelBuilder.Entity("Saga.Service.Domain.OrderSaga.OrderSagaState", b =>
                 {
-                    b.HasOne("Saga.Service.Models.SagaInstance", "SagaInstance")
+                    b.HasOne("Saga.Service.Domain.SagaInstance", "SagaInstance")
                         .WithOne("OrderSagaState")
-                        .HasForeignKey("Saga.Service.Models.OrderSagaState", "SagaId")
+                        .HasForeignKey("Saga.Service.Domain.OrderSaga.OrderSagaState", "SagaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("SagaInstance");
                 });
 
-            modelBuilder.Entity("Saga.Service.Models.SagaTransition", b =>
+            modelBuilder.Entity("Saga.Service.Domain.SagaTransition", b =>
                 {
-                    b.HasOne("Saga.Service.Models.SagaInstance", "SagaInstance")
+                    b.HasOne("Saga.Service.Domain.SagaInstance", "SagaInstance")
                         .WithMany("Transitions")
                         .HasForeignKey("SagaId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -168,7 +168,7 @@ namespace Saga.Service.Migrations
                     b.Navigation("SagaInstance");
                 });
 
-            modelBuilder.Entity("Saga.Service.Models.SagaInstance", b =>
+            modelBuilder.Entity("Saga.Service.Domain.SagaInstance", b =>
                 {
                     b.Navigation("OrderSagaState");
 

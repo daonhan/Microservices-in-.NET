@@ -4,11 +4,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Saga.Service.Contracts.Integration.InboundEvents;
+using Saga.Service.Domain;
+using Saga.Service.Domain.OrderSaga;
+using Saga.Service.Features.OrderSaga.OrderCreated;
 using Saga.Service.Infrastructure.Data.EntityFramework;
 using Saga.Service.Infrastructure.Reaper;
-using Saga.Service.IntegrationEvents;
-using Saga.Service.IntegrationEvents.EventHandlers;
-using Saga.Service.Models;
 
 namespace Saga.Tests.Domain;
 
@@ -31,7 +32,7 @@ public class SagaReaperServiceTests : IClassFixture<SagaWebApplicationFactory>
 
         using (var scope = _factory.Services.CreateScope())
         {
-            var handler = new OrderCreatedEventHandler(
+            var handler = new OrderCreatedHandler(
                 scope.ServiceProvider.GetRequiredService<SagaContext>(),
                 scope.ServiceProvider.GetRequiredService<IOutboxUnitOfWork>(),
                 timeProvider,
@@ -39,7 +40,7 @@ public class SagaReaperServiceTests : IClassFixture<SagaWebApplicationFactory>
                 {
                     StockReservingTimeout = timeout
                 })),
-                NullLogger<OrderCreatedEventHandler>.Instance);
+                NullLogger<OrderCreatedHandler>.Instance);
 
             await handler.Handle(orderCreated);
         }
