@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace ApiGateway.Tests.Operator;
+namespace ApiGateway.Tests.Infrastructure.Polling;
 
 public sealed class OutboxFailurePollerTests : IAsyncLifetime, IDisposable
 {

@@ -1,6 +1,6 @@
 using ApiGateway.Infrastructure.Proxy;
 
-namespace ApiGateway.Tests.Gateway;
+namespace ApiGateway.Tests.Infrastructure.Proxy;
 
 public class GatewayProviderExtensionsTests
 {

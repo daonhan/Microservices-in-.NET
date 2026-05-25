@@ -4,7 +4,7 @@ using ApiGateway.Infrastructure.Auth;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using Microsoft.AspNetCore.Http;
 
-namespace ApiGateway.Tests.Operator;
+namespace ApiGateway.Tests.Features.Operator.DiscardFailure;
 
 public sealed class DeadLetterDiscardEndpointTests
 {

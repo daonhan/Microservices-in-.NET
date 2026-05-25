@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using ApiGateway.Infrastructure.Proxy.SwaggerAggregation;
 
-namespace ApiGateway.Tests.Gateway.SwaggerAggregation;
+namespace ApiGateway.Tests.Infrastructure.Proxy.SwaggerAggregation;
 
 public class GatewaySpecTransformerTests
 {

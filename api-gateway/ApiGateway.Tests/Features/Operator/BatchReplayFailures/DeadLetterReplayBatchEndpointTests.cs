@@ -5,7 +5,7 @@ using ECommerce.Shared.Infrastructure.DeadLetter;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 
-namespace ApiGateway.Tests.Operator;
+namespace ApiGateway.Tests.Features.Operator.BatchReplayFailures;
 
 public sealed class DeadLetterReplayBatchEndpointTests
 {

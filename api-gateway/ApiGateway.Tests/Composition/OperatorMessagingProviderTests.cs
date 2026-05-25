@@ -4,7 +4,7 @@ using ECommerce.Shared.Infrastructure.Messaging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ApiGateway.Tests.Operator;
+namespace ApiGateway.Tests.Composition;
 
 public sealed class OperatorMessagingProviderTests
 {

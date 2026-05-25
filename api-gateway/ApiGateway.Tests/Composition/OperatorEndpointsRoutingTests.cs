@@ -5,7 +5,7 @@ using ApiGateway.Tests.Integration;
 using ECommerce.Shared.Infrastructure.DeadLetter;
 using ECommerce.Shared.Infrastructure.DeadLetter.Models;
 
-namespace ApiGateway.Tests.Operator;
+namespace ApiGateway.Tests.Composition;
 
 public class OperatorEndpointsRoutingTests : IAsyncLifetime, IDisposable
 {

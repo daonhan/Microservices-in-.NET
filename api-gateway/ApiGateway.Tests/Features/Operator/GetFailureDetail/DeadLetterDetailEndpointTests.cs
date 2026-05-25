@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
-namespace ApiGateway.Tests.Operator;
+namespace ApiGateway.Tests.Features.Operator.GetFailureDetail;
 
 public sealed class DeadLetterDetailEndpointTests
 {
