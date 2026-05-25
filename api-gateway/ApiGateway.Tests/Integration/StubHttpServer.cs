@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Net.Sockets;
 
 namespace ApiGateway.Tests.Integration;
 
@@ -7,16 +6,13 @@ internal sealed class StubHttpServer : IAsyncDisposable
 {
     private readonly WebApplication _app;
 
-    public string BaseUrl { get; }
+    public string BaseUrl { get; private set; } = null!;
     public ConcurrentBag<(string Method, string Path)> ReceivedRequests { get; } = new();
 
     public StubHttpServer()
     {
-        var port = AllocatePort();
-        BaseUrl = $"http://localhost:{port}";
-
         var appBuilder = WebApplication.CreateBuilder();
-        appBuilder.WebHost.UseUrls(BaseUrl);
+        appBuilder.WebHost.UseUrls(TestServerAddresses.DynamicLoopbackUrl);
         appBuilder.Logging.ClearProviders();
         _app = appBuilder.Build();
 
@@ -28,7 +24,11 @@ internal sealed class StubHttpServer : IAsyncDisposable
         });
     }
 
-    public Task StartAsync() => _app.StartAsync();
+    public async Task StartAsync()
+    {
+        await _app.StartAsync();
+        BaseUrl = TestServerAddresses.GetBoundAddress(_app);
+    }
 
     public async ValueTask DisposeAsync()
     {
@@ -36,10 +36,4 @@ internal sealed class StubHttpServer : IAsyncDisposable
         await _app.DisposeAsync();
     }
 
-    private static int AllocatePort()
-    {
-        using var listener = new TcpListener(System.Net.IPAddress.Loopback, 0);
-        listener.Start();
-        return ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
-    }
 }

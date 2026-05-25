@@ -4,11 +4,25 @@ Guidance for Claude Code in this repo. See [README.md](README.md), [CONTEXT.md](
 
 If prior work may be relevant, use the `load-session-context` skill to search the local QMD index of prior sessions (and, after Phase 4, repo docs) and load only the relevant past context before continuing.
 
+**Per-service details live next to the service.** When working in `<svc>-microservice/`, that directory's `CLAUDE.md` auto-loads with the local divergences. This root file covers only cross-cutting concerns.
+
 ## Repo shape
 
 .NET microservices monorepo, **net10.0**, no root solution. Each `*-microservice/`, `api-gateway/`, `shared-libs/` is its own `.slnx`.
 
-Services (port, datastore): basket 8000 Redis · order 8001 SQL+Redis · product 8002 SQL · auth 8003 SQL · api-gateway 8004 — · inventory 8005 SQL · shipping 8006 SQL · payment 8007 SQL · saga 8008 SQL.
+| Service     | Port | Datastore | Notes file                                                             |
+|-------------|------|-----------|------------------------------------------------------------------------|
+| basket      | 8000 | Redis     | [basket-microservice/CLAUDE.md](basket-microservice/CLAUDE.md)         |
+| order       | 8001 | SQL+Redis | [order-microservice/CLAUDE.md](order-microservice/CLAUDE.md)           |
+| product     | 8002 | SQL       | [product-microservice/CLAUDE.md](product-microservice/CLAUDE.md)       |
+| auth        | 8003 | SQL       | [auth-microservice/CLAUDE.md](auth-microservice/CLAUDE.md)             |
+| api-gateway | 8004 | —         | [api-gateway/CLAUDE.md](api-gateway/CLAUDE.md)                         |
+| inventory   | 8005 | SQL       | [inventory-microservice/CLAUDE.md](inventory-microservice/CLAUDE.md)   |
+| shipping    | 8006 | SQL       | [shipping-microservice/CLAUDE.md](shipping-microservice/CLAUDE.md)     |
+| payment     | 8007 | SQL       | [payment-microservice/CLAUDE.md](payment-microservice/CLAUDE.md)       |
+| saga        | 8008 | SQL       | [saga-microservice/CLAUDE.md](saga-microservice/CLAUDE.md)             |
+
+Shared libraries (NuGet, local feed, packing flow + lazy broker rule): [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md).
 
 ## Build / test / run
 
@@ -30,72 +44,33 @@ docker compose up sql rabbitmq redis -d                         # infra only
 
 Activate once: `dotnet tool restore && dotnet husky install`. Hook runs `dotnet format --verify-no-changes`, `dotnet build --no-restore`, then Basket tests only — **run other suites manually before pushing cross-service changes**.
 
-### Sandbox policy (WSL / virtiofs / Docker)
+Sandbox blockers (WSL / virtiofs / Docker, `MSB3248`, hard prohibitions): see [docs/runbooks/sandbox-precommit.md](docs/runbooks/sandbox-precommit.md).
 
-Known failure: `MSB3248 No such device` on `dotnet build --no-restore` (or on `ECommerce.Shared.Tests` reading a freshly built shared DLL) caused by root-owned or sandbox-created `bin`/`obj`. Not a regression.
+## Service layout — default: Clean Architecture + Vertical Slices
 
-**Mandatory order before any commit in sandbox:**
+Default shape: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced per service by NetArchTest (`<Svc>.Tests/Architecture/LayoutTests.cs`) + a Roslyn `<Svc>.Service.LayoutAnalyzer`.
 
-1. Clean + restore + rerun hook:
-   ```bash
-   find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
-   dotnet tool restore
-   dotnet restore && dotnet husky run --group pre-commit
-   ```
-2. If still `MSB3248`, retry once more after `dotnet restore --force`.
-3. If hook still fails: **STOP. Do not commit.** Report blocker to user with the exact failing command + error. User commits from host.
+ADRs: [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) (original Order pilot), [0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md) (promoted to default). Runbook for new slices: [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md).
 
-**Hard prohibitions** (no exceptions, no "sandbox-only" escape hatch):
+Every service in the monorepo is on this layout; api-gateway closed out the migration. Per-service file documents only its divergences:
 
-- No `--no-verify`, no `-c core.hooksPath=`, no skipping `dotnet format` / `dotnet build` / tests.
-- No `Hooks-Deferred:` / `Validation-Deferred:` / similar commit-message footer.
-- No "passed clean in sandbox, defer remainder to host" partial commits.
-- No closing the issue / marking task done while validation is deferred.
-
-Rationale: a commit with deferred validation pollutes history, blocks downstream automation, and shifts unfinished work onto the user without their consent. The correct sandbox outcome when hooks cannot pass is **handoff, not commit**.
-
-## Shared library (`ECommerce.Shared`)
-
-Consumed as a NuGet package (not project ref). Local feed: `local-nuget-packages/` (gitignored). After edits:
-
-```bash
-cd shared-libs/ECommerce.Shared
-dotnet pack -c Release
-dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
-# bump <Version> in .csproj so consumers pick it up
-```
-
-Consumers see no change until version bump + new `.nupkg` in feed.
-
-**Broker singletons must register lazy** (`AddSingleton<IRabbitMqConnection>(_ => new RabbitMqConnection(opts))`, not `AddSingleton<IRabbitMqConnection>(new RabbitMqConnection(opts))`). Eager registration opens a socket during `Program.Main` — before `WebApplicationFactory.ConfigureWebHost` can swap stubs — and breaks boot tests like `Inventory.Tests.MessagingProviderBootTests` in any sandbox without a reachable broker. Lazy fix shipped in `ECommerce.Shared` ≥ 2.25.0 (commit `dcbc29c`); Inventory pins 2.25.0. **Other services still pin 2.23.0 / 2.18.0 and carry the latent eager defect** — sweeping them is a separate ADR/PR. When packing a new shared version, also confirm the `.nupkg` in `local-nuget-packages/` was built **after** the relevant source commit (older nupkgs sharing a version number have been observed).
+| Service     | Outbox seam | Domain/ | Contracts/ | Key divergence                                                 |
+|-------------|-------------|---------|------------|----------------------------------------------------------------|
+| Order       | yes         | yes     | yes        | original pilot                                                 |
+| Product     | yes         | yes     | yes        | none documented                                                |
+| Basket      | no          | yes     | yes        | no integration events; no CQRS-lite read split                 |
+| Auth        | no          | yes     | no         | no cross-service payloads                                      |
+| Inventory   | no          | yes     | yes        | inline events per slice; saga commands from Shared             |
+| Shipping    | no          | yes     | yes        | inline events; carrier adapters; per-state HTTP slices         |
+| Payment     | yes         | yes     | yes        | re-adopts seam; multi-producer convention; gateway in Domain   |
+| Saga        | no          | yes     | yes        | two-level `Features/<Saga>/<Trigger>/`; transition runner; reaper |
+| ApiGateway  | no          | no      | no         | no aggregate; no integration events; proxy + poller as Infrastructure |
 
 ## Cross-service architecture
 
-Read together: each service's `Program.cs` (composition root, uses `ECommerce.Shared` extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`); `shared-libs/ECommerce.Shared/Infrastructure/` (`EventBus/`, `Messaging/`, `RabbitMq/`, `AzureServiceBus/` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; `Outbox/` — `OutboxBackgroundService`, services that publish need `AddOutbox(...)` + `app.ApplyOutboxMigrations()` in Dev). New cross-cutting concerns belong in `ECommerce.Shared`.
+Read together: each service's `Program.cs` (composition root) + [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). New cross-cutting concerns belong in `ECommerce.Shared`.
 
-**Saga (orchestrator-only):** Saga service owns the order saga end-to-end. It starts from `OrderCreatedEvent`, persists saga state, and drives participants exclusively with commands: `ReserveStockCommand`/`CommitStockCommand`/`ReleaseStockCommand` (Inventory), `AuthorizePaymentCommand`/`CapturePaymentCommand`/`VoidPaymentCommand`/`RefundPaymentCommand` (Payment), `ConfirmOrderCommand`/`CancelOrderCommand` (Order), `CreateShipmentCommand`/`CancelShipmentCommand` (Shipping). Participants reply with the existing integration events (`StockReserved|StockReservationFailed|StockCommitted|StockReleased|PaymentAuthorized|Captured|Failed|Voided|Refunded|OrderConfirmed|OrderCancelled|ShipmentCreated|Dispatched|Delivered|Cancelled|Returned|Failed`) carrying `CausationId`/`SagaId`. Cutover completed 2026-05-18 (issue #132); legacy event-driven saga handlers removed. Runbook: [saga-orchestrator-strangler.md](docs/runbooks/saga-orchestrator-strangler.md). ADR: [0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md). Events: `IntegrationEvents/Events/`; handlers: `IntegrationEvents/EventHandlers/`.
-
-Per-service layout: `Endpoints/` (Minimal API), `ApiModels/` (DTOs), `Models/` (domain), `Infrastructure/Data/`, `IntegrationEvents/`, `Migrations/`. Keep DTOs vs domain split.
-
-**Order service exception** — pilots Clean Architecture + Vertical Slices: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Order.Tests/Architecture/LayoutTests.cs`) and the Roslyn `LayoutAnalyzer`. ADR: [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md). Runbook for new slices: [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md). Propagation to other services is a separate ADR.
-
-**Product service exception** — second Clean Architecture + Vertical Slices pilot, same layout as Order: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Product.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Product.Service.LayoutAnalyzer`. Composes ADR [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses the [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md) runbook unchanged. Propagation to remaining services is a separate ADR.
-
-**Basket service exception** — third Clean Architecture + Vertical Slices pilot, same layout as Order/Product: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Basket.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Basket.Service.LayoutAnalyzer`. Composes ADR [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses the [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md) runbook unchanged. **Diverges from Order/Product: no outbox seam (Basket emits no integration events); no CQRS-lite read split (one read, no projection benefit).** Propagation to remaining services is a separate ADR.
-
-**Auth service exception** — fourth Clean Architecture + Vertical Slices pilot, same layout as Order/Product/Basket minus `Contracts/`: `Features/<Slice>/`, `Domain/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Auth.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Auth.Service.LayoutAnalyzer`. Composes ADR [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses the [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md) runbook unchanged. **Diverges from Order/Product: no `Contracts/` folder, no outbox seam, no integration events (Auth produces and consumes no cross-service payloads).** Propagation to remaining services is a separate ADR.
-
-**Inventory service exception** — fifth Clean Architecture + Vertical Slices pilot, same layout as Order/Product/Basket: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Inventory.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Inventory.Service.LayoutAnalyzer`. Composes ADR [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses the [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md) runbook unchanged. **Diverges from Order: no `IIntegrationMap<,>` / outbox interceptor seam (Inventory constructs integration events inline per slice — no DbContext-level translation switch to extract); `IInventoryStore` lives in `Domain/Abstractions/` with `EfInventoryStore` in Infrastructure (matches Order); `StockLevelMonitor` returns domain-typed crossings (`LowStockCrossing`, `StockDepletion`) with slices mapping to Contracts events; saga commands (`ReserveStockCommand`/`CommitStockCommand`/`ReleaseStockCommand`) consumed from `ECommerce.Shared.IntegrationEvents.Commands`, not owned in local `Contracts/Integration/`.** Propagation to remaining services is a separate ADR.
-
-**Shipping service exception** — sixth Clean Architecture + Vertical Slices pilot, same layout as Order/Product/Basket/Inventory: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Shipping.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Shipping.Service.LayoutAnalyzer`. Composes ADR [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses the [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md) runbook unchanged. **Diverges from Order: no `IIntegrationMap<,>` / outbox interceptor seam (Shipping constructs integration events inline per slice — no DbContext-level translation switch to extract, matches Inventory); `IShipmentStore` lives in `Domain/Abstractions/` with `EfShipmentStore` in Infrastructure (matches Order/Inventory); carrier adapters (`FakeExpressCarrierGateway`, `FakeGroundCarrierGateway`, `FakeCarrierDispatchRegistry`, `FakeCarrierWebhookParser`, `CarrierStatusApplier`, `CarrierPollingService`, `RateShoppingService`, `CarrierWebhookOptions`) consolidated under `Infrastructure/Carriers/` with `ICarrierGateway` abstraction in `Domain/Abstractions/`; `ShippingMetrics` moved to `Infrastructure/Observability/` (no peer-layer `Observability/` folder); HTTP write endpoints split per state transition (`PickShipment`, `PackShipment`, `DispatchShipment`, `DeliverShipment`, `FailShipment`, `ReturnShipment`, `CancelShipment`, `ProcessCarrierWebhook`); HTTP `CancelShipment` and saga `CancelShipmentCommand` are two distinct slices that each construct `ShipmentCancelledEvent` independently; `CarrierPollingService` (hosted) stays in `Infrastructure/Carriers/`, not a `Features/` slice; saga commands (`CreateShipmentCommand`/`CancelShipmentCommand`) consumed from `ECommerce.Shared.IntegrationEvents.Commands`, not owned in local `Contracts/Integration/`.** Propagation to remaining services (payment, saga) is a separate ADR.
-
-**Payment service exception** — seventh Clean Architecture + Vertical Slices pilot, same layout as Order/Product/Basket/Inventory/Shipping: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Payment.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Payment.Service.LayoutAnalyzer`. Composes ADR [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses the [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md) runbook unchanged. **Diverges from Shipping/Inventory (and re-adopts the Order pattern): `IIntegrationMap<,>` + `DomainEventOutboxInterceptor` seam reintroduced because `PaymentContext.Translate` was a real smell with a real workaround (`AuthorizePaymentCommandHandler` manual `DequeueDomainEvents()`) to dissolve; `IPaymentStore` lives in `Domain/Abstractions/` with `EfPaymentStore` in Infrastructure (matches Order/Inventory/Shipping); `IPaymentGateway` lifted to `Domain/Abstractions/` with `InMemoryPaymentGateway` impl in `Infrastructure/Gateways/` (mirrors Shipping `ICarrierGateway` shape); `PaymentMetrics` moved to `Infrastructure/Observability/` (no peer-layer `Observability/` folder); HTTP `CapturePayment`/`RefundPayment` and saga `CapturePaymentCommand`/`RefundPaymentCommand` are distinct slices that share the integration-event mapper through DI (multi-producer convention new to Payment: HTTP slice owns the `IIntegrationMap<,>` file, saga slice raises the same domain event and the interceptor resolves the map globally — not a slice-to-slice source reference); saga commands (`AuthorizePaymentCommand`/`CapturePaymentCommand`/`VoidPaymentCommand`/`RefundPaymentCommand`) consumed from `ECommerce.Shared.IntegrationEvents.Commands`, not owned in local `Contracts/Integration/`; `OrderCustomer` idempotency record is a Domain type co-located with `Payment` aggregate, written by `Features/OrderCreated/` and read by `Features/AuthorizePaymentCommand/`.** Propagation to remaining service (saga) is a separate ADR.
-
-**Saga service exception** — eighth and final Clean Architecture + Vertical Slices pilot, same layout as Order/Product/Basket/Inventory/Shipping/Payment: `Features/<Saga>/<Trigger>/`, `Domain/{OrderSaga,RefundSaga,}/`, `Contracts/Integration/InboundEvents/`, `Infrastructure/`. Boundaries enforced by NetArchTest (`Saga.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Saga.Service.LayoutAnalyzer`. Composes ADR [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses the [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md) runbook unchanged. **Diverges from Order/Product/Basket/Auth/Inventory/Shipping/Payment: two-level `Features/<Saga>/<Trigger>/` namespace nesting (new — prior pilots flat; justified by two saga aggregates coexisting in one service); `ISagaTransitionRunner<TState, TEvent>` Domain abstraction new to saga (encapsulates load → pure transition → persist with `SagaTransition` row → outbox-publish commands in one EF transaction); `OrderSagaReplyProcessor` + `RefundSagaReplyProcessor` fan-out routers deleted (dispatch dissolved into per-slice handlers; shared persistence loop lifted into `EfOrderSagaTransitionRunner` + `EfRefundSagaTransitionRunner`); no `IIntegrationMap<,>` + `DomainEventOutboxInterceptor` seam (saga emits commands directly from state-machine result — no `Translate(...)` smell to dissolve; matches Inventory/Shipping); dual-subscription convention for `PaymentRefundedEvent` (two slices register, each loads its own saga by id, no-ops if not its own — only place in monorepo where one integration event drives two slices that must both act on it); reaper as `Infrastructure/Reaper/` hosted service mirroring Shipping's `Infrastructure/Carriers/CarrierPollingService` (no `Features/<Saga>/TimeoutEscalation/` slice — reaper is internal scheduling, not an inbound trigger); no HTTP write endpoint outside `Features/Operator/{AbortSaga,RetrySaga}/` (saga is event-driven by design — `AbortSaga` cancels an in-flight saga, `RetrySaga` requeues the in-flight command); saga commands (`ReserveStockCommand`/`AuthorizePaymentCommand`/etc.) consumed from `ECommerce.Shared.IntegrationEvents.Commands`, not owned in local `Contracts/Integration/`.** Saga is the eighth and final pilot — every service in the monorepo is now on the Clean Architecture + Vertical Slices layout. Follow-up ADR can promote the convention from "per-service pilot exception" to "default service shape".
-
-## API Gateway provider switch
-
-Gateway compiles both YARP and Ocelot. `Gateway:Provider` (env `Gateway__Provider`) = `Yarp` (default) or `Ocelot`; unknown values fail fast. Routes/port/auth/health/metrics identical across both.
+**Saga (orchestrator-only):** Saga service owns the order saga end-to-end. Starts from `OrderCreatedEvent`, persists saga state, drives participants exclusively with commands: `ReserveStockCommand`/`CommitStockCommand`/`ReleaseStockCommand` (Inventory), `AuthorizePaymentCommand`/`CapturePaymentCommand`/`VoidPaymentCommand`/`RefundPaymentCommand` (Payment), `ConfirmOrderCommand`/`CancelOrderCommand` (Order), `CreateShipmentCommand`/`CancelShipmentCommand` (Shipping). Participants reply with integration events carrying `CausationId`/`SagaId`. Cutover completed 2026-05-18 (issue #132). Runbook: [saga-orchestrator-strangler.md](docs/runbooks/saga-orchestrator-strangler.md). ADR: [0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md).
 
 ## DLQ + operator API
 

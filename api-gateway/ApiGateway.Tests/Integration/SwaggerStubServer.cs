@@ -1,4 +1,3 @@
-using System.Net.Sockets;
 using System.Text;
 
 namespace ApiGateway.Tests.Integration;
@@ -27,15 +26,12 @@ internal sealed class SwaggerStubServer : IAsyncDisposable
 
     private readonly WebApplication _app;
 
-    public string BaseUrl { get; }
+    public string BaseUrl { get; private set; } = null!;
 
     public SwaggerStubServer()
     {
-        var port = AllocatePort();
-        BaseUrl = $"http://localhost:{port}";
-
         var appBuilder = WebApplication.CreateBuilder();
-        appBuilder.WebHost.UseUrls(BaseUrl);
+        appBuilder.WebHost.UseUrls(TestServerAddresses.DynamicLoopbackUrl);
         appBuilder.Logging.ClearProviders();
         _app = appBuilder.Build();
 
@@ -55,7 +51,11 @@ internal sealed class SwaggerStubServer : IAsyncDisposable
         });
     }
 
-    public Task StartAsync() => _app.StartAsync();
+    public async Task StartAsync()
+    {
+        await _app.StartAsync();
+        BaseUrl = TestServerAddresses.GetBoundAddress(_app);
+    }
 
     public async ValueTask DisposeAsync()
     {
@@ -63,10 +63,4 @@ internal sealed class SwaggerStubServer : IAsyncDisposable
         await _app.DisposeAsync();
     }
 
-    private static int AllocatePort()
-    {
-        using var listener = new TcpListener(System.Net.IPAddress.Loopback, 0);
-        listener.Start();
-        return ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
-    }
 }

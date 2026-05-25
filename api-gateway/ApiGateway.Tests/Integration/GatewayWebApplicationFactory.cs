@@ -1,11 +1,14 @@
 using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
-using System.Net.Sockets;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using ApiGateway.Gateway;
-using ApiGateway.Operator;
+using ApiGateway.Features.Operator.BatchReplayFailures;
+using ApiGateway.Features.Operator.DiscardFailure;
+using ApiGateway.Features.Operator.GetFailureDetail;
+using ApiGateway.Features.Operator.ListFailures;
+using ApiGateway.Features.Operator.ReplayFailure;
+using ApiGateway.Infrastructure.Proxy;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.DeadLetter;
@@ -43,11 +46,9 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         IDeadLetterDiscarder? deadLetterDiscarder = null)
     {
         var rsa = RSA.Create(2048);
-        var authPort = AllocatePort();
-        var issuer = $"http://127.0.0.1:{authPort}";
-
         var authBuilder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Development });
         var authApp = authBuilder.Build();
+        string issuer = null!;
 
         authApp.MapGet("/.well-known/openid-configuration", () => Results.Json(new { issuer, jwks_uri = $"{issuer}/.well-known/jwks.json" }));
         authApp.MapGet("/.well-known/jwks.json", () =>
@@ -56,8 +57,9 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
             return Results.Json(new { keys = new[] { new { kty = "RSA", use = "sig", kid = "test-kid", alg = "RS256", n = Base64UrlEncode(p.Modulus!), e = Base64UrlEncode(p.Exponent!) } } });
         });
 
-        authApp.Urls.Add(issuer);
+        authApp.Urls.Add(TestServerAddresses.DynamicLoopbackUrl);
         await authApp.StartAsync();
+        issuer = TestServerAddresses.GetBoundAddress(authApp);
 
         var builder = environmentName is null
             ? WebApplication.CreateBuilder()
@@ -104,10 +106,14 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
             builder.Services.AddSingleton(deadLetterStore ?? new NoopDeadLetterStore());
             builder.Services.AddSingleton(deadLetterReplayer ?? new NoopDeadLetterReplayer());
             builder.Services.AddSingleton(deadLetterDiscarder ?? new NoopDeadLetterDiscarder());
+            builder.Services.AddListFailuresSlice();
+            builder.Services.AddGetFailureDetailSlice();
+            builder.Services.AddReplayFailureSlice();
+            builder.Services.AddDiscardFailureSlice();
+            builder.Services.AddBatchReplayFailuresSlice();
         }
 
-        var gatewayPort = AllocatePort();
-        builder.WebHost.UseUrls($"http://localhost:{gatewayPort}");
+        builder.WebHost.UseUrls(TestServerAddresses.DynamicLoopbackUrl);
 
         var app = builder.Build();
         app.UsePrometheusExporter();
@@ -115,12 +121,18 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         app.UseJwtAuthentication();
         if (operatorEnabled)
         {
-            OperatorModule.MapEndpoints(app);
+            var operatorGroup = app.MapGroup("/operator/api/failures")
+                .RequireAuthorization(AuthorizationPolicies.RequireOperatorPolicy);
+            operatorGroup.MapListFailuresSlice();
+            operatorGroup.MapGetFailureDetailSlice();
+            operatorGroup.MapReplayFailureSlice();
+            operatorGroup.MapDiscardFailureSlice();
+            operatorGroup.MapBatchReplayFailuresSlice();
         }
         await app.UseConfiguredGatewayAsync();
         await app.StartAsync();
 
-        var client = new HttpClient { BaseAddress = new Uri($"http://localhost:{gatewayPort}") };
+        var client = new HttpClient { BaseAddress = new Uri(TestServerAddresses.GetBoundAddress(app)) };
         return new GatewayTestHarness(app, authApp, client, issuer, rsa);
     }
 
@@ -152,13 +164,6 @@ internal sealed class GatewayTestHarness : IAsyncDisposable
         await _authApp.StopAsync();
         await _authApp.DisposeAsync();
         _rsa.Dispose();
-    }
-
-    private static int AllocatePort()
-    {
-        using var listener = new TcpListener(System.Net.IPAddress.Loopback, 0);
-        listener.Start();
-        return ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
     }
 
     private static string Base64UrlEncode(byte[] input) => Convert.ToBase64String(input).TrimEnd('=').Replace('+', '-').Replace('/', '_');
