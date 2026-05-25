@@ -50,22 +50,21 @@ Sandbox blockers (WSL / virtiofs / Docker, `MSB3248`, hard prohibitions): see [d
 
 Default shape: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced per service by NetArchTest (`<Svc>.Tests/Architecture/LayoutTests.cs`) + a Roslyn `<Svc>.Service.LayoutAnalyzer`.
 
-ADR: [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md). Runbook for new slices: [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md).
+ADRs: [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) (original Order pilot), [0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md) (promoted to default). Runbook for new slices: [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md).
 
-Every service is on this layout. Per-service file documents only its divergences:
+Every service in the monorepo is on this layout; api-gateway closed out the migration. Per-service file documents only its divergences:
 
-| Service   | Outbox seam | Contracts/ | Key divergence                                                 |
-|-----------|-------------|------------|----------------------------------------------------------------|
-| Order     | yes         | yes        | original pilot                                                 |
-| Product   | yes         | yes        | none documented                                                |
-| Basket    | no          | yes        | no integration events; no CQRS-lite read split                 |
-| Auth      | no          | no         | no cross-service payloads                                      |
-| Inventory | no          | yes        | inline events per slice; saga commands from Shared             |
-| Shipping  | no          | yes        | inline events; carrier adapters; per-state HTTP slices         |
-| Payment   | yes         | yes        | re-adopts seam; multi-producer convention; gateway in Domain   |
-| Saga      | no          | yes        | two-level `Features/<Saga>/<Trigger>/`; transition runner; reaper |
-
-A follow-up ADR can promote the convention from "per-service pilot exception" to "default service shape".
+| Service     | Outbox seam | Domain/ | Contracts/ | Key divergence                                                 |
+|-------------|-------------|---------|------------|----------------------------------------------------------------|
+| Order       | yes         | yes     | yes        | original pilot                                                 |
+| Product     | yes         | yes     | yes        | none documented                                                |
+| Basket      | no          | yes     | yes        | no integration events; no CQRS-lite read split                 |
+| Auth        | no          | yes     | no         | no cross-service payloads                                      |
+| Inventory   | no          | yes     | yes        | inline events per slice; saga commands from Shared             |
+| Shipping    | no          | yes     | yes        | inline events; carrier adapters; per-state HTTP slices         |
+| Payment     | yes         | yes     | yes        | re-adopts seam; multi-producer convention; gateway in Domain   |
+| Saga        | no          | yes     | yes        | two-level `Features/<Saga>/<Trigger>/`; transition runner; reaper |
+| ApiGateway  | no          | no      | no         | no aggregate; no integration events; proxy + poller as Infrastructure |
 
 ## Cross-service architecture
 

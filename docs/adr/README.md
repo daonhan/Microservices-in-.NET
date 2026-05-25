@@ -18,3 +18,5 @@ New ADRs start from [`0000-template.md`](0000-template.md).
 | [ADR-0008](0008-saga-choreography-no-central-orchestrator.md)                | Event-driven saga coordination for Order/Inventory/Payment/Shipping (original)   | Superseded by ADR-0010 |
 | [ADR-0009](0009-otel-jaeger-prometheus-loki-grafana.md)                      | OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack         | Accepted |
 | [ADR-0010](0010-saga-orchestrator-supersedes-choreography.md)                | Saga orchestrator owns Order/Inventory/Payment/Shipping (supersedes ADR-0008)    | Accepted |
+| [ADR-0011](0011-order-cleanarch-vsa-pilot.md)                                | Order service Clean Architecture + Vertical Slice pilot                          | Accepted |
+| [ADR-0012](0012-clean-arch-vsa-default-service-shape.md)                     | Clean Architecture + Vertical Slices is the default service shape                | Accepted |
