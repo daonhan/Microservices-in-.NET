@@ -32,6 +32,7 @@
     <ProjectReference Include="..\ECommerce.Shared.Kernel\ECommerce.Shared.Kernel.csproj" />
     <ProjectReference Include="..\ECommerce.Shared.EventBus\ECommerce.Shared.EventBus.csproj" />
     <ProjectReference Include="..\ECommerce.Shared.RabbitMq\ECommerce.Shared.RabbitMq.csproj" />
+    <ProjectReference Include="..\ECommerce.Shared.AzureServiceBus\ECommerce.Shared.AzureServiceBus.csproj" />
   </ItemGroup>
 
 </Project>
