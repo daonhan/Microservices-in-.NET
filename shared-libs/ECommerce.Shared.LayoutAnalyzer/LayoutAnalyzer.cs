@@ -54,6 +54,8 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
                 "ECommerce.Shared.Infrastructure.Outbox.Migrations"),
             ["RabbitMq"] = ImmutableArray<string>.Empty,
             ["AzureServiceBus"] = ImmutableArray<string>.Empty,
+            ["DeadLetter"] = ImmutableArray.Create(
+                "ECommerce.Shared.Infrastructure.DeadLetter.Migrations"),
         };
 
     private static readonly Dictionary<string, ImmutableArray<string>> KernelCompositionNamespaces =
@@ -63,6 +65,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
             ["EventBus"] = ImmutableArray<string>.Empty,
             ["RabbitMq"] = ImmutableArray<string>.Empty,
             ["AzureServiceBus"] = ImmutableArray<string>.Empty,
+            ["DeadLetter"] = ImmutableArray<string>.Empty,
         };
 
     // Per-source-package cross-package using allowlist. Activated incrementally
@@ -118,6 +121,18 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
                 // EventBus-owned namespaces
                 "ECommerce.Shared.Infrastructure.EventBus",
                 "ECommerce.Shared.Infrastructure.EventBus.Abstractions"),
+            ["DeadLetter"] = ImmutableArray.Create(
+                // Own namespaces (DeadLetter package — DLQ co-locates Messaging
+                // provider resolver/extensions as the only cross-broker consumer)
+                "ECommerce.Shared.Infrastructure.DeadLetter",
+                "ECommerce.Shared.Infrastructure.DeadLetter.Models",
+                "ECommerce.Shared.Infrastructure.Messaging",
+                // Kernel-owned namespaces
+                "ECommerce.Shared.Kernel.TelemetryConventions",
+                // RabbitMq-owned namespaces
+                "ECommerce.Shared.Infrastructure.RabbitMq",
+                // AzureServiceBus-owned namespaces
+                "ECommerce.Shared.Infrastructure.AzureServiceBus"),
         };
 
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>

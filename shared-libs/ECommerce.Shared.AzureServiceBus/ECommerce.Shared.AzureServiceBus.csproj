@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="ECommerce.Shared" />
+    <InternalsVisibleTo Include="ECommerce.Shared.DeadLetter" />
     <InternalsVisibleTo Include="ECommerce.Shared.Tests" />
   </ItemGroup>
 
