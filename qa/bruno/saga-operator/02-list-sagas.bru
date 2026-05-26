@@ -20,7 +20,7 @@ tests {
     expect(res.body).to.be.an("object");
     expect(res.body.items).to.be.an("array");
     expect(res.body.total).to.be.a("number");
-    const seededId = bru.getVar("operatorSagaId");
+    const seededId = bru.getEnvVar("operatorSagaId");
     expect(res.body.items.some(function (item) { return item.sagaId === seededId; })).to.equal(true);
   });
 }
