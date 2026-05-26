@@ -159,6 +159,7 @@ jobs:
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/02-stock-shortage') $collectionRoot -Recurse
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/03-payment-decline') $collectionRoot -Recurse
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/04-admin-ops') $collectionRoot -Recurse
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/saga-operator') $collectionRoot -Recurse
 
           function Write-Summary([string]$Line) {
             Write-Host $Line
@@ -452,6 +453,14 @@ jobs:
           Invoke-Bruno 'dispatch-shipment' @('01-happy-path/11-dispatch-shipment.bru') $transitionVars | Out-Null
           Invoke-Bruno 'deliver-shipment' @('01-happy-path/12-deliver-shipment.bru') $transitionVars | Out-Null
 
+          Invoke-Bruno 'saga-operator' @(
+            'saga-operator/01-issue-service-token.bru',
+            'saga-operator/02-list-sagas.bru',
+            'saga-operator/03-get-saga-detail.bru',
+            'saga-operator/04-retry-saga.bru',
+            'saga-operator/05-abort-saga.bru'
+          ) | Out-Null
+
           $stockShortageSetup = Invoke-Bruno 'stock-shortage-setup' @(
             '02-stock-shortage/01-login-customer-cancel.bru',
             '02-stock-shortage/02-get-seeded-basket.bru',
@@ -514,44 +523,18 @@ jobs:
           Invoke-Bruno 'admin-inventory' @('04-admin-ops/inventory') | Out-Null
           Invoke-Bruno 'admin-payment' @('04-admin-ops/payment') | Out-Null
 
-          Invoke-Bruno 'admin-shipping-return-path' @(
-            '04-admin-ops/shipping/01-login-admin.bru',
-            '04-admin-ops/shipping/02-pick-pending.bru',
-            '04-admin-ops/shipping/03-pack-picked.bru',
-            '04-admin-ops/shipping/04-dispatch-packed.bru',
-            '04-admin-ops/shipping/07-return-dispatched.bru'
-          ) @{
-            shipmentPickedId = 'c0000000-0000-0000-0000-000000000001'
-            shipmentPackedId = 'c0000000-0000-0000-0000-000000000001'
-            shipmentDispatchedId = 'c0000000-0000-0000-0000-000000000001'
-          } | Out-Null
-
-          Invoke-Bruno 'admin-shipping-deliver-path' @(
-            '04-admin-ops/shipping/01-login-admin.bru',
-            '04-admin-ops/shipping/03-pack-picked.bru',
-            '04-admin-ops/shipping/04-dispatch-packed.bru',
-            '04-admin-ops/shipping/05-deliver-dispatched.bru'
-          ) @{
-            shipmentPickedId = 'c0000000-0000-0000-0000-000000000002'
-            shipmentPackedId = 'c0000000-0000-0000-0000-000000000002'
-            shipmentDispatchedId = 'c0000000-0000-0000-0000-000000000002'
-          } | Out-Null
-
-          Invoke-Bruno 'admin-shipping-fail-path' @(
-            '04-admin-ops/shipping/01-login-admin.bru',
-            '04-admin-ops/shipping/04-dispatch-packed.bru',
-            '04-admin-ops/shipping/06-fail-dispatched.bru'
-          ) @{
-            shipmentPackedId = 'c0000000-0000-0000-0000-000000000003'
-            shipmentDispatchedId = 'c0000000-0000-0000-0000-000000000003'
-          } | Out-Null
-
           Invoke-Bruno 'admin-shipping-webhook' @(
             '04-admin-ops/shipping/webhook.bru'
           ) | Out-Null
 
-          Invoke-Bruno 'admin-shipping-cancel-path' @(
+          Invoke-Bruno 'admin-shipping' @(
             '04-admin-ops/shipping/01-login-admin.bru',
+            '04-admin-ops/shipping/02-pick-pending.bru',
+            '04-admin-ops/shipping/03-pack-picked.bru',
+            '04-admin-ops/shipping/04-dispatch-packed.bru',
+            '04-admin-ops/shipping/05-deliver-dispatched.bru',
+            '04-admin-ops/shipping/06-fail-dispatched.bru',
+            '04-admin-ops/shipping/07-return-dispatched.bru',
             '04-admin-ops/shipping/08-cancel-pending.bru'
           ) | Out-Null
 
