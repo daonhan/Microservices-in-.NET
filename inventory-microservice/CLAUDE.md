@@ -15,4 +15,4 @@ Composes ADR [0011](../docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference 
 
 ## Pinning
 
-Pins `ECommerce.Shared` ≥ 2.25.0 for lazy broker singleton fix (see [shared-libs/CLAUDE.md](../shared-libs/CLAUDE.md)). Boot test `Inventory.Tests.MessagingProviderBootTests` depends on it.
+Narrow-pins the shared-libs saga participant package set: `ECommerce.Shared.Platform`, `ECommerce.Shared.EventBus`, `ECommerce.Shared.Messaging`, `ECommerce.Shared.Contracts`, and `ECommerce.Shared.Testing.Qa` at the current lockstep version. `ECommerce.Shared.Messaging` owns provider selection and the lazy broker singleton fix; boot test `Inventory.Tests.MessagingProviderBootTests` depends on it.
