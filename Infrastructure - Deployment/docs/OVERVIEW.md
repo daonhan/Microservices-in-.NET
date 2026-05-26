@@ -83,6 +83,7 @@ Azure Pipelines (per-service azure-pipelines.yml)
 | Per-service pipelines         | `<service>-microservice/azure-pipelines.yml`                         |
 | Kubernetes manifests (local + AKS) | [`kubernetes/`](../../kubernetes/)                             |
 | Dockerfiles                   | `<service>-microservice/<Service>.Service/Dockerfile`                |
+| Implementation patterns       | [`Infrastructure - Deployment/docs/PATTERNS.md`](PATTERNS.md)        |
 | PRD                           | [`docs/prd/azure-infrastructure-deployment.md`](../../docs/prd/azure-infrastructure-deployment.md) |
 | Implementation plan           | [`docs/plans/azure-infrastructure-deployment-plan.md`](../../docs/plans/azure-infrastructure-deployment-plan.md) |
 
@@ -91,5 +92,6 @@ Azure Pipelines (per-service azure-pipelines.yml)
 - [ARCHITECTURE.md](ARCHITECTURE.md) — cloud architecture, network topology, service mesh
 - [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) — end-to-end CI/CD flow with stage details
 - [TECH_STACK.md](TECH_STACK.md) — every Azure service, its purpose, and integration points
+- [PATTERNS.md](PATTERNS.md) — codebase implementation patterns for services, shared libraries, messaging, and tests
 - [Devops Agent Setup.md](Devops%20Agent%20Setup.md) — Dev on Microsoft-hosted agents; Staging/Prod on self-hosted agents
 - [LOCAL_K8S_GUIDE.md](../../docs/LOCAL_K8S_GUIDE.md) — running the platform on Docker Desktop Kubernetes / Minikube

@@ -1,8 +1,9 @@
 # System Design — End-to-End CI/CD
 
 > Companion to [OVERVIEW.md](OVERVIEW.md) and
-> [ARCHITECTURE.md](ARCHITECTURE.md). Describes how a code change moves
-> from a developer's laptop to a Production AKS cluster.
+> [ARCHITECTURE.md](ARCHITECTURE.md). For the implementation conventions that
+> the pipelines enforce, see [PATTERNS.md](PATTERNS.md). Describes how a code
+> change moves from a developer's laptop to a Production AKS cluster.
 
 ## Pipeline anatomy
 

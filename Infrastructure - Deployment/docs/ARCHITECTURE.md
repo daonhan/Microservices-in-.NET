@@ -1,7 +1,8 @@
 # Cloud Architecture
 
-> Companion to [OVERVIEW.md](OVERVIEW.md). Describes the Azure topology
-> that backs the AKS deployment of the e-commerce microservices platform.
+> Companion to [OVERVIEW.md](OVERVIEW.md) and [PATTERNS.md](PATTERNS.md).
+> Describes the Azure topology that backs the AKS deployment of the
+> e-commerce microservices platform.
 
 ## High-level architecture
 
