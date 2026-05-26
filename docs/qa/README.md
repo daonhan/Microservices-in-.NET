@@ -178,6 +178,53 @@ lightweight response-shape check using Chai assertions. Keep request-level
 assertions close to the `.bru` file so a contract drift fails at the request
 that observes it.
 
+## Bruno CLI 3.3.0 form-urlencoded regression
+
+`@usebruno/cli@3.3.0` (the CI-pinned version) drops the body of requests
+declared with `body: form-urlencoded` on the wire (Content-Length: 0).
+The desktop client transmits the same request correctly, so the
+regression is CLI-only. Auth's `POST /token` is the only seeded surface
+that needs a form body (per RFC 6749 `client_credentials`).
+
+The workaround used by `qa/bruno/saga-operator/01-issue-service-token.bru`
+is to switch the body type to `multipartForm`:
+
+```
+post {
+  url: {{authBaseUrl}}/token
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  grant_type: client_credentials
+  client_id: {{serviceClientId}}
+  client_secret: {{serviceClientSecret}}
+}
+```
+
+Why multipart works: ASP.NET Core's `[FromForm]` model binder accepts
+both `application/x-www-form-urlencoded` and `multipart/form-data` for
+the same parameters, and the Auth `/token` endpoint already calls
+`DisableAntiforgery()`, so the multipart envelope is parsed identically
+to the form-urlencoded one on the server side.
+
+Why not the other obvious shapes:
+
+- `body: text` with a hand-rolled `key=value&...` payload — the CLI
+  ships the body bytes verbatim and does **not** interpolate `{{var}}`
+  inside `body:text` (verified empirically). The seeded credentials
+  would arrive as literal `{{serviceClientId}}` strings.
+- `body: form-urlencoded` — the regression we are working around.
+- `bru.runRequest` in a `script:pre-request` — adds a helper request
+  and ties the saga-operator chain to script-side state instead of the
+  declarative body.
+
+CI pins `@usebruno/cli@3.3.0`. Any CLI version bump must re-verify
+`saga-operator/01-issue-service-token.bru` still returns 200 with a
+populated `res.body.token`. If the upstream regression is fixed, the
+body type can be reverted to `form-urlencoded` for clarity.
+
 Scenario pages:
 
 - [ASB Emulator Local Profile](asb-emulator-local.md)
