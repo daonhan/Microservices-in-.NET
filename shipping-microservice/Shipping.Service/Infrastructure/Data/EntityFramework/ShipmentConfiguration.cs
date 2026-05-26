@@ -113,6 +113,34 @@ internal class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
                 WarehouseId = QaPersonas.DefaultWarehouseId,
                 Status = ShipmentStatus.Pending,
                 CreatedAt = ShippingQaFixtures.SeedEpoch,
+            },
+            new
+            {
+                Id = ShippingQaFixtures.ShipmentFailDispatchedId,
+                OrderId = ShippingQaFixtures.ShippingOrderFailDispatchedId,
+                CustomerId = customerHappyId,
+                WarehouseId = QaPersonas.DefaultWarehouseId,
+                Status = ShipmentStatus.Shipped,
+                CreatedAt = ShippingQaFixtures.SeedEpoch,
+                CarrierKey = ShippingQaFixtures.DispatchedCarrierKey,
+                TrackingNumber = ShippingQaFixtures.FailDispatchedTrackingNumber,
+                LabelRef = ShippingQaFixtures.FailDispatchedLabelRef,
+                QuotedPriceAmount = (decimal?)ShippingQaFixtures.DispatchedQuotedAmount,
+                QuotedPriceCurrency = ShippingQaFixtures.DispatchedQuotedCurrency,
+            },
+            new
+            {
+                Id = ShippingQaFixtures.ShipmentReturnDispatchedId,
+                OrderId = ShippingQaFixtures.ShippingOrderReturnDispatchedId,
+                CustomerId = customerHappyId,
+                WarehouseId = QaPersonas.DefaultWarehouseId,
+                Status = ShipmentStatus.Shipped,
+                CreatedAt = ShippingQaFixtures.SeedEpoch,
+                CarrierKey = ShippingQaFixtures.DispatchedCarrierKey,
+                TrackingNumber = ShippingQaFixtures.ReturnDispatchedTrackingNumber,
+                LabelRef = ShippingQaFixtures.ReturnDispatchedLabelRef,
+                QuotedPriceAmount = (decimal?)ShippingQaFixtures.DispatchedQuotedAmount,
+                QuotedPriceCurrency = ShippingQaFixtures.DispatchedQuotedCurrency,
             });
     }
 }

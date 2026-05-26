@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{shippingBaseUrl}}/{{shipmentDispatchedId}}/fail
+  url: {{shippingBaseUrl}}/{{shipmentFailDispatchedId}}/fail
   body: json
   auth: bearer
 }
@@ -28,7 +28,7 @@ tests {
   test("fails the dispatched shipment", function () {
     expect(res.status).to.equal(200);
     expect(res.body).to.be.an("object");
-    expect(res.body.shipmentId).to.equal(bru.getEnvVar("shipmentDispatchedId"));
+    expect(res.body.shipmentId).to.equal(bru.getEnvVar("shipmentFailDispatchedId"));
     expect(res.body.orderId).to.match(/^[0-9a-fA-F-]{36}$/);
     expect(res.body.customerId).to.equal(bru.getEnvVar("customerHappyId"));
     expect(res.body.warehouseId).to.be.a("number");
