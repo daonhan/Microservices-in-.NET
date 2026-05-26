@@ -48,6 +48,20 @@ internal class ShipmentLineConfiguration : IEntityTypeConfiguration<ShipmentLine
                 ShipmentId = ShippingQaFixtures.ShipmentCancelPendingId,
                 ProductId = QaPersonas.ProductHappyId,
                 Quantity = QaPersonas.ProductHappyQuantity,
+            },
+            new ShipmentLine
+            {
+                Id = ShippingQaFixtures.LineSeedIdStart + 5,
+                ShipmentId = ShippingQaFixtures.ShipmentFailDispatchedId,
+                ProductId = QaPersonas.ProductHappyId,
+                Quantity = QaPersonas.ProductHappyQuantity,
+            },
+            new ShipmentLine
+            {
+                Id = ShippingQaFixtures.LineSeedIdStart + 6,
+                ShipmentId = ShippingQaFixtures.ShipmentReturnDispatchedId,
+                ProductId = QaPersonas.ProductHappyId,
+                Quantity = QaPersonas.ProductHappyQuantity,
             });
     }
 }

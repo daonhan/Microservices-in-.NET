@@ -155,17 +155,19 @@ Jaeger: trace shows the Inventory back-order span.
 
 ## Shipping ops
 
-These steps exercise `shipping-microservice` admin endpoints against the seeded shipments owned by `customer-happy`. Five fixtures, one per non-trivial status, sit in the database after a fresh `docker compose up`. Run the requests in `qa/bruno/04-admin-ops/shipping/`. **Every transition below is admin-only** — the customer JWT receives `403`.
+These steps exercise `shipping-microservice` admin endpoints against the seeded shipments owned by `customer-happy`. Seven fixtures sit in the database after a fresh `docker compose up`: five status-walk targets plus two extra `Shipped` siblings so the three terminal transitions (`deliver`, `fail`, `return`) each act on their own row. Run the requests in `qa/bruno/04-admin-ops/shipping/`. **Every transition below is admin-only** — the customer JWT receives `403`.
 
 | Shipment Id | Initial status | Order Id | Tests this transition |
 |---|---|---|---|
 | `c0000000-...01` | `Pending` | `d0000000-...01` | `pick` |
 | `c0000000-...02` | `Picked` | `d0000000-...02` | `pack` |
 | `c0000000-...03` | `Packed` | `d0000000-...03` | `dispatch` |
-| `c0000000-...04` | `Shipped` | `d0000000-...04` | `deliver`, `fail`, `return`, carrier webhook |
+| `c0000000-...04` | `Shipped` | `d0000000-...04` | `deliver`, carrier webhook |
 | `c0000000-...05` | `Pending` | `d0000000-...05` | `cancel` |
+| `c0000000-...06` | `Shipped` | `d0000000-...06` | `fail` |
+| `c0000000-...07` | `Shipped` | `d0000000-...07` | `return` |
 
-Shipment `c0000000-...04` is pre-stamped with `CarrierKey=fake-ground`, `TrackingNumber=QA-TRACK-DISPATCHED-001`, `LabelRef=label://qa/...`, `QuotedPriceAmount=5.00 USD` so the carrier-webhook lookup resolves without first running `dispatch`.
+Shipment `c0000000-...04` is pre-stamped with `CarrierKey=fake-ground`, `TrackingNumber=QA-TRACK-DISPATCHED-001`, `LabelRef=label://qa/...`, `QuotedPriceAmount=5.00 USD` so the carrier-webhook lookup resolves without first running `dispatch`. The two siblings `c0000000-...06` / `c0000000-...07` mirror that shape with `QA-TRACK-DISPATCHED-FAIL-001` and `QA-TRACK-DISPATCHED-RETURN-001`.
 
 ### 1. Pick the pending shipment
 
@@ -207,15 +209,15 @@ Jaeger: trace shows the `/dispatch` request, the carrier `DispatchAsync` span, a
 
 ### 4. Deliver, fail, or return the dispatched shipment
 
-These three transitions all act on `c0000000-...04` and are mutually exclusive — pick one per fixture run.
+Each terminal transition acts on its own seeded fixture; the trio runs sequentially in the same boot with no reset.
 
 - `POST http://localhost:8006/c0000000-...04/deliver` → `200`, `Status=Delivered`, emits `ShipmentDeliveredEvent`.
-- `POST http://localhost:8006/c0000000-...04/fail` with `{ "reason": "..." }` → `200`, `Status=Failed`, emits `ShipmentFailedEvent`.
-- `POST http://localhost:8006/c0000000-...04/return` with `{ "reason": "..." }` → `200`, `Status=Returned`, emits `ShipmentReturnedEvent`.
+- `POST http://localhost:8006/c0000000-...06/fail` with `{ "reason": "..." }` → `200`, `Status=Failed`, emits `ShipmentFailedEvent`.
+- `POST http://localhost:8006/c0000000-...07/return` with `{ "reason": "..." }` → `200`, `Status=Returned`, emits `ShipmentReturnedEvent`.
 
-SQL: same `Shipments` query scoped to `c0000000-...04`. The status history row records the transition source as `Admin (1)`.
+SQL: same `Shipments` query scoped to each row's id. The status history row records the transition source as `Admin (1)`.
 
-Event/log: each transition emits its named milestone event plus a `ShipmentStatusChangedEvent` carrying the from/to pair. To re-test another transition, run `docker compose down -v && up` to reset.
+Event/log: each transition emits its named milestone event plus a `ShipmentStatusChangedEvent` carrying the from/to pair.
 
 ### 5. Cancel the cancellable pending shipment
 

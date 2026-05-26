@@ -63,6 +63,22 @@ internal class ShipmentStatusHistoryEntryConfiguration : IEntityTypeConfiguratio
                 Status = ShipmentStatus.Pending,
                 OccurredAt = ShippingQaFixtures.SeedEpoch,
                 Source = ShipmentStatusSource.System,
+            },
+            new ShipmentStatusHistoryEntry
+            {
+                Id = ShippingQaFixtures.HistorySeedIdStart + 5,
+                ShipmentId = ShippingQaFixtures.ShipmentFailDispatchedId,
+                Status = ShipmentStatus.Shipped,
+                OccurredAt = ShippingQaFixtures.SeedEpoch,
+                Source = ShipmentStatusSource.System,
+            },
+            new ShipmentStatusHistoryEntry
+            {
+                Id = ShippingQaFixtures.HistorySeedIdStart + 6,
+                ShipmentId = ShippingQaFixtures.ShipmentReturnDispatchedId,
+                Status = ShipmentStatus.Shipped,
+                OccurredAt = ShippingQaFixtures.SeedEpoch,
+                Source = ShipmentStatusSource.System,
             });
     }
 }

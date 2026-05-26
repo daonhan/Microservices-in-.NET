@@ -17,7 +17,7 @@ auth:bearer {
 tests {
   test("requeues the in-flight saga command", function () {
     expect(res.status).to.equal(202);
-    expect(res.body.sagaId).to.equal(bru.getVar("operatorSagaId"));
+    expect(res.body.sagaId).to.equal(bru.getEnvVar("operatorSagaId"));
     expect(res.body.currentStep).to.be.a("string").and.not.be.empty;
   });
 }

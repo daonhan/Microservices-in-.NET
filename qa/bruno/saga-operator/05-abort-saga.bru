@@ -17,7 +17,7 @@ auth:bearer {
 tests {
   test("starts saga compensation", function () {
     expect(res.status).to.equal(202);
-    expect(res.body.sagaId).to.equal(bru.getVar("operatorSagaId"));
+    expect(res.body.sagaId).to.equal(bru.getEnvVar("operatorSagaId"));
     expect(res.body.status).to.equal("Compensating");
   });
 }
