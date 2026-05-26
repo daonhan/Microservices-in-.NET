@@ -27,4 +27,15 @@ public static class EntityFrameworkExtensions
         using var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
         sagaContext.Database.Migrate();
     }
+
+    public static void SeedQaOperatorOutboxFixture(this WebApplication webApp)
+    {
+        var commandId = new Guid("e0000000-0000-0000-0000-000000000003");
+        using var scope = webApp.Services.CreateScope();
+        using var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
+        sagaContext.Database.ExecuteSqlInterpolated(
+            $@"IF NOT EXISTS (SELECT 1 FROM [OutboxEvents] WHERE [Id] = {commandId})
+               INSERT INTO [OutboxEvents] ([Id], [EventType], [Data], [Sent], [Status], [Attempts])
+               VALUES ({commandId}, N'Saga.Service.QaSyntheticEvent, Saga.Service', N'{{}}', 1, 0, 0);");
+    }
 }

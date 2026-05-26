@@ -7,17 +7,11 @@ docker compose down -v
 docker compose up --build
 ```
 
-Use the Bruno collection in `qa/bruno/saga-operator` with the `qa-local` environment. The orchestrator opens a saga for every order; no opt-in flag.
+Use the Bruno collection in `qa/bruno/saga-operator` with the `qa-local` environment. The orchestrator opens a saga for every order; for this scenario a deterministic Running `Order` saga is seeded by `20260526100000_SeedQaPhase2_Saga` (gated by `IsQaSeedingEnabled`) so the operator endpoints have a stable target on a freshly booted stack.
 
-## 1. Open an orchestrated order saga
+## 1. Confirm the seeded operator saga
 
-Pause Payment before placing the order so the saga stays in an in-flight step long enough to operate on:
-
-```powershell
-docker compose stop payment
-```
-
-HTTP: use the happy-path customer flow to create an order for product `9001`. The Saga service should open an `Order` saga for the order and park at `PaymentAuthorizing` after stock reservation.
+The seeded saga has `SagaId = e0000000-0000-0000-0000-000000000001`, `SagaType = Order`, `Status = Running`, `CurrentStep = PaymentAuthorizing`, and a synthetic `OrderId = e0000000-0000-0000-0000-000000000002` no other scenario references.
 
 SQL:
 
@@ -25,12 +19,10 @@ SQL:
 SELECT si.SagaId, si.SagaType, si.CurrentStep, si.Status, os.OrderId
 FROM Saga.dbo.SagaInstances si
 JOIN Saga.dbo.OrderSagaStates os ON os.SagaId = si.SagaId
-ORDER BY si.CreatedAt DESC;
+WHERE si.SagaId = 'e0000000-0000-0000-0000-000000000001';
 ```
 
-Event/log: Saga logs show the order saga opening and dispatching the current in-flight command. Payment remains stopped until the abort is issued.
-
-Jaeger: find the saga transition span for the new `SagaId`.
+Event/log: no runtime action — the fixture is migration-seeded.
 
 ## 2. Issue a service token
 
@@ -44,18 +36,18 @@ Jaeger: find an Auth span for `POST /token`.
 
 ## 3. List and inspect the saga
 
-HTTP: `GET http://localhost:8008/operator/api/sagas?type=Order&status=Running` returns the running saga. `GET http://localhost:8008/operator/api/sagas/{sagaId}` returns the saga detail, including `transitions`.
+HTTP: `GET http://localhost:8008/operator/api/sagas?type=Order&status=Running` returns the seeded saga in the `items` array. `GET http://localhost:8008/operator/api/sagas/{sagaId}` returns the saga detail, including `transitions`.
 
 SQL:
 
 ```sql
 SELECT CurrentStep, Status, LastCommandId, NextTimeoutAt
 FROM Saga.dbo.SagaInstances
-WHERE SagaId = '<sagaId>';
+WHERE SagaId = 'e0000000-0000-0000-0000-000000000001';
 
 SELECT FromStep, ToStep, TriggerKind, Error
 FROM Saga.dbo.SagaTransitions
-WHERE SagaId = '<sagaId>'
+WHERE SagaId = 'e0000000-0000-0000-0000-000000000001'
 ORDER BY Timestamp, Id;
 ```
 
@@ -72,14 +64,14 @@ SQL:
 ```sql
 SELECT LastCommandId, RetryCount, NextTimeoutAt
 FROM Saga.dbo.SagaInstances
-WHERE SagaId = '<sagaId>';
+WHERE SagaId = 'e0000000-0000-0000-0000-000000000001';
 
 SELECT TOP 5 Id, EventType, Sent, Status
 FROM Saga.dbo.OutboxEvents
-ORDER BY CreatedAt DESC;
+WHERE Id = 'e0000000-0000-0000-0000-000000000003';
 ```
 
-Event/log: the outbox row for `LastCommandId` is pending again, and a `TriggerKind=OperatorAction` transition records the retry.
+Event/log: the seeded outbox row for `LastCommandId` is set back to `Sent=0` with `Status=Pending`, and a `TriggerKind=OperatorAction` transition records the retry.
 
 Jaeger: follow the next publish attempt for the requeued command.
 
@@ -92,20 +84,14 @@ SQL:
 ```sql
 SELECT CurrentStep, Status, LastCommandId
 FROM Saga.dbo.SagaInstances
-WHERE SagaId = '<sagaId>';
+WHERE SagaId = 'e0000000-0000-0000-0000-000000000001';
 
 SELECT FromStep, ToStep, TriggerKind, Error
 FROM Saga.dbo.SagaTransitions
-WHERE SagaId = '<sagaId>'
+WHERE SagaId = 'e0000000-0000-0000-0000-000000000001'
 ORDER BY Timestamp, Id;
 ```
 
 Event/log: Saga publishes the first reverse-step command and records an operator-action transition with `Operator abort started saga compensation.`
 
 Jaeger: the compensation command publish should share the saga correlation context.
-
-Restart Payment after the scenario:
-
-```powershell
-docker compose start payment
-```

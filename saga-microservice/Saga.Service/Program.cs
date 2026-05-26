@@ -107,6 +107,7 @@ if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
 {
     app.MigrateDatabase();
     app.ApplyOutboxMigrations();
+    app.SeedQaOperatorOutboxFixture();
 }
 
 app.UsePlatformOpenApi();
