@@ -22,7 +22,7 @@ If prior work may be relevant, use the `load-session-context` skill to search th
 | payment     | 8007 | SQL       | [payment-microservice/CLAUDE.md](payment-microservice/CLAUDE.md)       |
 | saga        | 8008 | SQL       | [saga-microservice/CLAUDE.md](saga-microservice/CLAUDE.md)             |
 
-Shared libraries (NuGet, local feed, packing flow + lazy broker rule): [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). `ECommerce.Shared` ships as eight capability packages + one umbrella metapackage on lockstep `<Version>` — see [ADR-0013](docs/adr/0013-shared-libs-multi-package-split.md) for the partition and [docs/runbooks/shared-libs-versioning.md](docs/runbooks/shared-libs-versioning.md) for the bump-and-publish + consumer-sweep workflow.
+Shared libraries (NuGet, local feed, narrow package rules, packing flow + lazy broker rule): [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). Shared-libs ships nine capability packages plus the `ECommerce.Shared` umbrella compatibility metapackage on lockstep `<Version>`; production services should reference only the direct capabilities they use. See [docs/runbooks/shared-libs-versioning.md](docs/runbooks/shared-libs-versioning.md) for package selection and bump-and-publish workflow.
 
 ## Build / test / run
 
@@ -68,7 +68,7 @@ Every service in the monorepo is on this layout; api-gateway closed out the migr
 
 ## Cross-service architecture
 
-Read together: each service's `Program.cs` (composition root) + [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). New cross-cutting concerns belong in `ECommerce.Shared`.
+Read together: each service's `Program.cs` (composition root) + [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). New cross-cutting concerns belong in the matching shared-libs capability package.
 
 **Saga (orchestrator-only):** Saga service owns the order saga end-to-end. Starts from `OrderCreatedEvent`, persists saga state, drives participants exclusively with commands: `ReserveStockCommand`/`CommitStockCommand`/`ReleaseStockCommand` (Inventory), `AuthorizePaymentCommand`/`CapturePaymentCommand`/`VoidPaymentCommand`/`RefundPaymentCommand` (Payment), `ConfirmOrderCommand`/`CancelOrderCommand` (Order), `CreateShipmentCommand`/`CancelShipmentCommand` (Shipping). Participants reply with integration events carrying `CausationId`/`SagaId`. Cutover completed 2026-05-18 (issue #132). Runbook: [saga-orchestrator-strangler.md](docs/runbooks/saga-orchestrator-strangler.md). ADR: [0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md).
 

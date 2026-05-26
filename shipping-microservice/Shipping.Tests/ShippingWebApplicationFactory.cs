@@ -1,3 +1,4 @@
+using ECommerce.Shared.Infrastructure.Outbox;
 using ECommerce.Shared.Infrastructure.RabbitMq;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
@@ -33,6 +34,7 @@ public class ShippingWebApplicationFactory : WebApplicationFactory<Program>, IAs
     {
         builder.ConfigureTestServices(services =>
         {
+            RemoveHostedService<OutboxBackgroundService>(services);
             RemoveHostedService<RabbitMqHostedService>(services);
             ApplyMigrations(services);
             ConfigureTestAuthentication(services);

@@ -1,6 +1,6 @@
 # Shared libraries versioning — bump, publish, sweep
 
-This runbook is the bump-and-publish workflow for `shared-libs/ECommerce.Shared` after [ADR-0013](../adr/0013-shared-libs-multi-package-split.md) split the library into capability packages plus one umbrella metapackage. After the Messaging extraction, every shared-libs release ships nine capability `.nupkg` files plus the umbrella at a single lockstep version. Every consumer pin sweep is one PR per consumer in low-risk-first order.
+This runbook is the bump-and-publish workflow for `shared-libs/ECommerce.Shared` after [ADR-0013](../adr/0013-shared-libs-multi-package-split.md) split the library into capability packages plus one umbrella metapackage. After the Messaging extraction, every shared-libs release ships nine capability `.nupkg` files plus the umbrella at a single lockstep version. Production consumers should use direct capability packages; the umbrella stays available for compatibility, prototypes, and deliberate broad consumption.
 
 ## Layout the runbook assumes
 
@@ -25,7 +25,7 @@ From repo root.
 
 ```bash
 # 1. Edit the single source-of-truth version.
-$EDITOR shared-libs/Directory.Build.props          # bump <Version>3.0.0</Version>
+$EDITOR shared-libs/Directory.Build.props          # bump <Version>x.y.z</Version>
 
 # 2. Build + test the whole solution.
 dotnet build shared-libs/ECommerce.Shared.slnx
@@ -53,13 +53,24 @@ ls local-nuget-packages/ECommerce.Shared*<Version>.nupkg
 #   ECommerce.Shared.Testing.Qa.<Version>.nupkg
 ```
 
-The umbrella's `.nupkg` carries the nine sub-package `<PackageDependency>`s at the same version (ProjectReference→PackageDependency conversion happens at pack time). Consumer `dotnet restore` against the umbrella alone pulls the full set transitively.
+The umbrella's `.nupkg` carries the nine sub-package `<PackageDependency>`s at the same version (ProjectReference→PackageDependency conversion happens at pack time). Production consumers normally restore only the direct capability packages they reference; restoring against the umbrella alone still pulls the full set transitively for compatibility/prototype consumers.
 
 Older nupkgs with the same version number have been observed to linger in `local-nuget-packages/`. If a consumer build behaves unexpectedly after publish, confirm the nupkg modification time matches your pack run and clear the per-consumer NuGet HTTP cache (`dotnet nuget locals http-cache --clear`) before debugging further.
 
-## Consumer version-pin sweep procedure
+## Consumer package selection and version sweep
 
-Every consumer csproj references the **umbrella** by name (`<PackageReference Include="ECommerce.Shared" Version="..." />`). A version-pin sweep is one PR per consumer, in low-risk-first order, each a one-line csproj edit plus the test + smoke gate below.
+Production consumer csprojs use direct shared-libs capability packages, not the umbrella. A version sweep is one PR per consumer in low-risk-first order. Update every direct `ECommerce.Shared.*` reference in that consumer to the same new lockstep version, and preserve the approved package set unless the service behavior changed.
+
+### Package selection rule
+
+- Auth-only service: `ECommerce.Shared.Platform`, `ECommerce.Shared.Testing.Qa`.
+- Publisher/subscriber without shared saga commands: `ECommerce.Shared.Platform`, `ECommerce.Shared.EventBus`, `ECommerce.Shared.Messaging`, `ECommerce.Shared.Testing.Qa`.
+- Saga participant or orchestrator using shared commands: `ECommerce.Shared.Platform`, `ECommerce.Shared.EventBus`, `ECommerce.Shared.Messaging`, `ECommerce.Shared.Contracts`, `ECommerce.Shared.Testing.Qa`.
+- Gateway/operator DLQ owner: `ECommerce.Shared.Platform`, `ECommerce.Shared.Messaging`, `ECommerce.Shared.DeadLetter`.
+
+`ECommerce.Shared.Messaging` owns `Messaging:Provider` resolution and `AddPlatformEventBus` / `AddPlatformEventPublisher` / `AddPlatformSubscriberService`. Do not add `ECommerce.Shared.DeadLetter`, `ECommerce.Shared.RabbitMq`, or `ECommerce.Shared.AzureServiceBus` to a normal production service solely for provider selection. API Gateway is the only current production consumer with a direct `ECommerce.Shared.DeadLetter` reference.
+
+The executable guardrail is `ConsumerPackageReferenceTests` in [`shared-libs/tests/ECommerce.Shared.LayoutAnalyzer.Tests`](../../shared-libs/tests/ECommerce.Shared.LayoutAnalyzer.Tests/). If a legitimate production package set changes, update that test with the same PR and explain why.
 
 ### Sweep order (low-risk first)
 
@@ -75,19 +86,20 @@ Every consumer csproj references the **umbrella** by name (`<PackageReference In
 | 8 | `saga-microservice` | `saga-microservice/Saga.Service/Saga.Service.csproj` |
 | 9 | `api-gateway` | `api-gateway/ApiGateway/ApiGateway.csproj` |
 
-The order surfaces any new-version ABI regression on the least-coupled consumer first. Auth / Basket / Product carry the pre-2.24 latent eager-broker defect and are swept first so the lazy `IRabbitMqConnection` fix lands on the weakest gates first — once a single consumer's integration suite passes against the new version, the broker-startup path is validated for every downstream consumer.
+The order surfaces any new-version ABI regression on the least-coupled consumer first. Auth stays first because it exercises Platform without messaging. Basket and Product follow as the smallest subscriber/publisher shapes before the saga participants and Gateway.
 
 ### Per-PR loop
 
 ```bash
-# 1. Edit the single version line.
-$EDITOR <consumer-dir>/<Service.Service>.csproj   # bump <PackageReference Include="ECommerce.Shared" Version="..." />
+# 1. Edit all direct shared-libs package versions in the consumer csproj.
+$EDITOR <consumer-dir>/<Service.Service>.csproj
 
 # 2. Restore + build + test from the consumer directory.
 cd <consumer-dir>
 dotnet restore
 dotnet build
 dotnet test
+dotnet list package --include-transitive
 ```
 
 3. For broker-dependent consumers (Basket onward), bring up the service against the live broker and confirm one publish/consume round-trip with outbox + telemetry visually verified:
@@ -96,15 +108,20 @@ dotnet test
    docker compose up --build <service>
    ```
 
-4. For consumers without a `MessagingProviderBootTests`-equivalent gate (currently Auth, Saga, ApiGateway), add a temporary boot-time assertion in the PR or rely on an integration test to confirm the lazy `IRabbitMqConnection` registration is in place. Once every consumer is on the post-2.24 lazy registration, the gate becomes redundant and can be removed.
+4. Run the package guardrail after package-set changes:
+
+   ```bash
+   dotnet test shared-libs/tests/ECommerce.Shared.LayoutAnalyzer.Tests/ECommerce.Shared.LayoutAnalyzer.Tests.csproj --filter ConsumerPackageReferenceTests
+   ```
 
 ### After the sweep
 
-Final commit updates `shared-libs/CLAUDE.md` §"Version pinning history" to record convergence on the new version. Grep gate:
+Final commit updates `shared-libs/CLAUDE.md` §"Version pinning history" to record convergence on the new version. Grep gates:
 
 ```bash
-grep -r 'ECommerce.Shared.*Version="<old-major>' .   # expect zero hits
-grep -r 'ECommerce.Shared.*Version="<new-major>' .   # expect 9 hits (one per consumer csproj)
+rg 'PackageReference Include="ECommerce\.Shared"' -g '*.csproj'   # expect zero production service hits
+rg 'PackageReference Include="ECommerce\.Shared\.DeadLetter"' -g '*.csproj'   # expect API Gateway only among production services
+rg 'PackageReference Include="ECommerce\.Shared\.(RabbitMq|AzureServiceBus)"' -g '*.csproj'   # expect zero production service hits
 ```
 
 ## Adding another capability package
@@ -124,4 +141,4 @@ Adding a new shared capability package goes through this checklist; the shape mi
 
 - Pushing to a non-local NuGet feed (NuGet.org, Azure Artifacts). [ADR-0005](../adr/0005-ecommerce-shared-as-nuget-via-local-feed.md) records the local-feed-only decision; the multi-package split does not change it.
 - Adopting `Central Package Management` (`Directory.Packages.props`) across the monorepo. Consumer csprojs continue to declare `<PackageReference … Version="…" />` inline.
-- Narrow-package consumer pinning. Consumers continue to reference the umbrella by default; opportunistic narrow pinning (e.g. Auth dropping to `ECommerce.Shared.Platform` + `ECommerce.Shared.Testing.Qa` only) is a future PR per consumer.
+- Reverting production consumers to the umbrella package without a new architectural decision. The umbrella remains available, but optimized production consumers should stay narrow-pinned.
