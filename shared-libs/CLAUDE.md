@@ -1,31 +1,50 @@
 # Shared libraries — notes
 
-`ECommerce.Shared` is consumed as a NuGet package (not project ref). Local feed: `local-nuget-packages/` (gitignored).
+`ECommerce.Shared` is consumed as a NuGet package (not project ref). Local feed: `local-nuget-packages/` at the repo root (gitignored).
+
+Since [ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md) the library ships as **eight capability packages plus one umbrella metapackage** on lockstep `<Version>` defined in [`Directory.Build.props`](Directory.Build.props). Every release bumps that one place and packs all nine `.nupkg`s together. Bump-and-publish + consumer-sweep procedure: [`docs/runbooks/shared-libs-versioning.md`](../docs/runbooks/shared-libs-versioning.md).
 
 ## Pack + publish flow
 
-After edits:
+After edits, from the repo root:
 
 ```bash
-cd shared-libs/ECommerce.Shared
-dotnet pack -c Release
-dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
-# bump <Version> in .csproj so consumers pick it up
+# 1. Build + test the whole solution.
+dotnet build shared-libs/ECommerce.Shared.slnx
+dotnet test shared-libs/ECommerce.Shared.slnx
+
+# 2. Bump <Version> in shared-libs/Directory.Build.props (single source of truth).
+
+# 3. Pack the whole solution — emits 9 *.<Version>.nupkg (one per src csproj).
+dotnet pack -c Release shared-libs/ECommerce.Shared.slnx
+
+# 4. Glob-copy all 9 nupkgs into the local feed.
+cp shared-libs/**/bin/Release/*.<Version>.nupkg local-nuget-packages/
 ```
 
-Consumers see no change until version bump + new `.nupkg` in feed.
+The umbrella `ECommerce.Shared.<Version>.nupkg` carries the eight sub-package `<PackageDependency>`s at the same version. Consumers `restore` against the umbrella alone and pull the full set transitively.
 
-When packing a new shared version, also confirm the `.nupkg` in `local-nuget-packages/` was built **after** the relevant source commit (older nupkgs sharing a version number have been observed).
+Consumers see no change until version bump + new `.nupkg`s in feed. When packing a new shared version, confirm the `.nupkg`s in `local-nuget-packages/` were built **after** the relevant source commit (older nupkgs sharing a version number have been observed). If a consumer build behaves unexpectedly, clear the consumer's NuGet HTTP cache (`dotnet nuget locals http-cache --clear`).
 
 ## Composition extensions
 
-Each service's `Program.cs` uses `ECommerce.Shared` extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`.
+Each service's `Program.cs` uses the umbrella's transitive extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`, `AddJwtAuthentication`, `AddRequireOperatorPolicy`, `AddRequireServicePolicy`.
 
-`Infrastructure/`:
-- `EventBus/`, `Messaging/`, `RabbitMq/`, `AzureServiceBus/` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus.
-- `Outbox/` — `OutboxBackgroundService`. Services that publish need `AddOutbox(...)` + `app.ApplyOutboxMigrations()` in Dev.
+Capability-to-package mapping (namespaces unchanged from pre-split):
 
-New cross-cutting concerns belong here.
+- `ECommerce.Shared.Kernel` — `Event` base, telemetry name constants under `Kernel/Abstractions/TelemetryConventions/`, `MessagingOptions`, `MetricFactory`.
+- `ECommerce.Shared.EventBus` — `IEventBus` + the entire Outbox capability (`OutboxBackgroundService`, `OutboxUnitOfWork`, migrations).
+- `ECommerce.Shared.RabbitMq` / `ECommerce.Shared.AzureServiceBus` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus.
+- `ECommerce.Shared.DeadLetter` — DLQ capture/publisher/replayer/discarder + co-located `MessagingProviderResolver`.
+- `ECommerce.Shared.Platform` — Authentication + Observability + HealthChecks + OpenApi bundled.
+- `ECommerce.Shared.Contracts` — saga command POCOs.
+- `ECommerce.Shared.Testing.Qa` — `QaPersonas` + `QaSeedingExtensions`.
+
+New cross-cutting concerns belong in whichever sub-package matches; if none matches, add a ninth package via the runbook's checklist.
+
+## Inner shape — `Abstractions/` + `Impl/` + `Composition/`
+
+Every sub-package keeps the same inner triad (mirrors ADR-0011's per-service shape, parametrised over package names). Boundaries enforced by the Roslyn analyzer [`ECommerce.Shared.LayoutAnalyzer`](ECommerce.Shared.LayoutAnalyzer/) at build time (`SHALAY001`, `SHALAY002`, `SHALAY003`) and by `Architecture/LayoutTests.cs` (NetArchTest) in every per-package test csproj at test time. Cross-package import rules live in `LayoutAnalyzer.cs`'s `CrossPackageAllowlist` dictionary.
 
 ## Broker singletons must register lazy
 
@@ -37,10 +56,15 @@ AddSingleton<IRabbitMqConnection>(_ => new RabbitMqConnection(opts));
 AddSingleton<IRabbitMqConnection>(new RabbitMqConnection(opts));
 ```
 
-Eager registration breaks boot tests like `Inventory.Tests.MessagingProviderBootTests` in any sandbox without a reachable broker.
+Eager registration breaks boot tests like `Inventory.Tests.MessagingProviderBootTests` in any sandbox without a reachable broker. The lazy form lives in [`ECommerce.Shared.RabbitMq/Composition/RabbitMqStartupExtensions.cs`](ECommerce.Shared.RabbitMq/Composition/RabbitMqStartupExtensions.cs) since the Phase 6 carve; the rule applies unchanged.
 
 ## Version pinning history
 
-- Lazy broker fix shipped in `ECommerce.Shared` ≥ 2.25.0 (commit `dcbc29c`).
-- **Inventory** pins 2.25.0.
-- **Other services** still pin 2.23.0 / 2.18.0 and carry the latent eager defect — sweeping them is a separate ADR/PR.
+- Lazy broker fix shipped in `ECommerce.Shared` ≥ `2.24.0` (commit `dcbc29c`).
+- Lockstep multi-package release: `3.0.0` ships eight sub-packages + one umbrella together ([ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md)).
+- **Convergence target**: every consumer pins `ECommerce.Shared` `3.0.0` after the Phase 13 sweep (one PR per consumer, low-risk-first order — runbook lists the order). Until that sweep lands, current consumer pins are:
+  - Auth / Basket / Product — `2.18.0` (pre-fix, carries latent eager-broker defect)
+  - Order — `2.24.0`
+  - Inventory / Payment / Shipping / Saga / ApiGateway — `2.25.0`
+
+Post-sweep this section becomes a single line ("All consumers pin `3.0.0`") plus the Phase 13 issue link for history.

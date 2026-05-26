@@ -22,7 +22,7 @@ If prior work may be relevant, use the `load-session-context` skill to search th
 | payment     | 8007 | SQL       | [payment-microservice/CLAUDE.md](payment-microservice/CLAUDE.md)       |
 | saga        | 8008 | SQL       | [saga-microservice/CLAUDE.md](saga-microservice/CLAUDE.md)             |
 
-Shared libraries (NuGet, local feed, packing flow + lazy broker rule): [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md).
+Shared libraries (NuGet, local feed, packing flow + lazy broker rule): [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). `ECommerce.Shared` ships as eight capability packages + one umbrella metapackage on lockstep `<Version>` — see [ADR-0013](docs/adr/0013-shared-libs-multi-package-split.md) for the partition and [docs/runbooks/shared-libs-versioning.md](docs/runbooks/shared-libs-versioning.md) for the bump-and-publish + consumer-sweep workflow.
 
 ## Build / test / run
 
