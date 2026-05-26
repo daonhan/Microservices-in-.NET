@@ -1,12 +1,28 @@
-# AGENT.md
+# CLAUDE.md
 
-Guidance for AI Agent in this repo. See [README.md](README.md), [CONTEXT.md](CONTEXT.md), [.claude/CLAUDE.md](.claude/CLAUDE.md) (behavioral rules).
+Guidance for Claude Code/AI Agent in this repo. See [README.md](README.md), [CONTEXT.md](CONTEXT.md), [.claude/CLAUDE.md](.claude/CLAUDE.md) (behavioral rules).
+
+If prior work may be relevant, use the `load-session-context` skill to search the local QMD index of prior sessions (and, after Phase 4, repo docs) and load only the relevant past context before continuing.
+
+**Per-service details live next to the service.** When working in `<svc>-microservice/`, that directory's `CLAUDE.md` auto-loads with the local divergences. This root file covers only cross-cutting concerns.
 
 ## Repo shape
 
 .NET microservices monorepo, **net10.0**, no root solution. Each `*-microservice/`, `api-gateway/`, `shared-libs/` is its own `.slnx`.
 
-Services (port, datastore): basket 8000 Redis · order 8001 SQL+Redis · product 8002 SQL · auth 8003 SQL · api-gateway 8004 — · inventory 8005 SQL · shipping 8006 SQL · payment 8007 SQL · saga 8008 SQL.
+| Service     | Port | Datastore | Notes file                                                             |
+|-------------|------|-----------|------------------------------------------------------------------------|
+| basket      | 8000 | Redis     | [basket-microservice/CLAUDE.md](basket-microservice/CLAUDE.md)         |
+| order       | 8001 | SQL+Redis | [order-microservice/CLAUDE.md](order-microservice/CLAUDE.md)           |
+| product     | 8002 | SQL       | [product-microservice/CLAUDE.md](product-microservice/CLAUDE.md)       |
+| auth        | 8003 | SQL       | [auth-microservice/CLAUDE.md](auth-microservice/CLAUDE.md)             |
+| api-gateway | 8004 | —         | [api-gateway/CLAUDE.md](api-gateway/CLAUDE.md)                         |
+| inventory   | 8005 | SQL       | [inventory-microservice/CLAUDE.md](inventory-microservice/CLAUDE.md)   |
+| shipping    | 8006 | SQL       | [shipping-microservice/CLAUDE.md](shipping-microservice/CLAUDE.md)     |
+| payment     | 8007 | SQL       | [payment-microservice/CLAUDE.md](payment-microservice/CLAUDE.md)       |
+| saga        | 8008 | SQL       | [saga-microservice/CLAUDE.md](saga-microservice/CLAUDE.md)             |
+
+Shared libraries (NuGet, local feed, packing flow + lazy broker rule): [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). `ECommerce.Shared` ships as eight capability packages + one umbrella metapackage on lockstep `<Version>` — see [ADR-0013](docs/adr/0013-shared-libs-multi-package-split.md) for the partition and [docs/runbooks/shared-libs-versioning.md](docs/runbooks/shared-libs-versioning.md) for the bump-and-publish + consumer-sweep workflow.
 
 ## Build / test / run
 
@@ -28,42 +44,33 @@ docker compose up sql rabbitmq redis -d                         # infra only
 
 Activate once: `dotnet tool restore && dotnet husky install`. Hook runs `dotnet format --verify-no-changes`, `dotnet build --no-restore`, then Basket tests only — **run other suites manually before pushing cross-service changes**.
 
-Known WSL/virtiofs/Docker sandbox issue: pre-commit may fail at `dotnet build --no-restore` with `MSB3248 No such device` due to root-owned or sandbox-created `bin/obj`. Not a regression. Workaround from a writable host shell:
+Sandbox blockers (WSL / virtiofs / Docker, `MSB3248`, hard prohibitions): see [docs/runbooks/sandbox-precommit.md](docs/runbooks/sandbox-precommit.md).
 
-```bash
-find . -type d \( -name bin -o -name obj \) -prune -exec rm -rf {} +
-dotnet tool restore
-dotnet restore && dotnet husky run --group pre-commit
-```
+## Service layout — default: Clean Architecture + Vertical Slices
 
-Sandbox validation note: `dotnet format --verify-no-changes` and shared-library `dotnet build` can pass clean in Docker sandbox while `ECommerce.Shared.Tests` still fails with `MSB3248 No such device` when reading the freshly built shared DLL. If a sandbox-only automation already used `--no-verify` because of this issue, record the passing commands and require a host workflow to rerun the skipped hook/tests before push or merge.
+Default shape: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced per service by NetArchTest (`<Svc>.Tests/Architecture/LayoutTests.cs`) + a Roslyn `<Svc>.Service.LayoutAnalyzer`.
 
-If cleanup is blocked, commit from a host where hooks pass. **Do not bypass hooks.**
+ADRs: [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) (original Order pilot), [0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md) (promoted to default). Runbook for new slices: [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md).
 
-## Shared library (`ECommerce.Shared`)
+Every service in the monorepo is on this layout; api-gateway closed out the migration. Per-service file documents only its divergences:
 
-Consumed as a NuGet package (not project ref). Local feed: `local-nuget-packages/` (gitignored). After edits:
-
-```bash
-cd shared-libs/ECommerce.Shared
-dotnet pack -c Release
-dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
-# bump <Version> in .csproj so consumers pick it up
-```
-
-Consumers see no change until version bump + new `.nupkg` in feed.
+| Service     | Outbox seam | Domain/ | Contracts/ | Key divergence                                                 |
+|-------------|-------------|---------|------------|----------------------------------------------------------------|
+| Order       | yes         | yes     | yes        | original pilot                                                 |
+| Product     | yes         | yes     | yes        | none documented                                                |
+| Basket      | no          | yes     | yes        | no integration events; no CQRS-lite read split                 |
+| Auth        | no          | yes     | no         | no cross-service payloads                                      |
+| Inventory   | no          | yes     | yes        | inline events per slice; saga commands from Shared             |
+| Shipping    | no          | yes     | yes        | inline events; carrier adapters; per-state HTTP slices         |
+| Payment     | yes         | yes     | yes        | re-adopts seam; multi-producer convention; gateway in Domain   |
+| Saga        | no          | yes     | yes        | two-level `Features/<Saga>/<Trigger>/`; transition runner; reaper |
+| ApiGateway  | no          | no      | no         | no aggregate; no integration events; proxy + poller as Infrastructure |
 
 ## Cross-service architecture
 
-Read together: each service's `Program.cs` (composition root, uses `ECommerce.Shared` extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`); `shared-libs/ECommerce.Shared/Infrastructure/` (`EventBus/`, `Messaging/`, `RabbitMq/`, `AzureServiceBus/` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; `Outbox/` — `OutboxBackgroundService`, services that publish need `AddOutbox(...)` + `app.ApplyOutboxMigrations()` in Dev). New cross-cutting concerns belong in `ECommerce.Shared`.
+Read together: each service's `Program.cs` (composition root) + [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). New cross-cutting concerns belong in `ECommerce.Shared`.
 
-**Saga (orchestrator-only):** Saga service owns the order saga end-to-end. It starts from `OrderCreatedEvent`, persists saga state, and drives participants with commands: `ReserveStockCommand`/`CommitStockCommand`/`ReleaseStockCommand` (Inventory), `AuthorizePaymentCommand`/`CapturePaymentCommand`/`VoidPaymentCommand`/`RefundPaymentCommand` (Payment), `ConfirmOrderCommand`/`CancelOrderCommand` (Order), `CreateShipmentCommand`/`CancelShipmentCommand` (Shipping). Participants reply with integration events carrying `CausationId`/`SagaId`. Events: `IntegrationEvents/Events/`; handlers: `IntegrationEvents/EventHandlers/`.
-
-Per-service layout: `Endpoints/` (Minimal API), `ApiModels/` (DTOs), `Models/` (domain), `Infrastructure/Data/`, `IntegrationEvents/`, `Migrations/`. Keep DTOs vs domain split.
-
-## API Gateway provider switch
-
-Gateway compiles both YARP and Ocelot. `Gateway:Provider` (env `Gateway__Provider`) = `Yarp` (default) or `Ocelot`; unknown values fail fast. Routes/port/auth/health/metrics identical across both.
+**Saga (orchestrator-only):** Saga service owns the order saga end-to-end. Starts from `OrderCreatedEvent`, persists saga state, drives participants exclusively with commands: `ReserveStockCommand`/`CommitStockCommand`/`ReleaseStockCommand` (Inventory), `AuthorizePaymentCommand`/`CapturePaymentCommand`/`VoidPaymentCommand`/`RefundPaymentCommand` (Payment), `ConfirmOrderCommand`/`CancelOrderCommand` (Order), `CreateShipmentCommand`/`CancelShipmentCommand` (Shipping). Participants reply with integration events carrying `CausationId`/`SagaId`. Cutover completed 2026-05-18 (issue #132). Runbook: [saga-orchestrator-strangler.md](docs/runbooks/saga-orchestrator-strangler.md). ADR: [0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md).
 
 ## DLQ + operator API
 
