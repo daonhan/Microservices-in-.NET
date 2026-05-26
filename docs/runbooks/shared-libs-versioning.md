@@ -1,23 +1,23 @@
 # Shared libraries versioning — bump, publish, sweep
 
-This runbook is the bump-and-publish workflow for `shared-libs/ECommerce.Shared` after [ADR-0013](../adr/0013-shared-libs-multi-package-split.md) split the library into eight capability packages plus one umbrella metapackage. Every shared-libs release ships all nine `.nupkg` files together at a single lockstep version. Every consumer pin sweep is one PR per consumer in low-risk-first order.
+This runbook is the bump-and-publish workflow for `shared-libs/ECommerce.Shared` after [ADR-0013](../adr/0013-shared-libs-multi-package-split.md) split the library into capability packages plus one umbrella metapackage. After the Messaging extraction, every shared-libs release ships nine capability `.nupkg` files plus the umbrella at a single lockstep version. Every consumer pin sweep is one PR per consumer in low-risk-first order.
 
 ## Layout the runbook assumes
 
-- Nine csprojs under [`shared-libs/`](../../shared-libs/) — see ADR-0013 for the partition.
+- Ten source csprojs under [`shared-libs/`](../../shared-libs/) — nine capability packages plus the umbrella.
 - One `<Version>` in [`shared-libs/Directory.Build.props`](../../shared-libs/Directory.Build.props), inherited by every csproj in the solution.
 - One solution at [`shared-libs/ECommerce.Shared.slnx`](../../shared-libs/ECommerce.Shared.slnx) listing every src + test + analyzer csproj.
 - Local file-based NuGet feed at [`local-nuget-packages/`](../../local-nuget-packages/) at the repo root (gitignored), referenced by every consumer csproj's `nuget.config` as `../local-nuget-packages`.
 
 ## Lockstep semver rule
 
-All nine packages share `<Version>` via `shared-libs/Directory.Build.props`. A release bumps that value once. Sibling-version skew (e.g. `EventBus.3.1.0` + `RabbitMq.3.0.0`) is structurally impossible. The rule is deliberate — eliminating the prior 2.18 / 2.24 / 2.25 consumer-side skew was the motivating decision for the split. If per-package release cadence becomes necessary later, the rule is recorded in ADR-0013 and can be revisited via a follow-up ADR.
+All ten packages share `<Version>` via `shared-libs/Directory.Build.props`. A release bumps that value once. Sibling-version skew (e.g. `EventBus.3.1.0` + `RabbitMq.3.0.0`) is structurally impossible. The rule is deliberate — eliminating the prior 2.18 / 2.24 / 2.25 consumer-side skew was the motivating decision for the split. If per-package release cadence becomes necessary later, the rule is recorded in ADR-0013 and can be revisited via a follow-up ADR.
 
 The corollary for bump granularity:
 
-- **Patch** — bugfix that touches one or more sub-packages with no public-surface change. Bump all nine.
-- **Minor** — additive change (new DI extension, new options field with a default) with no breakage. Bump all nine.
-- **Major** — public-surface break (rename, signature change, removed extension). Bump all nine. Roll the consumer sweep procedure below.
+- **Patch** — bugfix that touches one or more sub-packages with no public-surface change. Bump all ten.
+- **Minor** — additive change (new DI extension, new options field with a default) with no breakage. Bump all ten.
+- **Major** — public-surface break (rename, signature change, removed extension). Bump all ten. Roll the consumer sweep procedure below.
 
 ## Bump-and-publish workflow
 
@@ -31,28 +31,29 @@ $EDITOR shared-libs/Directory.Build.props          # bump <Version>3.0.0</Versio
 dotnet build shared-libs/ECommerce.Shared.slnx
 dotnet test shared-libs/ECommerce.Shared.slnx
 
-# 3. Pack the whole solution. Produces 9 *.<Version>.nupkg
+# 3. Pack the whole solution. Produces 10 *.<Version>.nupkg
 #    under each src csproj's bin/Release/.
 dotnet pack -c Release shared-libs/ECommerce.Shared.slnx
 
-# 4. Glob-copy all 9 nupkgs into the local feed at the repo root.
+# 4. Glob-copy all 10 nupkgs into the local feed at the repo root.
 cp shared-libs/**/bin/Release/*.<Version>.nupkg local-nuget-packages/
 
-# 5. Verify the feed has the 9 expected files.
+# 5. Verify the feed has the 10 expected files.
 ls local-nuget-packages/ECommerce.Shared*<Version>.nupkg
-# Expected (for v3.0.0):
-#   ECommerce.Shared.3.0.0.nupkg               # umbrella
-#   ECommerce.Shared.Kernel.3.0.0.nupkg
-#   ECommerce.Shared.EventBus.3.0.0.nupkg
-#   ECommerce.Shared.RabbitMq.3.0.0.nupkg
-#   ECommerce.Shared.AzureServiceBus.3.0.0.nupkg
-#   ECommerce.Shared.DeadLetter.3.0.0.nupkg
-#   ECommerce.Shared.Platform.3.0.0.nupkg
-#   ECommerce.Shared.Contracts.3.0.0.nupkg
-#   ECommerce.Shared.Testing.Qa.3.0.0.nupkg
+# Expected:
+#   ECommerce.Shared.<Version>.nupkg               # umbrella
+#   ECommerce.Shared.Kernel.<Version>.nupkg
+#   ECommerce.Shared.EventBus.<Version>.nupkg
+#   ECommerce.Shared.RabbitMq.<Version>.nupkg
+#   ECommerce.Shared.AzureServiceBus.<Version>.nupkg
+#   ECommerce.Shared.Messaging.<Version>.nupkg
+#   ECommerce.Shared.DeadLetter.<Version>.nupkg
+#   ECommerce.Shared.Platform.<Version>.nupkg
+#   ECommerce.Shared.Contracts.<Version>.nupkg
+#   ECommerce.Shared.Testing.Qa.<Version>.nupkg
 ```
 
-The umbrella's `.nupkg` carries the eight sub-package `<PackageDependency>`s at the same version (ProjectReference→PackageDependency conversion happens at pack time). Consumer `dotnet restore` against the umbrella alone pulls the full set transitively.
+The umbrella's `.nupkg` carries the nine sub-package `<PackageDependency>`s at the same version (ProjectReference→PackageDependency conversion happens at pack time). Consumer `dotnet restore` against the umbrella alone pulls the full set transitively.
 
 Older nupkgs with the same version number have been observed to linger in `local-nuget-packages/`. If a consumer build behaves unexpectedly after publish, confirm the nupkg modification time matches your pack run and clear the per-consumer NuGet HTTP cache (`dotnet nuget locals http-cache --clear`) before debugging further.
 
@@ -106,9 +107,9 @@ grep -r 'ECommerce.Shared.*Version="<old-major>' .   # expect zero hits
 grep -r 'ECommerce.Shared.*Version="<new-major>' .   # expect 9 hits (one per consumer csproj)
 ```
 
-## Adding a ninth capability package
+## Adding another capability package
 
-Adding a new shared capability package goes through this checklist; the shape mirrors the existing eight (Kernel / EventBus / RabbitMq / AzureServiceBus / DeadLetter / Platform / Contracts / Testing.Qa).
+Adding a new shared capability package goes through this checklist; the shape mirrors the existing capability packages (Kernel / EventBus / RabbitMq / AzureServiceBus / Messaging / DeadLetter / Platform / Contracts / Testing.Qa).
 
 1. Scaffold `shared-libs/ECommerce.Shared.<Pkg>/` with `Abstractions/`, `Impl/`, `Composition/` subfolders and one `.placeholder` file per folder so they commit.
 2. Create `shared-libs/ECommerce.Shared.<Pkg>/ECommerce.Shared.<Pkg>.csproj`. Inherit version + framework from `Directory.Build.props`. Wire the analyzer as `<ProjectReference Include="..\ECommerce.Shared.LayoutAnalyzer\..." OutputItemType="Analyzer" ReferenceOutputAssembly="false" />`.
@@ -117,7 +118,7 @@ Adding a new shared capability package goes through this checklist; the shape mi
 5. Add an entry to `CrossPackageAllowlist` in [`shared-libs/ECommerce.Shared.LayoutAnalyzer/LayoutAnalyzer.cs`](../../shared-libs/ECommerce.Shared.LayoutAnalyzer/LayoutAnalyzer.cs) listing the new package's own namespaces plus its allowed upstream dependencies. If the package has nested `Migrations/` or `Models/` namespaces beyond `Abstractions/Impl/Composition/`, also add a `KernelImplNamespaces` / `KernelCompositionNamespaces` entry to keep SHALAY001/SHALAY002 accurate.
 6. Scaffold `shared-libs/tests/ECommerce.Shared.<Pkg>.Tests/` with a single `<ProjectReference>` to the new src package and an `Architecture/LayoutTests.cs` mirroring the existing pattern (e.g. [`shared-libs/tests/ECommerce.Shared.Kernel.Tests/Architecture/LayoutTests.cs`](../../shared-libs/tests/ECommerce.Shared.Kernel.Tests/Architecture/LayoutTests.cs)).
 7. Add `<InternalsVisibleTo Include="ECommerce.Shared.<Pkg>.Tests" />` to the new src csproj.
-8. Bump `<Version>` in `shared-libs/Directory.Build.props` and run the pack-and-publish workflow above. All nine — now ten — `.nupkg`s ship together at the new version. The consumer sweep then proceeds in the standard order.
+8. Bump `<Version>` in `shared-libs/Directory.Build.props` and run the pack-and-publish workflow above. Every capability package plus the umbrella ships together at the new version. The consumer sweep then proceeds in the standard order.
 
 ## Out of scope
 

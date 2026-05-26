@@ -54,6 +54,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
                 "ECommerce.Shared.Infrastructure.Outbox.Migrations"),
             ["RabbitMq"] = ImmutableArray<string>.Empty,
             ["AzureServiceBus"] = ImmutableArray<string>.Empty,
+            ["Messaging"] = ImmutableArray<string>.Empty,
             ["DeadLetter"] = ImmutableArray.Create(
                 "ECommerce.Shared.Infrastructure.DeadLetter.Migrations"),
             ["Platform"] = ImmutableArray<string>.Empty,
@@ -66,6 +67,7 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
             ["EventBus"] = ImmutableArray<string>.Empty,
             ["RabbitMq"] = ImmutableArray<string>.Empty,
             ["AzureServiceBus"] = ImmutableArray<string>.Empty,
+            ["Messaging"] = ImmutableArray<string>.Empty,
             ["DeadLetter"] = ImmutableArray<string>.Empty,
             ["Platform"] = ImmutableArray<string>.Empty,
         };
@@ -123,11 +125,21 @@ public sealed class LayoutAnalyzer : DiagnosticAnalyzer
                 // EventBus-owned namespaces
                 "ECommerce.Shared.Infrastructure.EventBus",
                 "ECommerce.Shared.Infrastructure.EventBus.Abstractions"),
+            ["Messaging"] = ImmutableArray.Create(
+                // Own namespace (Messaging package)
+                "ECommerce.Shared.Infrastructure.Messaging",
+                // EventBus-owned namespaces
+                "ECommerce.Shared.Infrastructure.EventBus",
+                "ECommerce.Shared.Infrastructure.EventBus.Abstractions",
+                // RabbitMq-owned namespaces
+                "ECommerce.Shared.Infrastructure.RabbitMq",
+                // AzureServiceBus-owned namespaces
+                "ECommerce.Shared.Infrastructure.AzureServiceBus"),
             ["DeadLetter"] = ImmutableArray.Create(
-                // Own namespaces (DeadLetter package — DLQ co-locates Messaging
-                // provider resolver/extensions as the only cross-broker consumer)
+                // Own namespaces (DeadLetter package)
                 "ECommerce.Shared.Infrastructure.DeadLetter",
                 "ECommerce.Shared.Infrastructure.DeadLetter.Models",
+                // Messaging-owned provider-selection namespace
                 "ECommerce.Shared.Infrastructure.Messaging",
                 // Kernel-owned namespaces
                 "ECommerce.Shared.Kernel.TelemetryConventions",

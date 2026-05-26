@@ -2,7 +2,7 @@
 
 `ECommerce.Shared` is consumed as a NuGet package (not project ref). Local feed: `local-nuget-packages/` at the repo root (gitignored).
 
-Since [ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md) the library ships as **eight capability packages plus one umbrella metapackage** on lockstep `<Version>` defined in [`Directory.Build.props`](Directory.Build.props). Every release bumps that one place and packs all nine `.nupkg`s together. Bump-and-publish + consumer-sweep procedure: [`docs/runbooks/shared-libs-versioning.md`](../docs/runbooks/shared-libs-versioning.md).
+Since [ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md), plus the Messaging extraction, the library ships as **nine capability packages plus one umbrella metapackage** on lockstep `<Version>` defined in [`Directory.Build.props`](Directory.Build.props). Every release bumps that one place and packs all ten `.nupkg`s together. Bump-and-publish + consumer-sweep procedure: [`docs/runbooks/shared-libs-versioning.md`](../docs/runbooks/shared-libs-versioning.md).
 
 ## Pack + publish flow
 
@@ -15,14 +15,14 @@ dotnet test shared-libs/ECommerce.Shared.slnx
 
 # 2. Bump <Version> in shared-libs/Directory.Build.props (single source of truth).
 
-# 3. Pack the whole solution — emits 9 *.<Version>.nupkg (one per src csproj).
+# 3. Pack the whole solution — emits 10 *.<Version>.nupkg (one per src csproj).
 dotnet pack -c Release shared-libs/ECommerce.Shared.slnx
 
-# 4. Glob-copy all 9 nupkgs into the local feed.
+# 4. Glob-copy all 10 nupkgs into the local feed.
 cp shared-libs/**/bin/Release/*.<Version>.nupkg local-nuget-packages/
 ```
 
-The umbrella `ECommerce.Shared.<Version>.nupkg` carries the eight sub-package `<PackageDependency>`s at the same version. Consumers `restore` against the umbrella alone and pull the full set transitively.
+The umbrella `ECommerce.Shared.<Version>.nupkg` carries the nine sub-package `<PackageDependency>`s at the same version. Consumers `restore` against the umbrella alone and pull the full set transitively.
 
 Consumers see no change until version bump + new `.nupkg`s in feed. When packing a new shared version, confirm the `.nupkg`s in `local-nuget-packages/` were built **after** the relevant source commit (older nupkgs sharing a version number have been observed). If a consumer build behaves unexpectedly, clear the consumer's NuGet HTTP cache (`dotnet nuget locals http-cache --clear`).
 
@@ -34,8 +34,9 @@ Capability-to-package mapping (namespaces unchanged from pre-split):
 
 - `ECommerce.Shared.Kernel` — `Event` base, telemetry name constants under `Kernel/Abstractions/TelemetryConventions/`, `MessagingOptions`, `MetricFactory`.
 - `ECommerce.Shared.EventBus` — `IEventBus` + the entire Outbox capability (`OutboxBackgroundService`, `OutboxUnitOfWork`, migrations).
-- `ECommerce.Shared.RabbitMq` / `ECommerce.Shared.AzureServiceBus` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus.
-- `ECommerce.Shared.DeadLetter` — DLQ capture/publisher/replayer/discarder + co-located `MessagingProviderResolver`.
+- `ECommerce.Shared.RabbitMq` / `ECommerce.Shared.AzureServiceBus` — provider-specific broker adapters.
+- `ECommerce.Shared.Messaging` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; owns `MessagingProviderResolver`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, and `AddPlatformSubscriberService`.
+- `ECommerce.Shared.DeadLetter` — DLQ capture/publisher/replayer/discarder + provider-specific DLQ adapters.
 - `ECommerce.Shared.Platform` — Authentication + Observability + HealthChecks + OpenApi bundled.
 - `ECommerce.Shared.Contracts` — saga command POCOs.
 - `ECommerce.Shared.Testing.Qa` — `QaPersonas` + `QaSeedingExtensions`.
@@ -62,7 +63,8 @@ Eager registration breaks boot tests like `Inventory.Tests.MessagingProviderBoot
 
 - Lazy broker fix shipped in `ECommerce.Shared` ≥ `2.24.0` (commit `dcbc29c`).
 - Lockstep multi-package release: `3.0.0` ships eight sub-packages + one umbrella together ([ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md)).
-- **Convergence target**: every consumer pins `ECommerce.Shared` `3.0.0` after the Phase 13 sweep (one PR per consumer, low-risk-first order — runbook lists the order). Until that sweep lands, current consumer pins are:
+- Messaging extraction release: `3.1.0` ships nine sub-packages + one umbrella together and moves provider-aware composition out of DeadLetter.
+- **Convergence target**: every consumer pins the current shared-libs lockstep version after the narrow-package sweep (one PR per consumer, low-risk-first order — runbook lists the order). Until that sweep lands, current consumer pins are:
   - Auth / Basket / Product — `2.18.0` (pre-fix, carries latent eager-broker defect)
   - Order — `2.24.0`
   - Inventory / Payment / Shipping / Saga / ApiGateway — `2.25.0`

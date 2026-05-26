@@ -27,9 +27,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\ECommerce.Shared.AzureServiceBus\ECommerce.Shared.AzureServiceBus.csproj" />
-    <!-- AzureServiceBusTopologyProvisioningPolicyTests exercises the AddPlatformEventBus / Publisher /
-         SubscriberService composition (lives in DeadLetter pkg as the only cross-broker consumer). -->
-    <ProjectReference Include="..\..\ECommerce.Shared.DeadLetter\ECommerce.Shared.DeadLetter.csproj" />
+    <!-- AzureServiceBusTopologyProvisioningPolicyTests exercises provider-aware AddPlatformEventBus /
+         Publisher / SubscriberService composition from the Messaging package. -->
+    <ProjectReference Include="..\..\ECommerce.Shared.Messaging\ECommerce.Shared.Messaging.csproj" />
   </ItemGroup>
 
 </Project>
