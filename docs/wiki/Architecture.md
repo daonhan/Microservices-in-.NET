@@ -56,8 +56,8 @@ graph TD
 | **Event-driven cross-service communication** | Services publish domain events to a fanout exchange; subscribers react. No synchronous service-to-service HTTP. |
 | **Transactional Outbox** | Each service writes business state and the outbound event record in one DB transaction; a background service publishes from the outbox. This prevents the "event published but DB rolled back" or "DB committed but event lost" failure modes. |
 | **API Gateway owns public auth** | JWT validation and role checks happen at the gateway. Downstream services still validate the token but trust the gateway for routing. |
-| **DTO vs Domain separation** | `ApiModels/` holds request/response DTOs; `Models/` holds internal domain entities. |
-| **Shared cross-cutting library** | `ECommerce.Shared` centralizes JWT, EventBus, Outbox, Observability, Health — see [Shared-Library](Shared-Library). |
+| **Clean Architecture + Vertical Slices** | Default service layout is `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, and `Infrastructure/` ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md), [docs/PATTERNS.md](../PATTERNS.md)). |
+| **Shared cross-cutting packages** | Nine `ECommerce.Shared.*` capability packages centralize JWT, messaging, outbox, observability, health, contracts, testing helpers, and DLQ behavior; production services narrow-pin only what they use — see [Shared-Library](Shared-Library). |
 | **Pluggable messaging & telemetry providers** | `Messaging__Provider` switches between `RabbitMqEventBus` and `AzureServiceBusEventBus`; `OpenTelemetry__Exporter` switches between local OTLP and Application Insights. Same `IEventBus`, same handlers. See [Azure-Deployment](Azure-Deployment). |
 
 
