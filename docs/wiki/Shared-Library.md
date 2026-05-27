@@ -5,30 +5,56 @@ Shared platform code ships as nine direct capability packages plus the `ECommerc
 ## What's inside
 
 ```mermaid
-graph LR
-    subgraph ECommerce.Shared
-        Kernel[Kernel]
-        Contracts[Contracts]
-        Jwt[JWT auth]
-        Bus[Platform messaging]
-        Sub[Provider subscriber]
-        Outbox[Transactional Outbox]
-        DLQ[Dead-letter operations]
-        Obs[Observability]
-        Health[Health Checks]
-        Qa[QA helpers]
+graph TB
+    subgraph SharedLibraries ["ECommerce.Shared.* capability packages"]
+        direction TB
+        
+        subgraph Core ["Core Primitives"]
+            Kernel["<strong>Kernel</strong><br/>Event & Telemetry Primitives"]
+            Contracts["<strong>Contracts</strong><br/>Saga Command Contracts"]
+            Qa["<strong>Testing.Qa</strong><br/>QA & Test Seeding Helpers"]
+        end
+        
+        subgraph Msg ["Platform Messaging & Outbox"]
+            Bus["<strong>EventBus</strong><br/>Bus Abstractions & Outbox Seam"]
+            Rabbit["<strong>RabbitMq</strong><br/>RabbitMQ Adapter"]
+            ASB["<strong>AzureServiceBus</strong><br/>Azure Service Bus Adapter"]
+            Messaging["<strong>Messaging</strong><br/>Provider-Aware Composition"]
+        end
+        
+        subgraph Cross ["Cross-Cutting & Ops"]
+            Platform["<strong>Platform</strong><br/>Auth, OTel, Health & SQL"]
+            DLQ["<strong>DeadLetter</strong><br/>DLQ Capture, Replay & Discard"]
+        end
     end
-    Svc[Any service] --> Kernel
-    Svc --> Contracts
-    Svc --> Jwt
-    Svc --> Bus
-    Svc --> Sub
-    Svc --> Outbox
-    Svc --> DLQ
-    Svc --> Obs
-    Svc --> Health
-    Svc --> Qa
+    
+    Svc["<strong>Any Downstream Service</strong><br/>(Basket, Order, Saga, ...)"] -->|Narrow References| Kernel
+    Svc -->|Narrow References| Contracts
+    Svc -->|Narrow References| Platform
+    Svc -->|Narrow References| Messaging
+    
+    %% Dependency Flows within Shared Libs
+    Bus --> Kernel
+    Rabbit --> Bus
+    ASB --> Bus
+    Messaging --> Bus
+    Messaging --> Rabbit
+    Messaging --> ASB
+    DLQ --> Bus
+    Platform --> Kernel
+
+    %% Premium Aesthetics styling
+    classDef svc fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff;
+    classDef corePkg fill:#1e293b,stroke:#64748b,stroke-width:1.5px,color:#fff;
+    classDef msgPkg fill:#3b0764,stroke:#a855f7,stroke-width:1.5px,color:#fff;
+    classDef opsPkg fill:#022c22,stroke:#10b981,stroke-width:1.5px,color:#fff;
+
+    class Svc svc;
+    class Kernel,Contracts,Qa corePkg;
+    class Bus,Rabbit,ASB,Messaging msgPkg;
+    class Platform,DLQ opsPkg;
 ```
+
 
 | Package | Purpose | Key extension methods / types |
 |---|---|---|

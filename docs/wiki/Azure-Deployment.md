@@ -8,18 +8,48 @@ Tracked under [Epic #33 — Azure Cloud Infrastructure & Deployment](https://git
 
 ```mermaid
 graph TB
-  User[Client] -->|HTTPS /api/*| Ingress[Nginx Ingress]
-  Ingress --> APIGW[apigateway]
-  subgraph AKS["AKS namespace ecommerce-{env}"]
-    APIGW --> Auth & Product & Basket & Order & Inventory & Shipping & Payment
+  User([Client / User]) -->|HTTPS| Ingress[Nginx Ingress]
+  Ingress --> APIGW[API Gateway · apigateway]
+  
+  subgraph AKS ["AKS Namespace: ecommerce-{env}"]
+    direction TB
+    subgraph PublicAKS ["Gateway-Routed Pods"]
+        APIGW --> Auth[auth]
+        APIGW --> Product[product]
+        APIGW --> Basket[basket]
+        APIGW --> Order[order]
+        APIGW --> Inventory[inventory]
+        APIGW --> Shipping[shipping]
+    end
+    subgraph InternalAKS ["Internal Pods"]
+        Saga[saga-orchestrator]
+        Payment[payment]
+    end
   end
+  
   AKS -. pulls .-> ACR[(Azure Container Registry)]
   AKS --- SQL[(Azure SQL)]
   AKS --- Redis[(Azure Cache for Redis)]
   AKS -. pub/sub .-> SB[(Azure Service Bus)]
   AKS -. OTel .-> AI[Application Insights]
   AI --- LAW[Log Analytics]
+
+  %% Custom Styling classes
+  classDef client fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#fff;
+  classDef gateway fill:#0f172a,stroke:#0284c7,stroke-width:2px,color:#fff;
+  classDef pod fill:#1e293b,stroke:#475569,stroke-width:1.5px,color:#fff;
+  classDef intPod fill:#312e81,stroke:#4f46e5,stroke-width:1.5px,color:#fff;
+  classDef cloud fill:#022c22,stroke:#059669,stroke-width:1px,color:#fff;
+  classDef mon fill:#581c87,stroke:#c084fc,stroke-width:1px,color:#fff;
+
+  class User client;
+  class Ingress,APIGW gateway;
+  class Auth,Product,Basket,Order,Inventory,Shipping pod;
+  class Saga,Payment intPod;
+  class ACR,SQL,Redis,SB cloud;
+  class AI,LAW mon;
 ```
+
 
 ## Environments
 

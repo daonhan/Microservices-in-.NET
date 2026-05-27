@@ -6,17 +6,40 @@ Every service emits **traces**, **metrics**, and **logs** via OpenTelemetry. Eve
 
 ```mermaid
 graph LR
-    subgraph Services
-        A[Basket] & B[Order] & C[Product] & D[Auth] & E[Inventory] & F[Gateway] & G[Shipping] & H[Payment]
+    subgraph Services ["OpenTelemetry-Instrumented Services"]
+        direction TB
+        A[basket]
+        B[order]
+        C[product]
+        D[auth]
+        E[inventory]
+        F[apigateway]
+        G[shipping]
+        H[payment]
+        I[saga-orchestrator]
     end
-    Services -- OTLP traces/logs --> OC[OTel Collector]
+
+    Services -- OTLP traces & logs --> OC[OTel Collector]
     Services -- /metrics scrape --> PR[Prometheus]
-    OC --> JA[Jaeger]
-    OC --> LK[Loki]
-    PR --> AM[Alertmanager]
-    GF[Grafana] --- PR
+    
+    OC --> JA[Jaeger · Tracing]
+    OC --> LK[Loki · Logging]
+    PR --> AM[Alertmanager · Alerts]
+    
+    GF[Grafana Dashboards] --- PR
     GF --- LK
     GF --- JA
+
+    %% Custom Styling classes
+    classDef svc fill:#1e293b,stroke:#38bdf8,stroke-width:1.5px,color:#fff;
+    classDef collector fill:#0f172a,stroke:#0ea5e9,stroke-width:2px,color:#fff;
+    classDef backend fill:#312e81,stroke:#4f46e5,stroke-width:1.5px,color:#fff;
+    classDef ui fill:#581c87,stroke:#c084fc,stroke-width:2px,color:#fff;
+
+    class A,B,C,D,E,F,G,H,I svc;
+    class OC,PR collector;
+    class JA,LK,AM backend;
+    class GF ui;
 ```
 
 ## UIs and ports

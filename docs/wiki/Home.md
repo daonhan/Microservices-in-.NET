@@ -13,61 +13,65 @@ The platform utilizes a **Database-per-Service** pattern with a YARP-backed API 
 
 ```mermaid
 flowchart LR
-    Client([Client]) -->|HTTP| GW
+    Client([Client / Web Browser]) -->|HTTP / JSON| GW
 
-    subgraph Ingress ["Edge & Ingress Layer"]
-        GW["<strong>API Gateway</strong><br/>YARP · :8004<br/>JWT Auth · Routing · DLQ API"]
+    subgraph Edge ["1. Edge & Ingress Layer"]
+        GW["<strong>API Gateway</strong><br/>YARP / Ocelot · :8004<br/>JWT Auth · Routing · DLQ API"]
     end
 
-    subgraph Core ["Core Business Services"]
+    subgraph PublicServices ["2. Public API Services (Gateway-Routed)"]
         direction TB
-        Auth["<strong>Auth Service</strong><br/>:8003<br/>JWKS · Tokens"] --- DB_Auth[("Auth SQL")]
-        Product["<strong>Product Service</strong><br/>:8002<br/>Catalog API"] --- DB_Product[("Product SQL")]
-        Basket["<strong>Basket Service</strong><br/>:8000<br/>Shopping Cart"] --- DB_Basket[("Redis Cache")]
+        Auth["<strong>Auth Service</strong><br/>:8003 · JWT/JWKS"] --- DB_Auth[("Auth DB<br/>SQL Server")]
+        Product["<strong>Product Service</strong><br/>:8002 · Catalog"] --- DB_Product[("Product DB<br/>SQL Server")]
+        Basket["<strong>Basket Service</strong><br/>:8000 · Cart"] --- DB_Basket[("Basket Cache<br/>Redis")]
+        Order["<strong>Order Service</strong><br/>:8001 · Sales"] --- DB_Order[("Order DB & Cache<br/>SQL + Redis")]
+        Inventory["<strong>Inventory Service</strong><br/>:8005 · Stock"] --- DB_Inventory[("Inventory DB<br/>SQL Server")]
+        Shipping["<strong>Shipping Service</strong><br/>:8006 · Logistics"] --- DB_Shipping[("Shipping DB<br/>SQL Server")]
     end
 
-    subgraph SagaGroup ["Order Fulfillment Saga"]
+    subgraph InternalServices ["3. Internal-Only Services (Broker-Driven)"]
         direction TB
-        Saga["<strong>Saga Orchestrator</strong><br/>:8008<br/>State Machine"] --- DB_Saga[("Saga SQL")]
-        Order["<strong>Order Service</strong><br/>:8001<br/>Sales & Checkout"] --- DB_Order[("Order SQL + Cache")]
-        Inventory["<strong>Inventory Service</strong><br/>:8005<br/>Stock & Reservations"] --- DB_Inventory[("Inventory SQL")]
-        Payment["<strong>Payment Service</strong><br/>:8007<br/>Authorize & Capture"] --- DB_Payment[("Payment SQL")]
-        Shipping["<strong>Shipping Service</strong><br/>:8006<br/>Logistics & Tracking"] --- DB_Shipping[("Shipping SQL")]
+        Saga["<strong>Saga Orchestrator</strong><br/>:8008 · State Machine"] --- DB_Saga[("Saga DB<br/>SQL Server")]
+        Payment["<strong>Payment Service</strong><br/>:8007 · Transactions"] --- DB_Payment[("Payment DB<br/>SQL Server")]
     end
 
-    subgraph Backbone ["Async Event Backbone"]
-        Broker{{"<strong>Message Broker</strong><br/>RabbitMQ (Exchange)<br/>or Azure Service Bus"}}
+    subgraph EventBackbone ["4. Async Event Backbone"]
+        Broker{{"<strong>Message Broker</strong><br/>RabbitMQ (Exchange) or Azure Service Bus (Topic)"}}
     end
 
-    %% Routing Paths
+    %% Gateway Routing
     GW -->|Route| Auth
     GW -->|Route| Product
     GW -->|Route| Basket
-    GW -->|Route| Saga
     GW -->|Route| Order
+    GW -->|Route| Inventory
+    GW -->|Route| Shipping
 
-    %% Pub/Sub connections
-    Product -.->|Publish catalog events| Broker
+    %% Service Integration via Broker
+    Product -.->|Publish Catalog Events| Broker
     Broker -.->|Subscribe| Basket
     
-    Saga -.->|Publish commands| Broker
+    %% Saga Orchestration Loop (Logical Flow through Broker)
+    Saga -.->|Publish Commands| Broker
     Order -.->|Pub/Sub| Broker
     Inventory -.->|Pub/Sub| Broker
     Payment -.->|Pub/Sub| Broker
     Shipping -.->|Pub/Sub| Broker
-    Broker -.->|Deliver commands & events| Saga
+    Broker -.->|Deliver Cmds & Events| Saga
 
-    %% Premium Aesthetics (Sleek slate, blue, emerald & purple accents)
-    classDef client fill:#1e3a8a,stroke:#3b82f6,stroke-width:2px,color:#fff;
-    classDef gateway fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#fff;
-    classDef service fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#fff;
-    classDef database fill:#022c22,stroke:#10b981,stroke-width:1px,color:#fff;
-    classDef broker fill:#3b0764,stroke:#a855f7,stroke-width:2px,color:#fff;
+    %% Premium Aesthetics styling
+    classDef client fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#fff;
+    classDef gateway fill:#0f172a,stroke:#0284c7,stroke-width:2px,color:#fff;
+    classDef pubService fill:#1e293b,stroke:#475569,stroke-width:1.5px,color:#fff;
+    classDef intService fill:#312e81,stroke:#4f46e5,stroke-width:1.5px,color:#fff;
+    classDef database fill:#022c22,stroke:#059669,stroke-width:1px,color:#fff;
+    classDef broker fill:#581c87,stroke:#c084fc,stroke-width:2px,color:#fff;
 
     class Client client;
     class GW gateway;
-    class Auth,Product,Basket,Saga,Order,Inventory,Payment,Shipping service;
-    class DB_Auth,DB_Product,DB_Basket,DB_Saga,DB_Order,DB_Inventory,DB_Payment,DB_Shipping database;
+    class Auth,Product,Basket,Order,Inventory,Shipping pubService;
+    class Saga,Payment intService;
+    class DB_Auth,DB_Product,DB_Basket,DB_Order,DB_Inventory,DB_Shipping,DB_Saga,DB_Payment database;
     class Broker broker;
 ```
 
