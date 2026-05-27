@@ -99,7 +99,8 @@ cp -R "$WIKI_SOURCE"/. "$CLONE_DIR"/
 
 echo "==> 3/4 Committing wiki changes"
 run_git "$CLONE_DIR" add -A
-if [ -z "$(run_git "$CLONE_DIR" status --porcelain)" ]; then
+WIKI_STATUS=$(run_git "$CLONE_DIR" status --porcelain)
+if [ -z "$WIKI_STATUS" ]; then
   echo "    no wiki changes to publish"
   exit 0
 fi
