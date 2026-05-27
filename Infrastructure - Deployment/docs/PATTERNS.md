@@ -274,14 +274,16 @@ the metric near the slice or infrastructure component that owns the event.
 
 ## Shared library package pattern
 
-Shared platform code is distributed through a local NuGet feed. Consumers still
-reference the umbrella `ECommerce.Shared` package, while the source is split
-into capability packages:
+Shared platform code is distributed through a local NuGet feed. Production
+consumers reference the direct capability packages they use; the umbrella
+`ECommerce.Shared` package remains available for broad compatibility and
+prototypes.
 
 - `ECommerce.Shared.Kernel`
 - `ECommerce.Shared.EventBus`
 - `ECommerce.Shared.RabbitMq`
 - `ECommerce.Shared.AzureServiceBus`
+- `ECommerce.Shared.Messaging`
 - `ECommerce.Shared.DeadLetter`
 - `ECommerce.Shared.Platform`
 - `ECommerce.Shared.Contracts`

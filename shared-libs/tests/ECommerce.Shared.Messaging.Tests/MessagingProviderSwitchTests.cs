@@ -64,6 +64,46 @@ public sealed class MessagingProviderSwitchTests
     }
 
     [Fact]
+    public void Given_no_provider_When_AddPlatformSubscriberService_Then_RabbitMq_subscriber_is_registered()
+    {
+        var configuration = BuildConfig(new Dictionary<string, string?>
+        {
+            ["RabbitMq:HostName"] = "localhost",
+            ["EventBus:QueueName"] = "test-queue",
+        });
+
+        var services = new ServiceCollection();
+        services.AddPlatformSubscriberService(configuration);
+
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IHostedService)
+            && descriptor.ImplementationType == typeof(RabbitMqHostedService));
+        Assert.DoesNotContain(services, descriptor =>
+            descriptor.ImplementationType == typeof(AzureServiceBusHostedService));
+    }
+
+    [Fact]
+    public void Given_AzureServiceBus_provider_When_AddPlatformSubscriberService_Then_Azure_subscriber_is_registered()
+    {
+        var configuration = BuildConfig(new Dictionary<string, string?>
+        {
+            ["Messaging:Provider"] = MessagingOptions.AzureServiceBusProvider,
+            ["AzureServiceBus:ConnectionString"] = "Endpoint=sb://example.servicebus.windows.net/;SharedAccessKeyName=k;SharedAccessKey=ZmFrZWtleQ==",
+            ["AzureServiceBus:TopicName"] = "ecommerce-topic",
+            ["EventBus:QueueName"] = "test-subscription",
+        });
+
+        var services = new ServiceCollection();
+        services.AddPlatformSubscriberService(configuration);
+
+        Assert.Contains(services, descriptor =>
+            descriptor.ServiceType == typeof(IHostedService)
+            && descriptor.ImplementationType == typeof(AzureServiceBusHostedService));
+        Assert.DoesNotContain(services, descriptor =>
+            descriptor.ImplementationType == typeof(RabbitMqHostedService));
+    }
+
+    [Fact]
     public void Given_unknown_provider_When_AddPlatformEventPublisher_Then_InvalidOperationException_is_thrown()
     {
         var configuration = BuildConfig(new Dictionary<string, string?>
@@ -74,6 +114,22 @@ public sealed class MessagingProviderSwitchTests
         var services = new ServiceCollection();
 
         var ex = Assert.Throws<InvalidOperationException>(() => services.AddPlatformEventPublisher(configuration));
+        Assert.Contains("Kafka", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(MessagingOptions.RabbitMqProvider, ex.Message, StringComparison.Ordinal);
+        Assert.Contains(MessagingOptions.AzureServiceBusProvider, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Given_unknown_provider_When_AddPlatformSubscriberService_Then_InvalidOperationException_is_thrown()
+    {
+        var configuration = BuildConfig(new Dictionary<string, string?>
+        {
+            ["Messaging:Provider"] = "Kafka",
+        });
+
+        var services = new ServiceCollection();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => services.AddPlatformSubscriberService(configuration));
         Assert.Contains("Kafka", ex.Message, StringComparison.Ordinal);
         Assert.Contains(MessagingOptions.RabbitMqProvider, ex.Message, StringComparison.Ordinal);
         Assert.Contains(MessagingOptions.AzureServiceBusProvider, ex.Message, StringComparison.Ordinal);
