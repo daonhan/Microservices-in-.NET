@@ -10,7 +10,7 @@ Closes the checkout loop with authorize/capture/refund against a pluggable provi
 | **Tests** | [`payment-microservice/Payment.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/payment-microservice/Payment.Tests) |
 | **Publishes** | `PaymentAuthorizedEvent`, `PaymentFailedEvent`, `PaymentCapturedEvent`, `PaymentVoidedEvent`, `PaymentRefundedEvent` |
 | **Subscribes** | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RefundPaymentCommand` (from Saga); `OrderCreatedEvent` (customer cache) |
-| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md)); Payment re-adopts the outbox seam for multi-producer domain events. |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); Payment re-adopts the outbox seam for multi-producer domain events. |
 
 ## Responsibilities
 

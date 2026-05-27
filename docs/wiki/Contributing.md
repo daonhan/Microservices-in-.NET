@@ -6,7 +6,7 @@ This page covers coding conventions and the wiki-publishing flow. Before opening
 
 | Area | Rule |
 |---|---|
-| API style | ASP.NET Core **Minimal APIs**. Route groups and handlers live in `Features/<Slice>/` per [ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md). |
+| API style | ASP.NET Core **Minimal APIs**. Route groups and handlers live in `Features/<Slice>/` per [ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md). |
 | DTOs | HTTP request/response shapes live with the vertical slice that owns them. Never expose `Domain/` entities directly. |
 | Domain | Aggregates and invariants live in `Domain/`. EF configuration lives with the `DbContext` under `Infrastructure/Data/`. |
 | Events | Service-owned payloads live in `Contracts/Integration/`; handlers and integration maps live in the owning `Features/<Slice>/`. Publish via `IEventBus` through the outbox. Subscribe via `IEventHandler<TEvent>` + `AddEventHandler<,>()`. |

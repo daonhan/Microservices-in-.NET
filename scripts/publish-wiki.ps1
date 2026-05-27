@@ -76,11 +76,13 @@ if ($DryRun) {
     return
 }
 
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "nhamnhi-wiki-publish-$timestamp"
+$tempRootSeed = [System.IO.Path]::GetTempFileName()
+Remove-Item -LiteralPath $tempRootSeed -Force
+$tempRoot = "$tempRootSeed-nhamnhi-wiki-publish"
 $cloneDir = Join-Path $tempRoot 'wiki'
 
 try {
-    New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+    New-Item -ItemType Directory -Path $tempRoot | Out-Null
 
     Write-Host "==> 1/4 Cloning wiki remote" -ForegroundColor Cyan
     Invoke-Git -Arguments @('clone', '--depth', '1', $wikiRemote, $cloneDir)
@@ -114,7 +116,7 @@ try {
     Write-Host 'Wiki publish complete.' -ForegroundColor Green
 }
 finally {
-    if (Test-Path $tempRoot) {
+    if (Test-Path -LiteralPath $tempRoot) {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force
     }
 }

@@ -10,7 +10,7 @@ Product catalog. Owns the authoritative product record and emits events when pro
 | **Tests** | [`product-microservice/Product.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/product-microservice/Product.Tests) |
 | **Publishes** | `ProductCreatedEvent`, `ProductPriceUpdatedEvent` |
 | **Subscribes** | none |
-| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md)); product writes publish through the outbox seam. |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); product writes publish through the outbox seam. |
 
 ## HTTP endpoints
 

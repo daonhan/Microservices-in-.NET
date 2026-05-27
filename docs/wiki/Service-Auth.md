@@ -10,7 +10,7 @@ Issues JWT access tokens. The only service with no event-bus dependency.
 | **Tests** | [`auth-microservice/Auth.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/auth-microservice/Auth.Tests) |
 | **Publishes** | none |
 | **Subscribes** | none |
-| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md)); Auth omits `Contracts/Integration/` because it has no broker contracts. |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); Auth omits `Contracts/Integration/` because it has no broker contracts. |
 
 ## HTTP endpoints
 

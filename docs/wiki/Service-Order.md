@@ -10,7 +10,7 @@ Order lifecycle service. Persists orders to SQL Server, emits domain events via 
 | **Tests** | [`order-microservice/Order.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/order-microservice/Order.Tests) |
 | **Publishes** | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent` |
 | **Subscribes** | `ConfirmOrderCommand`, `CancelOrderCommand` (from Saga), `ProductCreatedEvent` (price cache) |
-| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md)); Order was the original pilot recorded in [ADR-0011](../adr/0011-order-cleanarch-vsa-pilot.md). |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); Order was the original pilot recorded in [ADR-0011](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0011-order-cleanarch-vsa-pilot.md). |
 
 ## Responsibilities
 

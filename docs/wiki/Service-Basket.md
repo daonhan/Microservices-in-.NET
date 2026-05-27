@@ -10,7 +10,7 @@ Shopping-cart service. Stores baskets in Redis and caches product prices it has 
 | **Tests** | [`basket-microservice/Basket.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/basket-microservice/Basket.Tests) |
 | **Publishes** | none |
 | **Subscribes** | `OrderCreatedEvent`, `ProductPriceUpdatedEvent` |
-| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md)); Basket has no SQL outbox seam and keeps Redis access in `Infrastructure/`. |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); Basket has no SQL outbox seam and keeps Redis access in `Infrastructure/`. |
 
 ## Responsibilities
 

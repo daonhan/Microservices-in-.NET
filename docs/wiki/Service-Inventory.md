@@ -10,7 +10,7 @@ Stock ledger. Tracks stock levels, reservations, movements, and backorders, and 
 | **Tests** | [`inventory-microservice/Inventory.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/inventory-microservice/Inventory.Tests) |
 | **Publishes** | `StockReservedEvent`, `StockReservationFailedEvent`, `StockCommittedEvent`, `StockReleasedEvent`, `StockAdjustedEvent`, `StockDepletedEvent`, `LowStockEvent` |
 | **Subscribes** | `ReserveStockCommand`, `CommitStockCommand`, `ReleaseStockCommand` (from Saga), `ProductCreatedEvent` |
-| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md)); Inventory keeps command handlers inline with their slices. |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); Inventory keeps command handlers inline with their slices. |
 
 ## Responsibilities
 

@@ -1,6 +1,6 @@
 # Architecture
 
-The platform decomposes an e-commerce domain into eight independently deployable business services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on the provider-selected broker. RabbitMQ is the default local provider; Azure Service Bus uses the same event and operator contracts when `Messaging:Provider=AzureServiceBus`. For local broker selection, use [docs/local-dev/messaging.md](../local-dev/messaging.md).
+The platform decomposes an e-commerce domain into eight independently deployable business services. Each service owns its data, communicates with the outside world through the API Gateway, and with other services through asynchronous events on the provider-selected broker. RabbitMQ is the default local provider; Azure Service Bus uses the same event and operator contracts when `Messaging:Provider=AzureServiceBus`. For local broker selection, use [docs/local-dev/messaging.md](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/local-dev/messaging.md).
 
 ## High-level topology
 
@@ -56,7 +56,7 @@ graph TD
 | **Event-driven cross-service communication** | Services publish domain events to a fanout exchange; subscribers react. No synchronous service-to-service HTTP. |
 | **Transactional Outbox** | Each service writes business state and the outbound event record in one DB transaction; a background service publishes from the outbox. This prevents the "event published but DB rolled back" or "DB committed but event lost" failure modes. |
 | **API Gateway owns public auth** | JWT validation and role checks happen at the gateway. Downstream services still validate the token but trust the gateway for routing. |
-| **Clean Architecture + Vertical Slices** | Default service layout is `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, and `Infrastructure/` ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md), [docs/PATTERNS.md](../PATTERNS.md)). |
+| **Clean Architecture + Vertical Slices** | Default service layout is `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, and `Infrastructure/` ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md), [docs/PATTERNS.md](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/PATTERNS.md)). |
 | **Shared cross-cutting packages** | Nine `ECommerce.Shared.*` capability packages centralize JWT, messaging, outbox, observability, health, contracts, testing helpers, and DLQ behavior; production services narrow-pin only what they use — see [Shared-Library](Shared-Library). |
 | **Pluggable messaging & telemetry providers** | `Messaging__Provider` switches between `RabbitMqEventBus` and `AzureServiceBusEventBus`; `OpenTelemetry__Exporter` switches between local OTLP and Application Insights. Same `IEventBus`, same handlers. See [Azure-Deployment](Azure-Deployment). |
 

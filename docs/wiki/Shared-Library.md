@@ -42,7 +42,7 @@ graph LR
 | `ECommerce.Shared.Contracts` | Shared cross-service contracts | Saga command POCOs such as `ReserveStockCommand`, `AuthorizePaymentCommand`, `CreateShipmentCommand` |
 | `ECommerce.Shared.Testing.Qa` | QA/test seeding helpers | `QaPersonas`, `QaSeedingExtensions` |
 
-This split is recorded in [ADR-0013](../adr/0013-shared-libs-multi-package-split.md). Production services narrow-pin direct capability packages and avoid the umbrella unless broad compatibility is intentional; the package selection and version sweep workflow lives in [docs/runbooks/shared-libs-versioning.md](../runbooks/shared-libs-versioning.md).
+This split is recorded in [ADR-0013](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0013-shared-libs-multi-package-split.md). Production services narrow-pin direct capability packages and avoid the umbrella unless broad compatibility is intentional; the package selection and version sweep workflow lives in [docs/runbooks/shared-libs-versioning.md](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/runbooks/shared-libs-versioning.md).
 
 ## Public DI surface
 

@@ -73,12 +73,12 @@ See [Architecture](Architecture) for the full story.
 
 ## Tech stack summary
 
-- **.NET 10**, ASP.NET Core Minimal APIs, with Clean Architecture + Vertical Slices as the default service shape ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md), [docs/PATTERNS.md](../PATTERNS.md))
+- **.NET 10**, ASP.NET Core Minimal APIs, with Clean Architecture + Vertical Slices as the default service shape ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md), [docs/PATTERNS.md](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/PATTERNS.md))
 - **RabbitMQ** fanout exchange or **Azure Service Bus** via `Messaging:Provider` for async events
 - **EF Core + SQL Server** per service; **Redis** for Basket
 - **Saga service** for orchestrator-owned order and refund workflows
 - **YARP** API Gateway (Ocelot retained as runtime-switchable fallback)
-- **Shared-libs:** nine `ECommerce.Shared.*` capability packages plus umbrella compatibility package; production services narrow-pin direct capabilities ([ADR-0013](../adr/0013-shared-libs-multi-package-split.md), [shared-libs versioning](../runbooks/shared-libs-versioning.md))
+- **Shared-libs:** nine `ECommerce.Shared.*` capability packages plus umbrella compatibility package; production services narrow-pin direct capabilities ([ADR-0013](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0013-shared-libs-multi-package-split.md), [shared-libs versioning](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/runbooks/shared-libs-versioning.md))
 - **OpenTelemetry** → Jaeger (traces), Prometheus (metrics), Loki (logs), Grafana (dashboards), Alertmanager
 - **xUnit + NSubstitute + WebApplicationFactory** for tests
 - **Docker Compose** and **Kubernetes** manifests for deployment

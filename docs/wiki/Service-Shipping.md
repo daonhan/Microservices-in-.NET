@@ -10,7 +10,7 @@ Handles shipment lifecycle, carrier integration, and orchestrated fulfillment fo
 | **Tests** | [`shipping-microservice/Shipping.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/shipping-microservice/Shipping.Tests) |
 | **Publishes** | `ShipmentCreatedEvent`, `ShipmentDispatchedEvent`, `ShipmentDeliveredEvent`, `ShipmentCancelledEvent`, `ShipmentFailedEvent`, `ShipmentReturnedEvent`, `ShipmentStatusChangedEvent` |
 | **Subscribes** | `CreateShipmentCommand`, `CancelShipmentCommand` (from Saga) |
-| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md)); carrier adapters live under `Infrastructure/Carriers/`. |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); carrier adapters live under `Infrastructure/Carriers/`. |
 
 ## Responsibilities
 
