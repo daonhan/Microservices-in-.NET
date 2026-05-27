@@ -20,4 +20,4 @@ New ADRs start from [`0000-template.md`](0000-template.md).
 | [ADR-0010](0010-saga-orchestrator-supersedes-choreography.md)                | Saga orchestrator owns Order/Inventory/Payment/Shipping (supersedes ADR-0008)    | Accepted |
 | [ADR-0011](0011-order-cleanarch-vsa-pilot.md)                                | Order service Clean Architecture + Vertical Slice pilot                          | Accepted |
 | [ADR-0012](0012-clean-arch-vsa-default-service-shape.md)                     | Clean Architecture + Vertical Slices is the default service shape                | Accepted |
-| [ADR-0013](0013-shared-libs-multi-package-split.md)                          | `ECommerce.Shared` split into eight capability packages + umbrella metapackage   | Accepted |
+| [ADR-0013](0013-shared-libs-multi-package-split.md)                          | `ECommerce.Shared` split into nine capability packages + umbrella metapackage    | Accepted |

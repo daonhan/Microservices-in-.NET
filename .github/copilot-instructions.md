@@ -4,7 +4,7 @@
 
 # Project context
 
-This repository is a **.NET e-commerce microservices monorepo**. It is **not** a multi-tenant SaaS monolith and does **not** follow a single Clean Architecture / DDD layered solution. Treat each microservice as an independent, deployable unit that shares cross-cutting concerns through the `ECommerce.Shared` NuGet package.
+This repository is a **.NET e-commerce microservices monorepo**. It is **not** a multi-tenant SaaS monolith. Treat each microservice as an independent, deployable unit that follows the repo-default Clean Architecture + Vertical Slices shape ([ADR-0012](../docs/adr/0012-clean-arch-vsa-default-service-shape.md), [docs/PATTERNS.md](../docs/PATTERNS.md)) and shares cross-cutting concerns through narrow `ECommerce.Shared.*` capability packages.
 
 For the authoritative architectural overview, read [CLAUDE.md](../CLAUDE.md) and [CONTEXT.md](../CONTEXT.md). Behavioral coding guidelines live in [.claude/CLAUDE.md](../.claude/CLAUDE.md).
 
@@ -13,7 +13,8 @@ For the authoritative architectural overview, read [CLAUDE.md](../CLAUDE.md) and
 - Top-level `*-microservice/` folders, plus `api-gateway/` and `shared-libs/`.
 - Each service is its own solution defined by a **`.slnx`** file. There is no root solution that builds everything.
 - All projects target **`net10.0`** (see [Directory.Build.props](../Directory.Build.props)).
-- `local-nuget-packages/` is a local NuGet feed used to consume `ECommerce.Shared`.
+- `local-nuget-packages/` is a local NuGet feed used to consume shared-libs capability packages.
+- Service code defaults to `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, and `Infrastructure/`; documented divergences live in each service's `CLAUDE.md`.
 
 Services and ports (from [docker-compose.yaml](../docker-compose.yaml)):
 
@@ -34,7 +35,7 @@ Services and ports (from [docker-compose.yaml](../docker-compose.yaml)):
 - **Language / runtime:** C# (latest), .NET 10
 - **Web:** ASP.NET Core **Minimal APIs** (no MVC controllers, no MediatR)
 - **Persistence:** EF Core with **SQL Server** (Redis only for basket and as order cache)
-- **Messaging:** RabbitMQ by default or Azure Service Bus via `Messaging:Provider`, wrapped by `IEventBus` in `ECommerce.Shared`
+- **Messaging:** RabbitMQ by default or Azure Service Bus via `Messaging:Provider`, wrapped by `IEventBus` from `ECommerce.Shared.EventBus` and provider-aware composition from `ECommerce.Shared.Messaging`
 - **Observability:** OpenTelemetry, Jaeger, Loki, Grafana, Prometheus (see `observability/` and `kubernetes/`)
 - **Containerization:** Docker / Docker Compose; Kubernetes manifests under `kubernetes/`
 - **CI/CD:** **Azure Pipelines** (`azure-pipelines.yml` per service). GitHub Actions is not used.
@@ -74,15 +75,14 @@ Only Basket tests run pre-commit. Run other service test suites manually before 
 
 ## Shared library workflow (`ECommerce.Shared`)
 
-`shared-libs/ECommerce.Shared` is consumed as a **NuGet package** (e.g. `<PackageReference Include="ECommerce.Shared" Version="2.0.0" />`), **not** a `<ProjectReference>`. The package is published to `local-nuget-packages/` (gitignored).
+Shared-libs are consumed as **NuGet packages**, **not** `<ProjectReference>`s. Since [ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md), production services use direct capability packages (`ECommerce.Shared.Kernel`, `.EventBus`, `.RabbitMq`, `.AzureServiceBus`, `.Messaging`, `.DeadLetter`, `.Platform`, `.Contracts`, `.Testing.Qa`) and avoid the umbrella `ECommerce.Shared` package unless broad compatibility is intentional. Use [docs/runbooks/shared-libs-versioning.md](../docs/runbooks/shared-libs-versioning.md) for package selection and version sweeps.
 
 After editing the shared lib:
 
 ```bash
-cd shared-libs/ECommerce.Shared
-dotnet pack -c Release
-dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
-# Bump <Version> in ECommerce.Shared.csproj if consumers should pick it up.
+dotnet pack -c Release shared-libs/ECommerce.Shared.slnx
+cp shared-libs/**/bin/Release/*.nupkg local-nuget-packages/
+# Bump <Version> in shared-libs/Directory.Build.props if consumers should pick it up.
 ```
 
 Consumers won't see changes until the version is bumped and the new `.nupkg` lands in the local feed.
@@ -91,27 +91,26 @@ Consumers won't see changes until the version is bumped and the new `.nupkg` lan
 
 The "big picture" lives in three places that have to be read together:
 
-1. **Each service's `Program.cs`** — composition root. All wiring uses extension methods from `ECommerce.Shared`: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent, THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`. New cross-cutting concerns belong in `shared-libs/ECommerce.Shared`, not duplicated per service.
+1. **Each service's `Program.cs`** — composition root. All wiring uses extension methods from the direct shared-libs packages: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent, THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`. New cross-cutting concerns belong in the matching shared-libs capability package, not duplicated per service.
 
-2. **`shared-libs/ECommerce.Shared/Infrastructure/`**
-   - `EventBus/` — `IEventBus`, `Event` base type, handler registration via keyed DI.
-   - `Messaging/`, `RabbitMq/`, `AzureServiceBus/` — provider selection via `Messaging:Provider`; RabbitMQ uses fanout exchange `ecommerce-exchange`, Azure Service Bus uses topics/subscriptions, and both preserve the same event contracts.
-   - `Outbox/` — transactional outbox. `OutboxBackgroundService` polls `OutboxContext` for unpublished events. Services that publish events must call `AddOutbox(...)` and (in Development) `app.ApplyOutboxMigrations()`.
+2. **`shared-libs/ECommerce.Shared.*` capability packages**
+   - `Kernel` / `EventBus` — event base, options, `IEventBus`, keyed handler registration, transactional outbox.
+   - `Messaging`, `RabbitMq`, `AzureServiceBus` — provider selection via `Messaging:Provider`; RabbitMQ uses fanout exchange `ecommerce-exchange`, Azure Service Bus uses topics/subscriptions, and both preserve the same event contracts.
+   - `DeadLetter`, `Platform`, `Contracts`, `Testing.Qa` — DLQ capture/replay, auth/observability/health/OpenAPI, saga commands, and QA seeding helpers.
 
-3. **Saga orchestrator** — Saga service starts from `OrderCreatedEvent`, persists saga state, and drives Order/Inventory/Payment/Shipping through commands. Participants publish reply events with `SagaId` and `CausationId`; Saga advances, retries, or compensates from those replies. Event and command handlers live under each service's `IntegrationEvents/EventHandlers/`.
+3. **Saga orchestrator** — Saga service starts from `OrderCreatedEvent`, persists saga state, and drives Order/Inventory/Payment/Shipping through commands. Participants publish reply events with `SagaId` and `CausationId`; Saga advances, retries, or compensates from those replies. Event and command handlers live under service `Features/<Slice>/` folders.
 
 ## Service internal layout
 
-Each service follows the same structure — keep this split:
+Each service follows the Clean Architecture + Vertical Slices default from [ADR-0012](../docs/adr/0012-clean-arch-vsa-default-service-shape.md) — keep this split:
 
-- `Endpoints/` — Minimal API handlers (the presentation layer)
-- `ApiModels/` — DTOs (request/response contracts)
-- `Models/` — domain types
-- `Infrastructure/Data/` — EF Core `DbContext` or Redis access
-- `IntegrationEvents/Events/` and `IntegrationEvents/EventHandlers/`
-- `Migrations/` — EF Core migrations (auto-generated, do not hand-edit style)
+- `Features/<Slice>/` — Minimal API route handlers, read/write DTOs, event handlers, command handlers, and slice DI.
+- `Domain/` — aggregates, invariants, domain events, and domain abstractions.
+- `Contracts/Integration/` — portable cross-service event and reply payloads.
+- `Infrastructure/` — EF Core, Redis, broker adapters, external providers, internal outbox endpoints.
+- `Migrations/` — EF Core migrations (auto-generated, do not hand-edit style).
 
-DTOs go in `ApiModels`, domain types in `Models`. Do not introduce a `Domain` / `Application` / `Infrastructure` / `Api` layered project structure — that is not how this repo is organized.
+DTOs for a vertical slice live with that slice. Domain types stay under `Domain/`. Do not reintroduce the legacy top-level `Endpoints/` / `ApiModels/` / `Models/` / `IntegrationEvents/` layout for new work.
 
 ## API Gateway provider switch
 

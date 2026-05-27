@@ -112,28 +112,26 @@ Saga owns the order workflow. Order publishes `OrderCreatedEvent`; Saga persists
 │   └── Payment.Tests/        Unit & integration tests
 ├── saga-microservice/        Order/refund saga orchestration + operator saga API
 │   └── Saga.Tests/           Unit, integration, and end-to-end saga tests
-├── shared-libs/              ECommerce.Shared NuGet library
-├── local-nuget-packages/     Local NuGet feed for ECommerce.Shared
+├── shared-libs/              ECommerce.Shared capability packages
+├── local-nuget-packages/     Local NuGet feed for shared-libs packages
 ├── kubernetes/               K8s deployment manifests (services + observability)
 ├── observability/            OTEL Collector, Prometheus, Alertmanager, Grafana, Loki config
-├── docs/                     PRD and implementation plans
+├── docs/                     ADRs, PRDs, plans, wiki source, runbooks, patterns
 ├── plans/                    Active engineering plans
 ├── ralph/                    Agent/automation scripts
 ├── Directory.Build.props     Centralized MSBuild settings
 └── docker-compose.yaml       Full-stack local orchestration
 ```
 
-Each microservice follows a consistent layout:
+Each microservice follows **Clean Architecture + Vertical Slices** as the default service shape ([ADR-0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md)); the Order service was the original pilot ([ADR-0011](docs/adr/0011-order-cleanarch-vsa-pilot.md)). The canonical implementation guide is [docs/PATTERNS.md](docs/PATTERNS.md).
 
 ```
 {Service}.Service/
 ├── Program.cs                Startup, DI, middleware
-├── Dockerfile                Multi-stage build
-├── Endpoints/                Minimal API route handlers
-├── ApiModels/                Request/response DTOs
-├── Models/                   Domain entities
-├── Infrastructure/Data/      Storage abstractions + implementations
-├── IntegrationEvents/        Published/subscribed events + handlers
+├── Features/                 Vertical slices by HTTP route, event, or command
+├── Domain/                   Aggregates, domain services, domain events
+├── Contracts/Integration/    Cross-service message contracts
+├── Infrastructure/           EF Core, Redis, adapters, outbox endpoints
 └── Migrations/               EF Core migrations (if applicable)
 ```
 
@@ -200,22 +198,27 @@ The UI is gated to Development and Staging environments. Production gateway bina
 
 ## Shared Library
 
-`shared-libs/ECommerce.Shared` is distributed as a local NuGet package and provides:
+`shared-libs/` ships nine direct capability packages plus the `ECommerce.Shared` umbrella compatibility metapackage, all on one lockstep version. Production services use the narrow direct packages they need rather than the umbrella; [ADR-0013](docs/adr/0013-shared-libs-multi-package-split.md) records the split and [docs/runbooks/shared-libs-versioning.md](docs/runbooks/shared-libs-versioning.md) is the bump/publish/sweep runbook.
 
-- **Platform messaging** — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; both share `IEventBus`, keyed DI event handler registration, retry, dead-letter capture, and replay through the gateway operator API
-- **Transactional Outbox** — `OutboxBackgroundService` polls for unpublished events, preventing data/event inconsistency; tracks publish failures and stops retrying after `MaxAttempts`, and exposes `/internal/outbox/failed` (gated by `RequireService`) for the gateway DLQ poller
-- **JWT Authentication** — `AddJwtAuthentication()` shared across all secured services; validates RS256 user tokens via Auth's `/jwks` and supports the `RequireService` policy for service-to-service calls
-- **Observability** — `AddPlatformObservability()` wires OpenTelemetry traces (OTLP → Jaeger), metrics (Prometheus scrape), and logs (OTLP → Loki), plus `MetricFactory` for custom counters/histograms, broker span context propagation, and the DLQ `ActivitySource` / `Meter` (including `dlq_messages_total`, `dlq_replays_total`, `dlq_discards_total` tagged by provider)
-- **Health Checks** — `AddPlatformHealthChecks()` with SQL Server / RabbitMQ / Redis probes, exposed via `MapPlatformHealthChecks()`
+| Package | Purpose |
+|---|---|
+| `ECommerce.Shared.Kernel` | `Event` base type, messaging options, telemetry constants, `MetricFactory` |
+| `ECommerce.Shared.EventBus` | `IEventBus`, event handler registration, transactional outbox |
+| `ECommerce.Shared.RabbitMq` | RabbitMQ broker adapter |
+| `ECommerce.Shared.AzureServiceBus` | Azure Service Bus broker adapter |
+| `ECommerce.Shared.Messaging` | `Messaging:Provider`, `AddPlatformEventBus`, publisher/subscriber composition |
+| `ECommerce.Shared.DeadLetter` | DLQ capture, persistence, replay, discard, provider adapters |
+| `ECommerce.Shared.Platform` | JWT auth, observability, health checks, OpenAPI helpers |
+| `ECommerce.Shared.Contracts` | Shared saga command contracts |
+| `ECommerce.Shared.Testing.Qa` | QA personas and seeding helpers |
 
-Current published version: **`ECommerce.Shared` 2.23.0** (see `shared-libs/ECommerce.Shared/ECommerce.Shared.csproj`).
+Current published version: **3.1.0** (see `shared-libs/Directory.Build.props`).
 
 ### Build and Publish
 
 ```bash
-cd shared-libs/ECommerce.Shared
-dotnet pack -c Release
-dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
+dotnet pack -c Release shared-libs/ECommerce.Shared.slnx
+cp shared-libs/**/bin/Release/*.nupkg local-nuget-packages/
 ```
 
 ## Key Patterns
@@ -350,7 +353,7 @@ three environments (`ecommerce-dev`, `ecommerce-staging`, `ecommerce-prod`).
 | [ARCHITECTURE](Infrastructure%20-%20Deployment/docs/ARCHITECTURE.md) | Cloud topology, network, AKS, data plane, observability |
 | [SYSTEM_DESIGN](Infrastructure%20-%20Deployment/docs/SYSTEM_DESIGN.md) | End-to-end CI/CD: build, test, push, deploy |
 | [TECH_STACK](Infrastructure%20-%20Deployment/docs/TECH_STACK.md) | Every Azure service and its role |
-| [PATTERNS](Infrastructure%20-%20Deployment/docs/PATTERNS.md) | Codebase implementation patterns: service shape, slices, messaging, outbox, tests |
+| [PATTERNS](docs/PATTERNS.md) | Codebase implementation patterns: service shape, slices, messaging, outbox, tests |
 | [Devops Agent Setup](Infrastructure%20-%20Deployment/docs/Devops%20Agent%20Setup.md) | Migrating from Microsoft-hosted to self-hosted agents |
 | [Local K8s Guide](docs/LOCAL_K8S_GUIDE.md) | Running the full stack on Docker Desktop / Minikube |
 

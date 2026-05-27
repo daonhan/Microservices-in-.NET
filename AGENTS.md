@@ -22,7 +22,7 @@ If prior work may be relevant, use the `load-session-context` skill to search th
 | payment     | 8007 | SQL       | [payment-microservice/CLAUDE.md](payment-microservice/CLAUDE.md)       |
 | saga        | 8008 | SQL       | [saga-microservice/CLAUDE.md](saga-microservice/CLAUDE.md)             |
 
-Shared libraries (NuGet, local feed, narrow package rules, packing flow + lazy broker rule): [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). Shared-libs ships nine capability packages plus the `ECommerce.Shared` umbrella compatibility metapackage on lockstep `<Version>`; production services should reference only the direct capabilities they use. See [docs/runbooks/shared-libs-versioning.md](docs/runbooks/shared-libs-versioning.md) for package selection and bump-and-publish workflow.
+Shared libraries (NuGet, local feed, narrow package rules, packing flow + lazy broker rule): [shared-libs/CLAUDE.md](shared-libs/CLAUDE.md). Since [ADR-0013](docs/adr/0013-shared-libs-multi-package-split.md), shared-libs ships nine capability packages (`ECommerce.Shared.Kernel`, `.EventBus`, `.RabbitMq`, `.AzureServiceBus`, `.Messaging`, `.DeadLetter`, `.Platform`, `.Contracts`, `.Testing.Qa`) plus the `ECommerce.Shared` umbrella compatibility metapackage on lockstep `<Version>`; production services should reference only the direct capabilities they use. See [docs/runbooks/shared-libs-versioning.md](docs/runbooks/shared-libs-versioning.md) for package selection and bump-and-publish workflow.
 
 ## Build / test / run
 
@@ -50,7 +50,7 @@ Sandbox blockers (WSL / virtiofs / Docker, `MSB3248`, hard prohibitions): see [d
 
 Default shape: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, `Infrastructure/`. Boundaries enforced per service by NetArchTest (`<Svc>.Tests/Architecture/LayoutTests.cs`) + a Roslyn `<Svc>.Service.LayoutAnalyzer`.
 
-ADRs: [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) (original Order pilot), [0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md) (promoted to default). Runbook for new slices: [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md).
+ADRs: [0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) (original Order pilot), [0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md) (promoted to default). Canonical patterns: [docs/PATTERNS.md](docs/PATTERNS.md). Runbook for new slices: [adding-a-new-slice.md](docs/runbooks/adding-a-new-slice.md).
 
 Every service in the monorepo is on this layout; api-gateway closed out the migration. Per-service file documents only its divergences:
 
