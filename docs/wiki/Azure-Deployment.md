@@ -105,6 +105,7 @@ OTel context propagates through Service Bus messages (`AzureServiceBusTelemetry`
 | [`ARCHITECTURE.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/ARCHITECTURE.md) | Cloud architecture, network, data plane, observability |
 | [`SYSTEM_DESIGN.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/SYSTEM_DESIGN.md) | End-to-end CI/CD flow with stage details |
 | [`TECH_STACK.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/TECH_STACK.md) | Every Azure service, purpose, integration point |
+| [`PATTERNS.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/PATTERNS.md) | Codebase implementation patterns for services, shared libraries, messaging, and tests |
 | [`Devops Agent Setup.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/Devops%20Agent%20Setup.md) | Microsoft-hosted vs self-hosted agent guidance |
 | [`LOCAL_K8S_GUIDE.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/LOCAL_K8S_GUIDE.md) | Practising K8s manifests locally before AKS |
 | [PRD #34](https://github.com/daonhan/Microservices-in-.NET/issues/34) · [Plan #35](https://github.com/daonhan/Microservices-in-.NET/issues/35) | Source-of-truth requirements and slice plan |

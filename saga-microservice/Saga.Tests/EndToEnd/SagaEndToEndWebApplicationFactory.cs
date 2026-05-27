@@ -90,9 +90,9 @@ public sealed class SagaEndToEndWebApplicationFactory : WebApplicationFactory<Pr
         var sagaContext = scope.ServiceProvider.GetRequiredService<SagaContext>();
         sagaContext.Database.Migrate();
 
-        // OutboxContext is internal to ECommerce.Shared, so resolve by Type and cast to DbContext.
+        // OutboxContext is internal to the shared EventBus package, so resolve by Type and cast to DbContext.
         var outboxContextType = Type.GetType(
-            "ECommerce.Shared.Infrastructure.Outbox.OutboxContext, ECommerce.Shared",
+            "ECommerce.Shared.Infrastructure.Outbox.OutboxContext, ECommerce.Shared.EventBus",
             throwOnError: true)!;
         var outboxContext = (DbContext)scope.ServiceProvider.GetRequiredService(outboxContextType);
         outboxContext.Database.Migrate();

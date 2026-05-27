@@ -79,6 +79,82 @@ public class LayoutAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Id == LayoutAnalyzer.CrossPackageRuleId);
     }
 
+    [Fact]
+    public async Task SHALAY003_Allows_Messaging_ToBridge_EventBus_And_BrokerAdapters()
+    {
+        var source = """
+            using ECommerce.Shared.Infrastructure.AzureServiceBus;
+            using ECommerce.Shared.Infrastructure.EventBus;
+            using ECommerce.Shared.Infrastructure.RabbitMq;
+
+            namespace ECommerce.Shared.Infrastructure.Messaging;
+
+            public sealed class Foo { }
+            """;
+        var filePath = NormalizePath("shared-libs/ECommerce.Shared.Messaging/Composition/Foo.cs");
+
+        var diagnostics = await RunAsync(source, filePath);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == LayoutAnalyzer.CrossPackageRuleId);
+    }
+
+    [Fact]
+    public async Task SHALAY003_Reports_When_Messaging_Imports_DeadLetter()
+    {
+        var source = """
+            using ECommerce.Shared.Infrastructure.DeadLetter;
+
+            namespace ECommerce.Shared.Infrastructure.Messaging;
+
+            public sealed class Foo { }
+            """;
+        var filePath = NormalizePath("shared-libs/ECommerce.Shared.Messaging/Composition/Foo.cs");
+
+        var diagnostics = await RunAsync(source, filePath);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id == LayoutAnalyzer.CrossPackageRuleId
+            && d.Location.GetLineSpan().Path == filePath);
+    }
+
+    [Fact]
+    public async Task SHALAY003_Allows_DeadLetter_ToUse_Messaging_And_DlqAdapters()
+    {
+        var source = """
+            using ECommerce.Shared.Infrastructure.AzureServiceBus;
+            using ECommerce.Shared.Infrastructure.Messaging;
+            using ECommerce.Shared.Infrastructure.RabbitMq;
+
+            namespace ECommerce.Shared.Infrastructure.DeadLetter;
+
+            public sealed class Foo { }
+            """;
+        var filePath = NormalizePath("shared-libs/ECommerce.Shared.DeadLetter/Composition/Foo.cs");
+
+        var diagnostics = await RunAsync(source, filePath);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == LayoutAnalyzer.CrossPackageRuleId);
+    }
+
+    [Fact]
+    public async Task SHALAY003_Reports_When_DeadLetter_Imports_EventBus_Composition()
+    {
+        var source = """
+            using ECommerce.Shared.Infrastructure.EventBus;
+
+            namespace ECommerce.Shared.Infrastructure.DeadLetter;
+
+            public sealed class Foo { }
+            """;
+        var filePath = NormalizePath("shared-libs/ECommerce.Shared.DeadLetter/Composition/Foo.cs");
+
+        var diagnostics = await RunAsync(source, filePath);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id == LayoutAnalyzer.CrossPackageRuleId
+            && d.Location.GetLineSpan().Path == filePath);
+    }
+
     private static string NormalizePath(string relative) =>
         Path.Combine(Path.GetTempPath(), relative.Replace('/', Path.DirectorySeparatorChar));
 

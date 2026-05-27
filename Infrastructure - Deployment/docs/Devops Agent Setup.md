@@ -13,6 +13,9 @@
 > - Pipelines need outbound IPs that fall inside an enterprise allow-list
 > - Build performance demands persistent NuGet / Docker layer caches
 
+> For the service, shared-library, messaging, and test conventions that these
+> pipelines validate, see [PATTERNS.md](PATTERNS.md).
+
 This is both the target operating model and the migration guide for the
 self-hosted pool used by Staging and Production.
 

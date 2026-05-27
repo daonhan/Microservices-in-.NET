@@ -2,7 +2,7 @@
 
 `ECommerce.Shared` is consumed as a NuGet package (not project ref). Local feed: `local-nuget-packages/` at the repo root (gitignored).
 
-Since [ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md) the library ships as **eight capability packages plus one umbrella metapackage** on lockstep `<Version>` defined in [`Directory.Build.props`](Directory.Build.props). Every release bumps that one place and packs all nine `.nupkg`s together. Bump-and-publish + consumer-sweep procedure: [`docs/runbooks/shared-libs-versioning.md`](../docs/runbooks/shared-libs-versioning.md).
+Since [ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md), plus the Messaging extraction, the library ships as **nine capability packages plus one umbrella metapackage** on lockstep `<Version>` defined in [`Directory.Build.props`](Directory.Build.props). Every release bumps that one place and packs all ten `.nupkg`s together. Bump-and-publish + consumer-sweep procedure: [`docs/runbooks/shared-libs-versioning.md`](../docs/runbooks/shared-libs-versioning.md).
 
 ## Pack + publish flow
 
@@ -15,32 +15,42 @@ dotnet test shared-libs/ECommerce.Shared.slnx
 
 # 2. Bump <Version> in shared-libs/Directory.Build.props (single source of truth).
 
-# 3. Pack the whole solution — emits 9 *.<Version>.nupkg (one per src csproj).
+# 3. Pack the whole solution — emits 10 *.<Version>.nupkg (one per src csproj).
 dotnet pack -c Release shared-libs/ECommerce.Shared.slnx
 
-# 4. Glob-copy all 9 nupkgs into the local feed.
+# 4. Glob-copy all 10 nupkgs into the local feed.
 cp shared-libs/**/bin/Release/*.<Version>.nupkg local-nuget-packages/
 ```
 
-The umbrella `ECommerce.Shared.<Version>.nupkg` carries the eight sub-package `<PackageDependency>`s at the same version. Consumers `restore` against the umbrella alone and pull the full set transitively.
+The umbrella `ECommerce.Shared.<Version>.nupkg` carries the nine sub-package `<PackageDependency>`s at the same version. It remains a compatibility/prototype package for deliberate broad consumption. Production services should use direct capability package references so their csproj communicates the shared surface they actually use.
 
 Consumers see no change until version bump + new `.nupkg`s in feed. When packing a new shared version, confirm the `.nupkg`s in `local-nuget-packages/` were built **after** the relevant source commit (older nupkgs sharing a version number have been observed). If a consumer build behaves unexpectedly, clear the consumer's NuGet HTTP cache (`dotnet nuget locals http-cache --clear`).
 
-## Composition extensions
+## Narrow package selection
 
-Each service's `Program.cs` uses the umbrella's transitive extensions: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`, `AddJwtAuthentication`, `AddRequireOperatorPolicy`, `AddRequireServicePolicy`.
+Choose the smallest direct capability set that matches the service. Keep all direct shared-libs package references on the same lockstep version as [`Directory.Build.props`](Directory.Build.props). Do not add `ECommerce.Shared.RabbitMq` or `ECommerce.Shared.AzureServiceBus` to a production service just to select a broker; `ECommerce.Shared.Messaging` owns provider-aware composition. Do not add `ECommerce.Shared.DeadLetter` unless the service owns DLQ capture, storage, replay, or discard; today that is only API Gateway.
+
+| Consumer shape | Direct packages |
+|---|---|
+| Auth-only service | `ECommerce.Shared.Platform`, `ECommerce.Shared.Testing.Qa` |
+| Publisher/subscriber without shared saga commands | `ECommerce.Shared.Platform`, `ECommerce.Shared.EventBus`, `ECommerce.Shared.Messaging`, `ECommerce.Shared.Testing.Qa` |
+| Saga participant or orchestrator using shared commands | `ECommerce.Shared.Platform`, `ECommerce.Shared.EventBus`, `ECommerce.Shared.Messaging`, `ECommerce.Shared.Contracts`, `ECommerce.Shared.Testing.Qa` |
+| Gateway/operator DLQ owner | `ECommerce.Shared.Platform`, `ECommerce.Shared.Messaging`, `ECommerce.Shared.DeadLetter` |
+
+`Program.cs` extension methods come from those packages: `AddSqlServerDatastore`, `AddOutbox`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, `AddPlatformSubscriberService`, `AddEventHandler<TEvent,THandler>`, `AddPlatformObservability`, `AddPlatformHealthChecks`, `AddPlatformOpenApi`, `AddJwtAuthentication`, `AddRequireOperatorPolicy`, `AddRequireServicePolicy`.
 
 Capability-to-package mapping (namespaces unchanged from pre-split):
 
 - `ECommerce.Shared.Kernel` — `Event` base, telemetry name constants under `Kernel/Abstractions/TelemetryConventions/`, `MessagingOptions`, `MetricFactory`.
 - `ECommerce.Shared.EventBus` — `IEventBus` + the entire Outbox capability (`OutboxBackgroundService`, `OutboxUnitOfWork`, migrations).
-- `ECommerce.Shared.RabbitMq` / `ECommerce.Shared.AzureServiceBus` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus.
-- `ECommerce.Shared.DeadLetter` — DLQ capture/publisher/replayer/discarder + co-located `MessagingProviderResolver`.
+- `ECommerce.Shared.RabbitMq` / `ECommerce.Shared.AzureServiceBus` — provider-specific broker adapters.
+- `ECommerce.Shared.Messaging` — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; owns `MessagingProviderResolver`, `AddPlatformEventBus`, `AddPlatformEventPublisher`, and `AddPlatformSubscriberService`.
+- `ECommerce.Shared.DeadLetter` — DLQ capture/publisher/replayer/discarder + provider-specific DLQ adapters.
 - `ECommerce.Shared.Platform` — Authentication + Observability + HealthChecks + OpenApi bundled.
 - `ECommerce.Shared.Contracts` — saga command POCOs.
 - `ECommerce.Shared.Testing.Qa` — `QaPersonas` + `QaSeedingExtensions`.
 
-New cross-cutting concerns belong in whichever sub-package matches; if none matches, add a ninth package via the runbook's checklist.
+New cross-cutting concerns belong in whichever sub-package matches; if none matches, add another capability package via the runbook's checklist.
 
 ## Inner shape — `Abstractions/` + `Impl/` + `Composition/`
 
@@ -62,9 +72,5 @@ Eager registration breaks boot tests like `Inventory.Tests.MessagingProviderBoot
 
 - Lazy broker fix shipped in `ECommerce.Shared` ≥ `2.24.0` (commit `dcbc29c`).
 - Lockstep multi-package release: `3.0.0` ships eight sub-packages + one umbrella together ([ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md)).
-- **Convergence target**: every consumer pins `ECommerce.Shared` `3.0.0` after the Phase 13 sweep (one PR per consumer, low-risk-first order — runbook lists the order). Until that sweep lands, current consumer pins are:
-  - Auth / Basket / Product — `2.18.0` (pre-fix, carries latent eager-broker defect)
-  - Order — `2.24.0`
-  - Inventory / Payment / Shipping / Saga / ApiGateway — `2.25.0`
-
-Post-sweep this section becomes a single line ("All consumers pin `3.0.0`") plus the Phase 13 issue link for history.
+- Messaging extraction release: `3.1.0` ships nine sub-packages + one umbrella together and moves provider-aware composition out of DeadLetter.
+- Narrow-package convergence: all production consumers pin direct capability packages at `3.1.0`; no production service directly references the umbrella. API Gateway is the only production consumer with a direct `ECommerce.Shared.DeadLetter` reference.

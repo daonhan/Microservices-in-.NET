@@ -3,7 +3,8 @@
 > Inventory of every Azure service used by the cloud deployment, why it is
 > there, and how the application talks to it. For the application's
 > internal stack (.NET, EF Core, RabbitMQ, OpenTelemetry) see the root
-> [`README.md`](../../README.md).
+> [`README.md`](../../README.md). For codebase implementation conventions,
+> see [PATTERNS.md](PATTERNS.md).
 
 ## Compute & runtime
 
