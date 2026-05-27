@@ -43,3 +43,7 @@ Infrastructure - Deployment/ARCHITECTURE.md
 .claude/agent-memory/sessions/
 .claude/agent-memory/qmd-index.log
 .claude/settings.local.json
+!.claude/agents/
+!.claude/commands/
+!.claude/CLAUDE.md
+!.claude/scripts/afk-commit-gate.sh
