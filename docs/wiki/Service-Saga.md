@@ -8,8 +8,9 @@ Order and refund saga orchestrator. Persists saga state to SQL Server, dispatche
 | **Datastore** | SQL Server (database: `Saga`) |
 | **Source** | [`saga-microservice/Saga.Service/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/saga-microservice/Saga.Service) |
 | **Tests** | [`saga-microservice/Saga.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/saga-microservice/Saga.Tests) |
-| **Publishes** | Saga commands through `ECommerce.Shared.IntegrationEvents.Commands` |
+| **Publishes** | Saga commands through `ECommerce.Shared.Contracts` |
 | **Subscribes** | `OrderCreatedEvent`, `RefundRequestedEvent`, and participant reply events from Order, Inventory, Payment, and Shipping |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); saga triggers use the two-level `Features/<Saga>/<Trigger>/` shape. |
 
 ## Responsibility
 
@@ -85,7 +86,8 @@ All operator routes require Bearer auth with the existing `RequireService` polic
 
 ## Related docs
 
-- [PRD-Saga-Orchestrator](../prd/PRD-Saga-Orchestrator.md)
-- [Saga orchestrator strangler runbook](../runbooks/saga-orchestrator-strangler.md)
-- [ADR-0010 — Saga orchestrator (supersedes ADR-0008)](../adr/0010-saga-orchestrator-supersedes-choreography.md)
+- [PRD-Saga-Orchestrator](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Saga-Orchestrator.md)
+- [Saga orchestrator strangler runbook](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/runbooks/saga-orchestrator-strangler.md)
+- [ADR-0010 — Saga orchestrator (supersedes ADR-0008)](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0010-saga-orchestrator-supersedes-choreography.md)
+- [ADR-0012 — Clean Architecture + Vertical Slices default](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)
 - [Integration events](Integration-Events)

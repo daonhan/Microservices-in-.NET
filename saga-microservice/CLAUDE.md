@@ -1,10 +1,12 @@
 # Saga — service notes
 
-Clean Architecture + Vertical Slices: `Features/<Saga>/<Trigger>/`, `Domain/{OrderSaga,RefundSaga,}/`, `Contracts/Integration/InboundEvents/`, `Infrastructure/`.
+Clean Architecture + Vertical Slices is the default service shape ([ADR-0012](../docs/adr/0012-clean-arch-vsa-default-service-shape.md)): `Features/<Saga>/<Trigger>/`, `Domain/{OrderSaga,RefundSaga,}/`, `Contracts/Integration/InboundEvents/`, `Infrastructure/`.
 
 Boundaries enforced by NetArchTest (`Saga.Tests/Architecture/LayoutTests.cs`) and the Roslyn `Saga.Service.LayoutAnalyzer`.
 
-Composes ADR [0011](../docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (no new ADR); reuses [adding-a-new-slice.md](../docs/runbooks/adding-a-new-slice.md) runbook unchanged.
+Composes ADR [0011](../docs/adr/0011-order-cleanarch-vsa-pilot.md) by reference (original pilot); reuses [adding-a-new-slice.md](../docs/runbooks/adding-a-new-slice.md) runbook unchanged.
+
+Narrow-pins shared-libs per [ADR-0013](../docs/adr/0013-shared-libs-multi-package-split.md) and [shared-libs-versioning.md](../docs/runbooks/shared-libs-versioning.md): `ECommerce.Shared.Platform`, `ECommerce.Shared.EventBus`, `ECommerce.Shared.Messaging`, `ECommerce.Shared.Contracts`, and `ECommerce.Shared.Testing.Qa`.
 
 ## Role
 
@@ -26,4 +28,4 @@ Runbook: [saga-orchestrator-strangler.md](../docs/runbooks/saga-orchestrator-str
 - **Dual-subscription convention for `PaymentRefundedEvent`** — two slices register, each loads its own saga by id, no-ops if not its own. **Only place in the monorepo where one integration event drives two slices that must both act on it.**
 - Reaper as `Infrastructure/Reaper/` hosted service mirroring Shipping's `Infrastructure/Carriers/CarrierPollingService` — **no `Features/<Saga>/TimeoutEscalation/` slice** (reaper is internal scheduling, not an inbound trigger).
 - **No HTTP write endpoint outside `Features/Operator/{AbortSaga,RetrySaga}/`** — saga is event-driven by design. `AbortSaga` cancels an in-flight saga; `RetrySaga` requeues the in-flight command.
-- Saga commands (`ReserveStockCommand`/`AuthorizePaymentCommand`/etc.) consumed from `ECommerce.Shared.IntegrationEvents.Commands` — not owned in local `Contracts/Integration/`.
+- Saga commands (`ReserveStockCommand`/`AuthorizePaymentCommand`/etc.) consumed from `ECommerce.Shared.Contracts` — not owned in local `Contracts/Integration/`.

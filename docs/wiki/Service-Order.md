@@ -10,6 +10,7 @@ Order lifecycle service. Persists orders to SQL Server, emits domain events via 
 | **Tests** | [`order-microservice/Order.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/order-microservice/Order.Tests) |
 | **Publishes** | `OrderCreatedEvent`, `OrderConfirmedEvent`, `OrderCancelledEvent` |
 | **Subscribes** | `ConfirmOrderCommand`, `CancelOrderCommand` (from Saga), `ProductCreatedEvent` (price cache) |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); Order was the original pilot recorded in [ADR-0011](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0011-order-cleanarch-vsa-pilot.md). |
 
 ## Responsibilities
 
@@ -27,7 +28,7 @@ All endpoints require a valid JWT.
 | `POST` | `/order/{customerId}` | Create a new order |
 | `GET` | `/order/{customerId}/{orderId}` | Get a specific order |
 
-Implementation: `Endpoints/OrderApiEndpoint.cs`.
+Implementations live in `Features/CreateOrder/`, `Features/GetOrder/`, `Features/ListOrders/`, `Features/ConfirmOrder/`, `Features/CancelOrder/`, and `Features/ProductCreated/`.
 
 ## Saga participation
 
@@ -68,12 +69,12 @@ Located under `Order.Service/Migrations/`. Run via `dotnet ef database update` f
 ```
 Order.Service/
 ├── Program.cs
-├── Endpoints/OrderApiEndpoint.cs
-├── ApiModels/
-├── Models/                    # Order aggregate + domain events (OrderCreated/Confirmed/Cancelled)
+├── Dockerfile                  # Multi-stage build
+├── Features/                  # HTTP, command, event, and integration-map slices
+├── Domain/                    # Order aggregate + domain events (OrderCreated/Confirmed/Cancelled)
+├── Contracts/Integration/     # published + subscribed event contracts
 ├── Infrastructure/
 │   ├── Data/                  # EF Core DbContext, IOrderStore (unit-of-work + outbox dispatch)
 │   └── Providers/             # IProductCatalogClient, RedisProductPriceProvider
-├── IntegrationEvents/         # published + subscribed (incl. ProductCreatedEventHandler)
 └── Migrations/
 ```

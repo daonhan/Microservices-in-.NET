@@ -10,6 +10,7 @@ Product catalog. Owns the authoritative product record and emits events when pro
 | **Tests** | [`product-microservice/Product.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/product-microservice/Product.Tests) |
 | **Publishes** | `ProductCreatedEvent`, `ProductPriceUpdatedEvent` |
 | **Subscribes** | none |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); product writes publish through the outbox seam. |
 
 ## HTTP endpoints
 
@@ -21,7 +22,7 @@ Product catalog. Owns the authoritative product record and emits events when pro
 
 Write endpoints are restricted at the Gateway via a role policy. See [Service-API-Gateway](Service-API-Gateway).
 
-Implementation: `Endpoints/ProductApiEndpoints.cs`.
+Implementations live in `Features/GetProduct/`, `Features/ListProducts/`, `Features/CreateProduct/`, and `Features/UpdateProduct/`.
 
 ## Events
 
@@ -40,10 +41,10 @@ Payloads: [Integration-Events](Integration-Events).
 ```
 Product.Service/
 ├── Program.cs
-├── Endpoints/ProductApiEndpoints.cs
-├── ApiModels/
-├── Models/
-├── Infrastructure/Data/
-├── IntegrationEvents/
+├── Dockerfile                  # Multi-stage build
+├── Features/
+├── Domain/
+├── Contracts/Integration/
+├── Infrastructure/
 └── Migrations/
 ```

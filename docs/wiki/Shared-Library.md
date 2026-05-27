@@ -1,32 +1,54 @@
-# Shared Library — `ECommerce.Shared`
+# Shared Library — `ECommerce.Shared.*`
 
-A single internal NuGet package under [`shared-libs/ECommerce.Shared`](https://github.com/daonhan/Microservices-in-.NET/tree/main/shared-libs/ECommerce.Shared) provides the cross-cutting infrastructure every service needs. It is published to a local NuGet feed under [`local-nuget-packages/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/local-nuget-packages) so services can version-pin it like any other dependency.
+Shared platform code ships as nine direct capability packages plus the `ECommerce.Shared` umbrella compatibility metapackage. All packages are published to the local NuGet feed under [`local-nuget-packages/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/local-nuget-packages) at one lockstep version, and production services reference only the direct packages they need.
 
 ## What's inside
 
 ```mermaid
 graph LR
     subgraph ECommerce.Shared
+        Kernel[Kernel]
+        Contracts[Contracts]
         Jwt[JWT auth]
         Bus[Platform messaging]
         Sub[Provider subscriber]
         Outbox[Transactional Outbox]
+        DLQ[Dead-letter operations]
         Obs[Observability]
         Health[Health Checks]
+        Qa[QA helpers]
     end
-    Svc[Any service] --> Jwt
+    Svc[Any service] --> Kernel
+    Svc --> Contracts
+    Svc --> Jwt
     Svc --> Bus
     Svc --> Sub
     Svc --> Outbox
+    Svc --> DLQ
     Svc --> Obs
     Svc --> Health
+    Svc --> Qa
 ```
+
+| Package | Purpose | Key extension methods / types |
+|---|---|---|
+| `ECommerce.Shared.Kernel` | Common event, options, and telemetry primitives | `Event`, `MessagingOptions`, telemetry convention constants, `MetricFactory` |
+| `ECommerce.Shared.EventBus` | Event bus abstractions, handler registration, and transactional outbox | `IEventBus`, `IEventHandler<TEvent>`, `AddEventHandler<TEvent,THandler>()`, `AddOutbox<TContext>()`, `IOutboxUnitOfWork`, `IOutboxStore` |
+| `ECommerce.Shared.RabbitMq` | RabbitMQ provider adapter | `RabbitMqEventBus`, `RabbitMqSubscriberService`, `IRabbitMqConnection`, RabbitMQ health probe |
+| `ECommerce.Shared.AzureServiceBus` | Azure Service Bus provider adapter | Azure Service Bus event bus, subscriber service, dead-letter receiver/publisher adapters |
+| `ECommerce.Shared.Messaging` | Provider-aware messaging composition | `Messaging:Provider`, `AddPlatformEventBus()`, `AddPlatformEventPublisher()`, `AddPlatformSubscriberService()` |
+| `ECommerce.Shared.DeadLetter` | Provider-agnostic DLQ capture, persistence, replay, and discard | `IDeadLetterCapture`, `IDeadLetterPublisher`, `IDeadLetterReplayer`, `IDeadLetterDiscarder`, DLQ telemetry |
+| `ECommerce.Shared.Platform` | Auth, authorization, observability, health, OpenAPI, SQL datastore helpers | `AddJwtAuthentication()`, `AddRequireOperatorPolicy()`, `AddRequireServicePolicy()`, `AddPlatformObservability()`, `AddPlatformHealthChecks()`, `AddPlatformOpenApi()`, `AddSqlServerDatastore()` |
+| `ECommerce.Shared.Contracts` | Shared cross-service contracts | Saga command POCOs such as `ReserveStockCommand`, `AuthorizePaymentCommand`, `CreateShipmentCommand` |
+| `ECommerce.Shared.Testing.Qa` | QA/test seeding helpers | `QaPersonas`, `QaSeedingExtensions` |
+
+This split is recorded in [ADR-0013](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0013-shared-libs-multi-package-split.md). Production services narrow-pin direct capability packages and avoid the umbrella unless broad compatibility is intentional; the package selection and version sweep workflow lives in [docs/runbooks/shared-libs-versioning.md](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/runbooks/shared-libs-versioning.md).
 
 ## Public DI surface
 
 | Extension | Purpose |
 |---|---|
-| `AddJwtAuthentication(IConfiguration)` | Configures JWT Bearer (HS256 user tokens + RS256 service tokens via JWKS) and the standard claim map |
+| `AddJwtAuthentication(IConfiguration)` | Configures JWT Bearer validation for RS256 user and service tokens via JWKS and the standard claim map |
 | `UseJwtAuthentication()` | Middleware pair (`UseAuthentication()` + `UseAuthorization()`) |
 | `AddRequireOperatorPolicy()` / `AddRequireServicePolicy()` | Register the `RequireOperator` and `RequireService` authorization policies (see [Authorization policies](#authorization-policies)) |
 | `AddPlatformEventBus(IConfiguration)` | Registers the configured messaging provider; `Messaging:Provider` defaults to `RabbitMq` and can be set to `AzureServiceBus` |
@@ -127,9 +149,8 @@ See [Observability](Observability) for the full pipeline.
 ## Building the library
 
 ```bash
-cd shared-libs/ECommerce.Shared
-dotnet pack -c Release
-dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
+dotnet pack -c Release shared-libs/ECommerce.Shared.slnx
+cp shared-libs/**/bin/Release/*.nupkg local-nuget-packages/
 ```
 
-Services consume it via `nuget.config` in each microservice folder, pointing at `../local-nuget-packages`.
+Services consume direct packages via `nuget.config` in each microservice folder, pointing at `../local-nuget-packages`.

@@ -138,7 +138,7 @@ else
 fi
 
 echo "    waiting for microservice pods to become Ready..."
-for app in productservice orderservice basketservice authservice inventoryservice shippingservice paymentservice apigateway; do
+for app in productservice orderservice basketservice authservice inventoryservice shippingservice paymentservice sagaservice apigateway; do
   if ! kubectl wait --for=condition=ready pod -l "app=$app" --timeout="$TIMEOUT"; then
     echo "    !! $app did not become Ready within $TIMEOUT — recent events:" >&2
     kubectl get pods -l "app=$app"

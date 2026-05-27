@@ -10,6 +10,7 @@ Issues JWT access tokens. The only service with no event-bus dependency.
 | **Tests** | [`auth-microservice/Auth.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/auth-microservice/Auth.Tests) |
 | **Publishes** | none |
 | **Subscribes** | none |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); Auth omits `Contracts/Integration/` because it has no broker contracts. |
 
 ## HTTP endpoints
 
@@ -18,13 +19,13 @@ Issues JWT access tokens. The only service with no event-bus dependency.
 | `POST` | `/login` | public | Validate user credentials and return a user JWT |
 | `POST` | `/token` | public | OAuth2 `client_credentials` grant — mints a service-role JWT for trusted backends |
 
-Implementations: `Endpoints/AuthApiEndpoints.cs`, `Endpoints/ServiceTokenEndpoint.cs`.
+Implementations: `Features/Login/LoginEndpoint.cs`, `Features/IssueServiceToken/IssueServiceTokenEndpoint.cs`, `Features/GetJwks/GetJwksEndpoint.cs`, `Features/GetOpenIdConfiguration/GetOpenIdConfigurationEndpoint.cs`.
 
 ## Token formats
 
 | Token kind | Endpoint | Algorithm | Key claim | Consumers |
 |---|---|---|---|---|
-| User token | `/login` | **HMAC-SHA256** | `user_role` (e.g. `Administrator`) | Gateway + services enforcing role policies (see [Service-Inventory](Service-Inventory), [Service-Product](Service-Product)) |
+| User token | `/login` | **RSA-SHA256** | `user_role` (e.g. `Administrator`) | Gateway + services enforcing role policies (see [Service-Inventory](Service-Inventory), [Service-Product](Service-Product)) |
 | Service token | `/token` | **RSA-SHA256** | `user_role=service` | Downstream `/internal/*` endpoints guarded by `RequireService` (see [Shared-Library](Shared-Library#authorization-policies)) |
 
 - Issuer validation: `AuthMicroserviceBaseAddress` config key across services must match.
@@ -51,12 +52,13 @@ See [Shared-Library](Shared-Library) for what these do internally.
 ```
 Auth.Service/
 ├── Program.cs
-├── Endpoints/
-│   ├── AuthApiEndpoints.cs        # /login (user tokens, HS256)
-│   └── ServiceTokenEndpoint.cs    # /token (client_credentials, RS256)
-├── ApiModels/
-├── Models/                        # incl. ServiceClient
-├── Services/                      # token issuance, password hashing, RSA key provider
-├── Infrastructure/Data/
+├── Dockerfile                  # Multi-stage build
+├── Features/
+│   ├── Login/                     # /login (user tokens, RS256)
+│   ├── IssueServiceToken/         # /token (client_credentials, RS256)
+│   ├── GetJwks/
+│   └── GetOpenIdConfiguration/
+├── Domain/                        # user model, token services, RSA key provider abstractions
+├── Infrastructure/                # EF Core data + signing infrastructure
 └── Migrations/
 ```

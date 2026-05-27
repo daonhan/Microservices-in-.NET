@@ -12,7 +12,7 @@
 - **Dual-gateway switch.** The same gateway service compiles both **YARP** (default) and **Ocelot** behind a `Gateway:Provider` flag — same routes, same auth, same metrics, swap at boot.
 - **Transactional outbox + provider-aware messaging + DLQ operator API.** Publishers never write straight to the broker; a poller drains the outbox, and RabbitMQ or Azure Service Bus dead letters surface through the same gateway-fronted operator endpoint.
 - **Orchestrator-led saga across four participants** — Saga owns the workflow state and drives Order, Inventory, Payment, and Shipping through commands plus reply events.
-- **`ECommerce.Shared` as a real NuGet package** against a local feed (`local-nuget-packages/`) instead of project references — closer to how real shared libraries propagate.
+- **`ECommerce.Shared` as narrow capability packages** against a local feed (`local-nuget-packages/`) instead of project references — nine direct packages plus an umbrella compatibility metapackage, with production services pinning only the capabilities they use ([ADR-0013](docs/adr/0013-shared-libs-multi-package-split.md)).
 - **One `.slnx` per service, no root `.sln`.** Each service has an independent build/test boundary; `Directory.Build.props` enforces `TreatWarningsAsErrors`.
 - **AI-first development workflow.** PRDs in `docs/prd/`, plans in `docs/plans/`, and `CLAUDE.md` / `.github/copilot-instructions.md` act as the contract between me and the agents.
 - **Agentic coding workflow as a first-class artifact.** PRDs, plans, and ADRs are the contract; `CLAUDE.md` plus the AFK prompt at [`.github/prompts/afk-task.prompt.md`](.github/prompts/afk-task.prompt.md) are the runtime; Husky.Net pre-commit + `TreatWarningsAsErrors` are the typed feedback loops; a QMD-indexed session store is the memory.
@@ -40,6 +40,7 @@ The third motivation is the AI-pair-programming workflow itself. I wanted to fin
 An eight-business-service e-commerce platform on .NET 10, built to run locally in Docker Compose and to deploy to Kubernetes.
 
 - **Services.** Auth, Basket, Product, Order, Inventory, Payment, Shipping, Saga. One bounded context each, one datastore each, one `.slnx` solution each.
+- **Service shape.** Clean Architecture + Vertical Slices is the repo default for service internals: `Features/<Slice>/`, `Domain/`, `Contracts/Integration/`, and `Infrastructure/`, with documented divergences per service. [ADR-0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) records the Order pilot, [ADR-0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md) promotes it to the repo default, and [docs/PATTERNS.md](docs/PATTERNS.md) is the implementation guide.
 - **Datastores.** SQL Server for everything except Basket, which uses Redis. Each service owns its schema; there is no shared database.
 - **Gateway.** A single API Gateway in front of the business services that compiles **both** YARP and Ocelot and selects between them at boot via the `Gateway:Provider` flag. Same routes, same auth rules, same metrics either way.
 - **Auth.** RS256 JWTs issued by the Auth service and validated by every other service via the `/jwks` discovery endpoint — no shared secrets, no copy-pasted signing keys.
@@ -47,7 +48,7 @@ An eight-business-service e-commerce platform on .NET 10, built to run locally i
 - **Saga.** Saga service starts from `OrderCreatedEvent`, stores saga instance state, sends commands to Order/Inventory/Payment/Shipping, and advances from their reply events.
 - **Observability.** OpenTelemetry traces, metrics, and logs flow through an OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top and Alertmanager wired to a starter set of alerts.
 - **Deployment.** Docker Compose for local, Kubernetes manifests under `kubernetes/` for `dev`/`staging`/`prod`, and an Azure-flavoured infra/pipelines folder under `Infrastructure - Deployment/`.
-- **Shared library.** `ECommerce.Shared` is published as a NuGet package against a local feed (`local-nuget-packages/`) and consumed by every service via `<PackageReference>`, not via project references.
+- **Shared library.** Shared-libs are published as lockstep NuGet packages against a local feed (`local-nuget-packages/`) and consumed by every service via `<PackageReference>`, not via project references. Production services narrow-pin direct capability packages; the umbrella `ECommerce.Shared` package remains for compatibility and prototypes.
 
 Service catalog:
 
@@ -64,6 +65,22 @@ Service catalog:
 | Saga | 8008 | SQL Server | Owns order saga state; drives Order/Inventory/Payment/Shipping via commands |
 
 If you want the runnable quickstart and the full per-service reference, that lives in the [README](README.md) and the [wiki](docs/wiki/Home.md). This page is the *why* and the *how I work*; those are the *what* and the *how to run*.
+
+Shared-libs package catalog:
+
+| Package | Purpose |
+|---|---|
+| `ECommerce.Shared.Kernel` | `Event` base type, messaging options, telemetry conventions, `MetricFactory` |
+| `ECommerce.Shared.EventBus` | `IEventBus`, keyed event handler registration, transactional outbox |
+| `ECommerce.Shared.RabbitMq` | RabbitMQ broker adapter |
+| `ECommerce.Shared.AzureServiceBus` | Azure Service Bus broker adapter |
+| `ECommerce.Shared.Messaging` | `Messaging:Provider`, `AddPlatformEventBus`, publisher/subscriber composition |
+| `ECommerce.Shared.DeadLetter` | DLQ capture, persistence, replay, discard, provider adapters |
+| `ECommerce.Shared.Platform` | JWT auth, observability, health checks, OpenAPI helpers |
+| `ECommerce.Shared.Contracts` | Shared saga command contracts |
+| `ECommerce.Shared.Testing.Qa` | QA personas and seeding helpers |
+
+[ADR-0013](docs/adr/0013-shared-libs-multi-package-split.md) records the package split. [docs/runbooks/shared-libs-versioning.md](docs/runbooks/shared-libs-versioning.md) is the package selection, bump-and-publish, and consumer sweep runbook.
 
 ## Domain glossary
 
@@ -89,7 +106,7 @@ Short definitions of the load-bearing terms used throughout this repo. Each entr
 
 ## Architecture at a glance
 
-Eight business services sit behind a single API Gateway and coordinate asynchronously over RabbitMQ or Azure Service Bus. The gateway terminates JWT auth (validated against the Auth service's JWKS), aggregates Swagger, and fronts the DLQ operator API. The **Saga** service owns the Order → Inventory → Payment → Shipping workflow, sends commands to those four participants, and consumes their reply events; **Basket**, **Product**, and **Auth** stay outside the order saga but publish/consume their own events. Each service owns its datastore (SQL Server, with Redis for Basket) and emits OpenTelemetry traces, metrics, and logs through the OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top.
+Eight business services sit behind a single API Gateway and coordinate asynchronously over RabbitMQ or Azure Service Bus. The gateway terminates JWT auth (validated against the Auth service's JWKS), aggregates Swagger, and fronts the DLQ operator API. The **Saga** service owns the Order → Inventory → Payment → Shipping workflow, sends commands to those four participants, and consumes their reply events; **Basket**, **Product**, and **Auth** stay outside the order saga but publish/consume their own events. Each service owns its datastore (SQL Server, with Redis for Basket), follows the Clean Architecture + Vertical Slices default from [ADR-0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md), and emits OpenTelemetry traces, metrics, and logs through the OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top.
 
 ```mermaid
 graph TD
@@ -179,17 +196,22 @@ The load-bearing decisions live as MADR-lite ADRs under [docs/adr/](docs/adr/REA
 8. [ADR-0008](docs/adr/0008-saga-choreography-no-central-orchestrator.md) — Event-driven saga coordination for Order/Inventory/Payment/Shipping (superseded)
 9. [ADR-0009](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md) — OpenTelemetry + Jaeger + Prometheus + Loki + Grafana observability stack
 10. [ADR-0010](docs/adr/0010-saga-orchestrator-supersedes-choreography.md) — Saga orchestrator owns Order/Inventory/Payment/Shipping (supersedes ADR-0008)
+11. [ADR-0011](docs/adr/0011-order-cleanarch-vsa-pilot.md) — Order service Clean Architecture + Vertical Slice pilot
+12. [ADR-0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md) — Clean Architecture + Vertical Slices is the default service shape
+13. [ADR-0013](docs/adr/0013-shared-libs-multi-package-split.md) — `ECommerce.Shared` split into nine capability packages plus umbrella metapackage
 
 ## Agentic coding workflow
 
 This repo is the system I built *around* the AI tools, not just a project I built *with* them. The system is what I want to show; the eight services are the proof that the system works. Six anchors, each one tied to a path in this repo:
 
-1. **Written contracts, not vibes.** Every non-trivial change starts as a PRD in [docs/prd/](docs/prd/), decomposes into tracer-bullet phases in [docs/plans/](docs/plans/), and — when a load-bearing choice falls out of it — lands an ADR in [docs/adr/](docs/adr/) (10 to date). Agents read the contract before they touch code. When the diff is wrong, the PRD was usually wrong first; fixing the doc fixes the next ten generations.
-2. **Repo-resident guardrails.** [`CLAUDE.md`](CLAUDE.md), [`.claude/CLAUDE.md`](.claude/CLAUDE.md), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md) lay out the conventions both agents must respect — `Given_When_Then` test names, `ApiModels/` vs `Models/` split, `TreatWarningsAsErrors`, the sandbox commit-gate policy. When an agent goes wrong, the file that needs the fix is almost always one of these three.
+1. **Written contracts, not vibes.** Every non-trivial change starts as a PRD in [docs/prd/](docs/prd/), decomposes into tracer-bullet phases in [docs/plans/](docs/plans/), and — when a load-bearing choice falls out of it — lands an ADR in [docs/adr/](docs/adr/) (13 to date). Agents read the contract before they touch code. When the diff is wrong, the PRD was usually wrong first; fixing the doc fixes the next ten generations.
+2. **Repo-resident guardrails.** [`CLAUDE.md`](CLAUDE.md), [`.claude/CLAUDE.md`](.claude/CLAUDE.md), and [`.github/copilot-instructions.md`](.github/copilot-instructions.md) lay out the conventions both agents must respect — `Given_When_Then` test names, `Features/<Slice>/` vs `Domain/` boundaries, `TreatWarningsAsErrors`, the sandbox commit-gate policy. When an agent goes wrong, the file that needs the fix is almost always one of these three.
 3. **Autonomous AFK loop.** [`.github/prompts/afk-task.prompt.md`](.github/prompts/afk-task.prompt.md) is a self-contained loop the agent can run unattended: pick the next AFK-eligible GitHub issue, implement the smallest end-to-end vertical slice, run the feedback loops, commit, update the issue. `hitl` / `human-in-the-loop` / `blocked` labels gate the agent out of work I want to drive myself.
 4. **Typed feedback loops the agent can run alone.** `Directory.Build.props` promotes warnings to errors and enforces `.editorconfig`; Husky.Net runs `dotnet format --verify-no-changes`, `dotnet build`, and the Basket test suite on every commit; the public write-up of why this matters lives at [docs/essential-ai-coding-feedback-loops.md](docs/essential-ai-coding-feedback-loops.md). The strictness isn't for its own sake — an agent without ground truth invents plausible code, and these gates are the ground truth.
 5. **Commit-gate honesty.** Sandbox runs that can't pass the hooks hand off to the host instead of committing with a deferred-validation footer. The prohibitions — no `--no-verify`, no `-c core.hooksPath=`, no `Hooks-Deferred:` footers, no partial commits — are spelled out under "Hard prohibitions" in [`CLAUDE.md`](CLAUDE.md), so neither I nor the agent is tempted to bypass them under time pressure.
 6. **Memory and retrieval.** A `load-session-context` skill backed by a local QMD index pulls relevant prior sessions and curated docs into context before continuing work — saga refactors, DLQ runbooks, gateway tradeoffs are recallable months later instead of re-derived.
+
+PR #295 added `/spec-pipeline`, AFK, and custom-agent prompts as explicit authoring paths rather than one-off chat rituals. The workflow turns a prompt into a PRD, tracer-bullet implementation plan, GitHub issues, and AFK-executable tasks with the same `CLAUDE.md` grounding files every agent reads. That keeps AI-assisted work reviewable as repo artifacts instead of hidden in chat history.
 
 The two-tool split inside that workflow: **Claude Code Max** is the long-running, repo-aware partner that reads `CLAUDE.md` plus the PRDs and plans before it touches code — multi-file work, AFK runs, integration tests against `WebApplicationFactory<Program>`, and the judgement conversations ("is this the right saga shape?", "is `StockItem` the right aggregate boundary?"). **GitHub Copilot Pro+** is the in-editor reflex — inline completions, single-method edits, test scaffolding, "finish this LINQ query" moments. The contract is the same for both; only the latency differs.
 
@@ -211,7 +233,7 @@ In rough order of how surprising each one was:
 3. **JWT issuance with JWKS discovery is more boring than I expected, and that's the point.** RS256 + `/jwks` (ADR-0003) means no service ever sees the signing key, no shared secret has to rotate across service config files, and adding another service is a three-line change. The first time I rotated a key in dev and nothing broke is the moment the design earned its keep.
 4. **OpenTelemetry wiring is 80% plumbing, 20% taste.** Getting traces, metrics, and logs through a single Collector into Jaeger/Prometheus/Loki is mechanical (ADR-0009). The interesting work is *what* to instrument: outbox lag, DLQ depth, saga step latency, RabbitMQ queue backlog. The dashboards and alerts (`HighHttpErrorRate`, `RabbitMqQueueBacklog`, `LowStockAlert`) are where the platform becomes operable rather than just observable.
 5. **A dual-gateway switch is a cheap insurance policy.** Compiling both YARP and Ocelot behind a `Gateway:Provider` flag (ADR-0001) cost a single afternoon and gave me a non-trivial migration story, an A/B comparison surface, and a rollback plan for free. The lesson generalises: when two stacks both look like "the right answer," make the choice runtime-switchable until production tells you which one wins.
-6. **Distributing a shared library as NuGet — even against a local feed — is qualitatively different from a project reference.** ADR-0005 forced me to think in versions: a breaking change in `ECommerce.Shared` requires a `<Version>` bump, a `dotnet pack`, a push to the local feed, and an explicit consumer upgrade. That ceremony is annoying for a hobby repo and exactly right for a real platform — it surfaces coupling that project references hide.
+6. **Distributing a shared library as NuGet — even against a local feed — is qualitatively different from a project reference.** ADR-0005 forced me to think in versions, and ADR-0013 made the coupling more visible by splitting the library into narrow capability packages. A shared change now requires a lockstep `<Version>` bump, `dotnet pack`, a local-feed publish, and an explicit consumer sweep. That ceremony is annoying for a hobby repo and exactly right for a real platform — it surfaces coupling that project references hide.
 7. **The agentic coding workflow is the most reusable thing I built.** More reusable than any single service. Its ceiling is the quality of the contracts (PRDs, plans, ADRs, `CLAUDE.md`) and the strictness of the feedback loops (`TreatWarningsAsErrors`, Husky.Net pre-commit, the commit-gate prohibitions). Raise either, and the next ten generations of agent output get better for free. That insight reshaped how I write down anything I expect to revisit.
 
 The gateway's combined Swagger UI is the fastest way to show the "single front door, many services" shape of the platform without explaining the route table first.
@@ -227,6 +249,7 @@ Every doc, plan, ADR, runbook, and deployment manifest folder in the repo, index
 - [README.md](README.md) — runnable quickstart and per-service reference
 - [CLAUDE.md](CLAUDE.md) — repo conventions for AI agents
 - [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — Copilot-side conventions
+- [docs/PATTERNS.md](docs/PATTERNS.md) — implementation patterns for service shape, slices, messaging, outbox, and tests
 - [`docker-compose.yaml`](docker-compose.yaml) — local stack
 - [LICENSE](LICENSE) — MIT
 
@@ -299,12 +322,16 @@ Every doc, plan, ADR, runbook, and deployment manifest folder in the repo, index
 - [ADR-0008 — Event-driven saga coordination (superseded)](docs/adr/0008-saga-choreography-no-central-orchestrator.md)
 - [ADR-0009 — OTEL + Jaeger + Prometheus + Loki + Grafana](docs/adr/0009-otel-jaeger-prometheus-loki-grafana.md)
 - [ADR-0010 — Saga orchestrator (supersedes ADR-0008)](docs/adr/0010-saga-orchestrator-supersedes-choreography.md)
+- [ADR-0011 — Order Clean Arch + VSA pilot](docs/adr/0011-order-cleanarch-vsa-pilot.md)
+- [ADR-0012 — Clean Arch + VSA default service shape](docs/adr/0012-clean-arch-vsa-default-service-shape.md)
+- [ADR-0013 — Shared-libs multi-package split](docs/adr/0013-shared-libs-multi-package-split.md)
 
 ### Runbooks ([`docs/runbooks/`](docs/runbooks/))
 
 - [Payment smoke test](docs/runbooks/payment-smoke.md)
 - [Provider-agnostic DLQ capture and replay](docs/runbooks/provider-agnostic-dlq.md)
 - [Saga orchestrator strangler](docs/runbooks/saga-orchestrator-strangler.md)
+- [Shared-libs versioning](docs/runbooks/shared-libs-versioning.md)
 
 ### Deployment manifests
 

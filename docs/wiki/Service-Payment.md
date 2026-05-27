@@ -10,6 +10,7 @@ Closes the checkout loop with authorize/capture/refund against a pluggable provi
 | **Tests** | [`payment-microservice/Payment.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/payment-microservice/Payment.Tests) |
 | **Publishes** | `PaymentAuthorizedEvent`, `PaymentFailedEvent`, `PaymentCapturedEvent`, `PaymentVoidedEvent`, `PaymentRefundedEvent` |
 | **Subscribes** | `AuthorizePaymentCommand`, `CapturePaymentCommand`, `VoidPaymentCommand`, `RefundPaymentCommand` (from Saga); `OrderCreatedEvent` (customer cache) |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); Payment re-adopts the outbox seam for multi-producer domain events. |
 
 ## Responsibilities
 
@@ -31,7 +32,7 @@ All endpoints sit behind the gateway under `/payment` and require a valid JWT.
 | `POST` | `/payment/{paymentId}/capture` | Admin | Manual capture override (`Authorized → Captured`); idempotent |
 | `POST` | `/payment/{paymentId}/refund` | Admin | Refund a captured payment (`Captured → Refunded`); body `{ amount?: decimal }` defaults to full |
 
-Implementation: `Endpoints/PaymentApiEndpoints.cs`. Cross-customer reads return 404 (not 403), matching the Shipping pattern.
+Implementations live under `Features/`, including `GetPaymentByOrder/`, `GetPaymentById/`, `CapturePayment/`, `RefundPayment/`, saga command slices, and `OrderCreated/`. Cross-customer reads return 404 (not 403), matching the Shipping pattern.
 
 ## State machine
 
@@ -93,13 +94,14 @@ All published events and incoming commands flow through the shared transactional
 ```
 Payment.Service/
 ├── Program.cs
-├── Endpoints/PaymentApiEndpoints.cs
-├── Models/                         # Payment aggregate, PaymentStatus, OrderCustomer
+├── Dockerfile                  # Multi-stage build
+├── Features/                       # HTTP, command, event, and integration-map slices
+├── Domain/                         # Payment aggregate, PaymentStatus, OrderCustomer
+├── Contracts/Integration/          # published + subscribed event contracts
 ├── Infrastructure/
 │   ├── Data/                       # IPaymentStore, EF Core context, configurations, seed
-│   └── Gateways/                   # IPaymentGateway, InMemoryPaymentGateway
-├── IntegrationEvents/              # published + subscribed events and handlers
-├── Observability/PaymentMetrics.cs
+│   ├── Gateways/                   # IPaymentGateway, InMemoryPaymentGateway
+│   └── Observability/              # PaymentMetrics
 └── Migrations/
 ```
 

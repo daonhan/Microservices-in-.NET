@@ -179,7 +179,7 @@ spec:
     Write-Host '    waiting for microservice pods to become Ready...'
     foreach ($app in @(
         'productservice','orderservice','basketservice','authservice',
-        'inventoryservice','shippingservice','paymentservice','apigateway'
+        'inventoryservice','shippingservice','paymentservice','sagaservice','apigateway'
     )) {
         Wait-App $app
     }

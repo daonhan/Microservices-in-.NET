@@ -6,84 +6,100 @@ A production-ready e-commerce system built with **.NET 10**, **ASP.NET Core Mini
 
 ## Architecture
 
+The architecture view is split by concern so each diagram has one job. The topology diagram shows the edge, service groups, owned data, and async backbone; the focused diagrams capture the order saga and operational failure/telemetry paths.
+
+### Runtime topology
+
 ```mermaid
-graph TD
-    Client([Client]) --> GW["API Gateway<br/>YARP · :8004<br/>JWT auth + routing<br/>+ DLQ operator API"]
+flowchart LR
+    Client([Client]) -->|HTTP| Gateway["API Gateway<br/>:8004<br/>YARP default / Ocelot fallback<br/>JWT, routing, Swagger, DLQ API"]
 
-    GW --> Basket["Basket<br/>:8000"]
-    GW --> Order["Order<br/>:8001"]
-    GW --> Product["Product<br/>:8002"]
-    GW --> Auth["Auth<br/>:8003"]
-    GW --> Inventory["Inventory<br/>:8005"]
-    GW --> Shipping["Shipping<br/>:8006"]
-    GW --> Payment["Payment<br/>:8007"]
-    GW --> Saga["Saga<br/>:8008"]
+    Gateway --> Auth["Auth<br/>:8003<br/>login, service tokens, JWKS"]
+    Gateway --> Product["Product<br/>:8002<br/>catalog API"]
+    Gateway --> Basket["Basket<br/>:8000<br/>cart API"]
+    Gateway --> Workflow["Order workflow APIs<br/>Order :8001<br/>Inventory :8005<br/>Payment :8007<br/>Shipping :8006<br/>Saga :8008"]
+    Gateway --> Operator["Operator API<br/>/operator/api/failures*"]
 
-    Basket --- Redis[(Redis)]
-    Order --- SQLOrder[(SQL Server)]
-    Product --- SQLProduct[(SQL Server)]
-    Auth --- SQLAuth[(SQL Server)]
-    Inventory --- SQLInventory[(SQL Server)]
-    Shipping --- SQLShipping[(SQL Server)]
-    Payment --- SQLPayment[(SQL Server)]
-    Saga --- SQLSaga[(SQL Server)]
-    GW --- SQLGateway[(SQL Server<br/>dead_letter_messages)]
+    Auth --- AuthDb[("Auth SQL")]
+    Product --- ProductDb[("Product SQL")]
+    Basket --- Redis[("Redis<br/>basket + price cache")]
+    Workflow --- WorkflowData[("Owned workflow stores<br/>Order SQL + Redis cache<br/>Inventory, Payment, Shipping, Saga SQL")]
+    Gateway --- GatewayDb[("Gateway SQL<br/>dead_letter_messages")]
 
-    Order -- publishes --> RabbitMQ{{"RabbitMQ<br/>fanout exchange<br/>ecommerce-exchange<br/>+ ecommerce-dlq"}}
-    Product -- publishes --> RabbitMQ
-    Inventory -- publishes --> RabbitMQ
-    Payment -- publishes --> RabbitMQ
-    Shipping -- publishes --> RabbitMQ
-    Saga -- publishes commands --> RabbitMQ
-    RabbitMQ -- subscribes --> Basket
-    RabbitMQ -- subscribes --> Order
-    RabbitMQ -- subscribes --> Inventory
-    RabbitMQ -- subscribes --> Payment
-    RabbitMQ -- subscribes --> Shipping
-    RabbitMQ -- subscribes --> Saga
+    Product -.->|product events| Broker{{"Messaging provider<br/>RabbitMQ fanout exchange<br/>or Azure Service Bus topic"}}
+    Broker -.->|price/order events| Basket
+    Workflow -.->|events + saga commands| Broker
+    Broker -.->|subscriptions| Workflow
+```
 
-    Saga -- commands --> Order
-    Saga -- commands --> Inventory
-    Saga -- commands --> Payment
-    Saga -- commands --> Shipping
-    Order -- reply events --> Saga
-    Inventory -- reply events --> Saga
-    Payment -- reply events --> Saga
-    Shipping -- reply events --> Saga
+Public traffic enters through the API Gateway. Cross-service write coordination uses the selected broker through shared messaging packages; services own their data and do not share databases.
 
-    subgraph Observability
-        OTEL["OTEL Collector"]
-        Jaeger["Jaeger<br/>(traces)"]
-        Prometheus["Prometheus<br/>(metrics)"]
-        Loki["Loki<br/>(logs)"]
-        Grafana["Grafana<br/>(dashboards)"]
-        Alertmanager["Alertmanager"]
-    end
+### Order saga flow
 
-    Basket -.-> OTEL
-    Order -.-> OTEL
-    Product -.-> OTEL
-    Auth -.-> OTEL
-    Inventory -.-> OTEL
-    Shipping -.-> OTEL
-    Payment -.-> OTEL
-    Saga -.-> OTEL
-    OTEL -.-> Jaeger
-    OTEL -.-> Loki
-    Prometheus -.-> Alertmanager
-    Grafana --- Prometheus
-    Grafana --- Loki
-    Grafana --- Jaeger
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant O as Order
+    participant Sg as Saga
+    participant I as Inventory
+    participant P as Payment
+    participant Sh as Shipping
+
+    C->>O: Create order (via Gateway)
+    Note over O,Sh: Events and commands are broker-mediated
+    O-->>Sg: OrderCreatedEvent
+    Sg->>I: ReserveStockCommand
+    I-->>Sg: StockReservedEvent
+    Sg->>P: AuthorizePaymentCommand
+    P-->>Sg: PaymentAuthorizedEvent
+    Sg->>O: ConfirmOrderCommand
+    O-->>Sg: OrderConfirmedEvent
+    Sg->>I: CommitStockCommand
+    I-->>Sg: StockCommittedEvent
+    Sg->>Sh: CreateShipmentCommand
+    Sh-->>Sg: ShipmentCreatedEvent
+    Sh-->>Sg: ShipmentDispatchedEvent
+    Sg->>P: CapturePaymentCommand
+    P-->>Sg: PaymentCapturedEvent
+    Sh-->>Sg: ShipmentDeliveredEvent
 ```
 
 Saga owns the order workflow. Order publishes `OrderCreatedEvent`; Saga persists an instance, sends commands to Order, Inventory, Payment, and Shipping, and advances only when those services publish reply events carrying `SagaId` and `CausationId`.
+
+### Failure and telemetry flow
+
+```mermaid
+flowchart LR
+    Publisher["Publishing service"] --> Outbox["Transactional outbox"]
+    Outbox --> Broker{{"RabbitMQ / Azure Service Bus"}}
+    Broker --> Consumer["Consumer service"]
+
+    Broker -->|retry exhausted| BrokerDlq["Broker dead letters"]
+    Publisher -->|failed rows| FailedOutbox["/internal/outbox/failed"]
+    BrokerDlq --> GatewayPoller["Gateway DLQ pollers"]
+    FailedOutbox --> GatewayPoller
+    GatewayPoller --> FailureStore[("dead_letter_messages")]
+    FailureStore --> OperatorApi["Operator API<br/>list, detail, replay, discard"]
+
+    Services["All services"] -.->|OTLP traces/logs| Collector["OTEL Collector"]
+    Services -.->|/metrics| Prometheus["Prometheus"]
+    Collector --> Jaeger["Jaeger<br/>traces"]
+    Collector --> Loki["Loki<br/>logs"]
+    Prometheus --> Alertmanager["Alertmanager"]
+    Grafana["Grafana"] --- Prometheus
+    Grafana --- Jaeger
+    Grafana --- Loki
+```
+
+Retry-exhausted broker messages and failed outbox rows converge in the gateway-owned failure store. Operators inspect, replay, or discard those failures through the gateway while telemetry continues through the OpenTelemetry and Prometheus paths.
 
 ## Services
 
 | Service | Port | Datastore | Responsibility |
 |---------|------|-----------|----------------|
 | **Basket** | 8000 | Redis | Shopping cart CRUD, product price caching |
-| **Order** | 8001 | SQL Server | Order creation, confirmation/cancellation, publishes `OrderCreatedEvent` / `OrderConfirmedEvent` / `OrderCancelledEvent` |
+| **Order** | 8001 | SQL Server + Redis | Order creation, confirmation/cancellation, product price cache, publishes `OrderCreatedEvent` / `OrderConfirmedEvent` / `OrderCancelledEvent` |
 | **Product** | 8002 | SQL Server | Product catalog, publishes `ProductCreatedEvent` / `ProductPriceUpdatedEvent` |
 | **Auth** | 8003 | SQL Server | User login (`/login`), service-to-service tokens (`/token`, `client_credentials`), RS256 JWT signing with `/jwks` discovery |
 | **API Gateway** | 8004 | SQL Server | YARP reverse proxy (Ocelot fallback available), centralized auth, role-based access, combined Swagger UI, **DLQ operator API** (`/operator/api/failures*`) |
@@ -112,28 +128,27 @@ Saga owns the order workflow. Order publishes `OrderCreatedEvent`; Saga persists
 │   └── Payment.Tests/        Unit & integration tests
 ├── saga-microservice/        Order/refund saga orchestration + operator saga API
 │   └── Saga.Tests/           Unit, integration, and end-to-end saga tests
-├── shared-libs/              ECommerce.Shared NuGet library
-├── local-nuget-packages/     Local NuGet feed for ECommerce.Shared
+├── shared-libs/              ECommerce.Shared capability packages
+├── local-nuget-packages/     Local NuGet feed for shared-libs packages
 ├── kubernetes/               K8s deployment manifests (services + observability)
 ├── observability/            OTEL Collector, Prometheus, Alertmanager, Grafana, Loki config
-├── docs/                     PRD and implementation plans
+├── docs/                     ADRs, PRDs, plans, wiki source, runbooks, patterns
 ├── plans/                    Active engineering plans
 ├── ralph/                    Agent/automation scripts
 ├── Directory.Build.props     Centralized MSBuild settings
 └── docker-compose.yaml       Full-stack local orchestration
 ```
 
-Each microservice follows a consistent layout:
+Each microservice follows **Clean Architecture + Vertical Slices** as the default service shape ([ADR-0012](docs/adr/0012-clean-arch-vsa-default-service-shape.md)); the Order service was the original pilot ([ADR-0011](docs/adr/0011-order-cleanarch-vsa-pilot.md)). The canonical implementation guide is [docs/PATTERNS.md](docs/PATTERNS.md).
 
 ```
 {Service}.Service/
 ├── Program.cs                Startup, DI, middleware
+├── Features/                 Vertical slices by HTTP route, event, or command
+├── Domain/                   Aggregates, domain services, domain events
+├── Contracts/Integration/    Cross-service message contracts
+├── Infrastructure/           EF Core, Redis, adapters, outbox endpoints
 ├── Dockerfile                Multi-stage build
-├── Endpoints/                Minimal API route handlers
-├── ApiModels/                Request/response DTOs
-├── Models/                   Domain entities
-├── Infrastructure/Data/      Storage abstractions + implementations
-├── IntegrationEvents/        Published/subscribed events + handlers
 └── Migrations/               EF Core migrations (if applicable)
 ```
 
@@ -200,22 +215,27 @@ The UI is gated to Development and Staging environments. Production gateway bina
 
 ## Shared Library
 
-`shared-libs/ECommerce.Shared` is distributed as a local NuGet package and provides:
+`shared-libs/` ships nine direct capability packages plus the `ECommerce.Shared` umbrella compatibility metapackage, all on one lockstep version. Production services use the narrow direct packages they need rather than the umbrella; [ADR-0013](docs/adr/0013-shared-libs-multi-package-split.md) records the split and [docs/runbooks/shared-libs-versioning.md](docs/runbooks/shared-libs-versioning.md) is the bump/publish/sweep runbook.
 
-- **Platform messaging** — `Messaging:Provider` selects RabbitMQ by default or Azure Service Bus; both share `IEventBus`, keyed DI event handler registration, retry, dead-letter capture, and replay through the gateway operator API
-- **Transactional Outbox** — `OutboxBackgroundService` polls for unpublished events, preventing data/event inconsistency; tracks publish failures and stops retrying after `MaxAttempts`, and exposes `/internal/outbox/failed` (gated by `RequireService`) for the gateway DLQ poller
-- **JWT Authentication** — `AddJwtAuthentication()` shared across all secured services; validates RS256 user tokens via Auth's `/jwks` and supports the `RequireService` policy for service-to-service calls
-- **Observability** — `AddPlatformObservability()` wires OpenTelemetry traces (OTLP → Jaeger), metrics (Prometheus scrape), and logs (OTLP → Loki), plus `MetricFactory` for custom counters/histograms, broker span context propagation, and the DLQ `ActivitySource` / `Meter` (including `dlq_messages_total`, `dlq_replays_total`, `dlq_discards_total` tagged by provider)
-- **Health Checks** — `AddPlatformHealthChecks()` with SQL Server / RabbitMQ / Redis probes, exposed via `MapPlatformHealthChecks()`
+| Package | Purpose |
+|---|---|
+| `ECommerce.Shared.Kernel` | `Event` base type, messaging options, telemetry constants, `MetricFactory` |
+| `ECommerce.Shared.EventBus` | `IEventBus`, event handler registration, transactional outbox |
+| `ECommerce.Shared.RabbitMq` | RabbitMQ broker adapter |
+| `ECommerce.Shared.AzureServiceBus` | Azure Service Bus broker adapter |
+| `ECommerce.Shared.Messaging` | `Messaging:Provider`, `AddPlatformEventBus`, publisher/subscriber composition |
+| `ECommerce.Shared.DeadLetter` | DLQ capture, persistence, replay, discard, provider adapters |
+| `ECommerce.Shared.Platform` | JWT auth, observability, health checks, OpenAPI helpers |
+| `ECommerce.Shared.Contracts` | Shared saga command contracts |
+| `ECommerce.Shared.Testing.Qa` | QA personas and seeding helpers |
 
-Current published version: **`ECommerce.Shared` 2.23.0** (see `shared-libs/ECommerce.Shared/ECommerce.Shared.csproj`).
+Current published version: **3.1.0** (see `shared-libs/Directory.Build.props`).
 
 ### Build and Publish
 
 ```bash
-cd shared-libs/ECommerce.Shared
-dotnet pack -c Release
-dotnet nuget push bin/Release/*.nupkg -s ../../local-nuget-packages
+dotnet pack -c Release shared-libs/ECommerce.Shared.slnx
+cp shared-libs/**/bin/Release/*.nupkg local-nuget-packages/
 ```
 
 ## Key Patterns
@@ -350,7 +370,7 @@ three environments (`ecommerce-dev`, `ecommerce-staging`, `ecommerce-prod`).
 | [ARCHITECTURE](Infrastructure%20-%20Deployment/docs/ARCHITECTURE.md) | Cloud topology, network, AKS, data plane, observability |
 | [SYSTEM_DESIGN](Infrastructure%20-%20Deployment/docs/SYSTEM_DESIGN.md) | End-to-end CI/CD: build, test, push, deploy |
 | [TECH_STACK](Infrastructure%20-%20Deployment/docs/TECH_STACK.md) | Every Azure service and its role |
-| [PATTERNS](Infrastructure%20-%20Deployment/docs/PATTERNS.md) | Codebase implementation patterns: service shape, slices, messaging, outbox, tests |
+| [PATTERNS](docs/PATTERNS.md) | Codebase implementation patterns: service shape, slices, messaging, outbox, tests |
 | [Devops Agent Setup](Infrastructure%20-%20Deployment/docs/Devops%20Agent%20Setup.md) | Migrating from Microsoft-hosted to self-hosted agents |
 | [Local K8s Guide](docs/LOCAL_K8S_GUIDE.md) | Running the full stack on Docker Desktop / Minikube |
 

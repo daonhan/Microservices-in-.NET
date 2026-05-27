@@ -4,12 +4,13 @@ Handles shipment lifecycle, carrier integration, and orchestrated fulfillment fo
 
 | | |
 |---|---|
-| **Port** | (dynamic; see deployment) |
+| **Port** | 8006 (host) -> 8080 (container) |
 | **Datastore** | SQL Server (database: `Shipping`) |
 | **Source** | [`shipping-microservice/Shipping.Service/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/shipping-microservice/Shipping.Service) |
 | **Tests** | [`shipping-microservice/Shipping.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/shipping-microservice/Shipping.Tests) |
 | **Publishes** | `ShipmentCreatedEvent`, `ShipmentDispatchedEvent`, `ShipmentDeliveredEvent`, `ShipmentCancelledEvent`, `ShipmentFailedEvent`, `ShipmentReturnedEvent`, `ShipmentStatusChangedEvent` |
 | **Subscribes** | `CreateShipmentCommand`, `CancelShipmentCommand` (from Saga) |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/adr/0012-clean-arch-vsa-default-service-shape.md)); carrier adapters live under `Infrastructure/Carriers/`. |
 
 ## Responsibilities
 
@@ -102,12 +103,11 @@ stateDiagram-v2
 ```
 Shipping.Service/
 ├── Program.cs
-├── Endpoints/ShippingApiEndpoints.cs
-├── ApiModels/
-├── Models/                 # Shipment aggregate, status history
-├── Carriers/               # ICarrierGateway, fakes, polling, webhook parser
-├── IntegrationEvents/      # published + subscribed events
-├── Infrastructure/Data/    # EF Core context
+├── Dockerfile                  # Multi-stage build
+├── Features/               # HTTP, command, and event slices
+├── Domain/                 # Shipment aggregate, status history, carrier abstractions
+├── Contracts/Integration/  # published + subscribed event contracts
+├── Infrastructure/         # EF Core data, carrier adapters, outbox endpoints
 └── Migrations/
 ```
 
