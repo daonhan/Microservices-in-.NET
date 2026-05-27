@@ -140,4 +140,4 @@ Stop and surface to the user — do **not** improvise — when:
 
 ## FINAL RULES
 
-ONLY WORK ON A SINGLE TASK.
+Work on ONE task at a time. Complete the full loop (steps 1-8) for the selected task before starting the next iteration. If `N > 1`, repeat sequentially; never work tasks in parallel.
