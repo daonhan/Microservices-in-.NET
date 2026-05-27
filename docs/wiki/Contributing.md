@@ -6,11 +6,11 @@ This page covers coding conventions and the wiki-publishing flow. Before opening
 
 | Area | Rule |
 |---|---|
-| API style | ASP.NET Core **Minimal APIs**. Route groups per service under `Endpoints/`. |
-| DTOs | All HTTP request/response shapes live in `ApiModels/`. Never expose `Models/` entities directly. |
-| Domain | Internal entities go in `Models/`. EF configuration lives alongside the `DbContext` in `Infrastructure/Data/`. |
-| Events | New events are classes under `IntegrationEvents/` that derive from `Event`. Publish via `IEventBus` (through the Outbox). Subscribe via `IEventHandler<TEvent>` + `AddEventHandler<,>()`. Shipping events follow the same pattern. |
-| Cross-cutting | Prefer an extension in [`ECommerce.Shared`](Shared-Library) over copy-paste across services. |
+| API style | ASP.NET Core **Minimal APIs**. Route groups and handlers live in `Features/<Slice>/` per [ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md). |
+| DTOs | HTTP request/response shapes live with the vertical slice that owns them. Never expose `Domain/` entities directly. |
+| Domain | Aggregates and invariants live in `Domain/`. EF configuration lives with the `DbContext` under `Infrastructure/Data/`. |
+| Events | Service-owned payloads live in `Contracts/Integration/`; handlers and integration maps live in the owning `Features/<Slice>/`. Publish via `IEventBus` through the outbox. Subscribe via `IEventHandler<TEvent>` + `AddEventHandler<,>()`. |
+| Cross-cutting | Prefer the matching [`ECommerce.Shared.*`](Shared-Library) capability package over copy-paste across services. |
 | Config | Put env-var-overridable keys in `appsettings.json`. Secrets never in repo. |
 | Migrations | `dotnet ef migrations add <Descriptive_Name>` from the service project. Check the SQL script before committing. |
 
@@ -51,10 +51,10 @@ Run shared-library EF commands from the no-space path when assembly loading fail
 the original checkout path:
 
 ```powershell
-cd C:\src\nhamnhi\shared-libs\ECommerce.Shared
+cd C:\src\nhamnhi
 dotnet restore
-dotnet ef dbcontext list --project .\ECommerce.Shared.csproj
-dotnet ef migrations add Add_DeadLetterMessage --context ECommerce.Shared.Infrastructure.DeadLetter.DeadLetterDbContext --project .\ECommerce.Shared.csproj
+dotnet ef dbcontext list --project .\shared-libs\ECommerce.Shared.DeadLetter\ECommerce.Shared.DeadLetter.csproj
+dotnet ef migrations add Add_DeadLetterMessage --context ECommerce.Shared.Infrastructure.DeadLetter.DeadLetterDbContext --project .\shared-libs\ECommerce.Shared.DeadLetter\ECommerce.Shared.DeadLetter.csproj
 ```
 
 Verify migration/model consistency before committing:
@@ -63,7 +63,7 @@ Verify migration/model consistency before committing:
 cd C:\src\nhamnhi
 dotnet ef migrations has-pending-model-changes `
   --context ECommerce.Shared.Infrastructure.DeadLetter.DeadLetterDbContext `
-  --project .\shared-libs\ECommerce.Shared\ECommerce.Shared.csproj
+  --project .\shared-libs\ECommerce.Shared.DeadLetter\ECommerce.Shared.DeadLetter.csproj
 ```
 
 Expected clean output:
@@ -106,6 +106,8 @@ dotnet husky run --group pre-commit
 ## PRD / Plan workflow
 
 Substantial changes start as a PRD under [`docs/prd/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/docs/prd) and a phased plan under [`docs/plans/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/docs/plans). Prior art:
+
+The `/spec-pipeline`, AFK, and custom-agent workflow turns PRDs and plans into GitHub issues that an agent can execute with the repo's feedback loops. Agents should load the root `CLAUDE.md`, the relevant service `CLAUDE.md`, and the issue/plan context before editing; those grounding files are the source of service-local divergences from the default layout.
 
 - [`PRD-Inventory.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Inventory.md)
 - [`PRD-Observability.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Observability.md)

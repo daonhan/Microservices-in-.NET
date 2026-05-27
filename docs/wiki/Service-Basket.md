@@ -10,6 +10,7 @@ Shopping-cart service. Stores baskets in Redis and caches product prices it has 
 | **Tests** | [`basket-microservice/Basket.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/basket-microservice/Basket.Tests) |
 | **Publishes** | none |
 | **Subscribes** | `OrderCreatedEvent`, `ProductPriceUpdatedEvent` |
+| **Layout** | Clean Architecture + Vertical Slices default ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md)); Basket has no SQL outbox seam and keeps Redis access in `Infrastructure/`. |
 
 ## Responsibilities
 
@@ -29,7 +30,7 @@ All endpoints require a valid JWT at the Gateway.
 | `DELETE` | `/basket/{customerId}/{productId}` | Remove a single product |
 | `DELETE` | `/basket/{customerId}` | Delete the basket |
 
-Implementation: `Endpoints/BasketApiEndpoints.cs`.
+Implementations live in `Features/GetBasket/`, `Features/CreateBasket/`, `Features/AddBasketProduct/`, `Features/DeleteBasketProduct/`, and `Features/DeleteBasket/`.
 
 See [API-Reference](API-Reference) for consolidated listing.
 
@@ -45,11 +46,10 @@ Full payloads in [Integration-Events](Integration-Events).
 ```
 Basket.Service/
 ├── Program.cs
-├── Endpoints/BasketApiEndpoints.cs
-├── ApiModels/             # request/response DTOs
-├── Models/                # domain entities
-├── Infrastructure/        # Redis access, event handlers
-└── IntegrationEvents/     # subscribed events + handlers
+├── Features/              # HTTP slices + subscribed event slices
+├── Domain/                # basket aggregate and store abstraction
+├── Contracts/Integration/ # subscribed event contracts
+└── Infrastructure/        # Redis access
 ```
 
 ## Configuration

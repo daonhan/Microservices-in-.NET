@@ -7,6 +7,7 @@ Single public entry point. Validates JWTs, enforces role policies, and proxies t
 | **Port** | 8004 |
 | **Source** | [`api-gateway/ApiGateway/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/api-gateway/ApiGateway) |
 | **Tests** | [`api-gateway/ApiGateway.Tests/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/api-gateway/ApiGateway.Tests) |
+| **Layout** | Clean Architecture + Vertical Slices default adapted for the gateway ([ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md)); operator API slices live under `Features/Operator/`, proxy and DLQ infrastructure under `Infrastructure/`. |
 
 ## Switching providers
 

@@ -17,8 +17,12 @@ A snapshot of where the platform is heading. Intent here is aspirational; author
 - ✅ Azure cloud deployment — Bicep IaC (VNet, AKS, ACR, SQL, Redis, Key Vault, Monitor, Service Bus), per-service Azure Pipelines (build + multi-env deploy), Dev/Staging/Prod AKS manifests with Ingress, Azure Service Bus adapter for `IEventBus`, Application Insights via Azure Monitor OTel exporter — [Epic #33](https://github.com/daonhan/Microservices-in-.NET/issues/33) · [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/azure-infrastructure-deployment.md) · [Plan](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/plans/azure-infrastructure-deployment-plan.md) · wiki: [Azure-Deployment](Azure-Deployment)
 - ✅ Public Wiki (this wiki) — [PRD](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/prd/PRD-Wiki.md)
 
-### Delivered (2026-05)
+### Delivered 2026-05
 
+- ✅ **Clean Architecture + Vertical Slices default** — [ADR-0012](../adr/0012-clean-arch-vsa-default-service-shape.md) promoted the Order pilot to the repo-wide service shape, with [docs/PATTERNS.md](../PATTERNS.md) as the implementation guide.
+- ✅ **Shared-libs narrow pinning** — [ADR-0013](../adr/0013-shared-libs-multi-package-split.md) split shared-libs into nine direct capability packages plus the umbrella compatibility package; PR #294 completed the messaging extraction and production narrow-package convergence.
+- ✅ **Spec-pipeline / AFK / custom agents** — PR #295 made PRD-to-plan-to-issue authoring and AFK execution explicit repo workflows.
+- ✅ **QA smoke gap closure** — #292 wired saga-operator and shipping terminal coverage into the Bruno smoke suite.
 - ✅ **Saga orchestrator cutover** — Saga service owns end-to-end order saga state; participants driven by commands (Reserve/Commit/Release stock, Authorize/Capture/Void/Refund payment, Confirm/Cancel order, Create/Cancel shipment); legacy event-driven saga handlers removed — [#132](https://github.com/daonhan/Microservices-in-.NET/issues/132) · [#136](https://github.com/daonhan/Microservices-in-.NET/issues/136) · [#137](https://github.com/daonhan/Microservices-in-.NET/issues/137) · [Strangler runbook](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/runbooks/saga-orchestrator-strangler.md)
 - ✅ **Refund saga** — `RefundSaga` state machine + `RefundRequestedEvent` for post-capture refund flow — [#130](https://github.com/daonhan/Microservices-in-.NET/issues/130)
 - ✅ **Saga reaper + per-step timeouts** — background reaper drives stuck saga instances to compensation when participants miss step deadlines — [#126](https://github.com/daonhan/Microservices-in-.NET/issues/126)
