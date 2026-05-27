@@ -46,6 +46,7 @@ Full payloads in [Integration-Events](Integration-Events).
 ```
 Basket.Service/
 ├── Program.cs
+├── Dockerfile                  # Multi-stage build
 ├── Features/              # HTTP slices + subscribed event slices
 ├── Domain/                # basket aggregate and store abstraction
 ├── Contracts/Integration/ # subscribed event contracts

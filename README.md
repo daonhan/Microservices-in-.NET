@@ -148,6 +148,7 @@ Each microservice follows **Clean Architecture + Vertical Slices** as the defaul
 ├── Domain/                   Aggregates, domain services, domain events
 ├── Contracts/Integration/    Cross-service message contracts
 ├── Infrastructure/           EF Core, Redis, adapters, outbox endpoints
+├── Dockerfile                Multi-stage build
 └── Migrations/               EF Core migrations (if applicable)
 ```
 

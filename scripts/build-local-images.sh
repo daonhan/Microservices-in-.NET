@@ -31,6 +31,7 @@ SERVICES=(
   "inventory:inventory-microservice/Inventory.Service:inventoryservice"
   "shipping:shipping-microservice/Shipping.Service:shippingservice"
   "payment:payment-microservice/Payment.Service:paymentservice"
+  "saga:saga-microservice/Saga.Service:sagaservice"
   "apigateway:api-gateway/ApiGateway:apigateway"
 )
 

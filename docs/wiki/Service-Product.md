@@ -41,6 +41,7 @@ Payloads: [Integration-Events](Integration-Events).
 ```
 Product.Service/
 ├── Program.cs
+├── Dockerfile                  # Multi-stage build
 ├── Features/
 ├── Domain/
 ├── Contracts/Integration/

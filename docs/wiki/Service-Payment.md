@@ -94,6 +94,7 @@ All published events and incoming commands flow through the shared transactional
 ```
 Payment.Service/
 ├── Program.cs
+├── Dockerfile                  # Multi-stage build
 ├── Features/                       # HTTP, command, event, and integration-map slices
 ├── Domain/                         # Payment aggregate, PaymentStatus, OrderCustomer
 ├── Contracts/Integration/          # published + subscribed event contracts

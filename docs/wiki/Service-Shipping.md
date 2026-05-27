@@ -103,6 +103,7 @@ stateDiagram-v2
 ```
 Shipping.Service/
 ├── Program.cs
+├── Dockerfile                  # Multi-stage build
 ├── Features/               # HTTP, command, and event slices
 ├── Domain/                 # Shipment aggregate, status history, carrier abstractions
 ├── Contracts/Integration/  # published + subscribed event contracts

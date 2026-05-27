@@ -69,6 +69,7 @@ Located under `Order.Service/Migrations/`. Run via `dotnet ef database update` f
 ```
 Order.Service/
 ├── Program.cs
+├── Dockerfile                  # Multi-stage build
 ├── Features/                  # HTTP, command, event, and integration-map slices
 ├── Domain/                    # Order aggregate + domain events (OrderCreated/Confirmed/Cancelled)
 ├── Contracts/Integration/     # published + subscribed event contracts

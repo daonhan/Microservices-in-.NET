@@ -61,6 +61,7 @@ Inventory is a saga participant driven by the [Saga service](Service-Saga). The 
 ```
 Inventory.Service/
 ├── Program.cs
+├── Dockerfile                  # Multi-stage build
 ├── Features/               # HTTP, command, and event slices
 ├── Domain/                 # StockItem aggregate (Hold/Commit/Release), StockLevel,
 │                           # StockReservation (guarded), StockMovement, BackorderRequest,

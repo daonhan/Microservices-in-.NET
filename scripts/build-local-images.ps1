@@ -3,7 +3,7 @@
     Build all microservice Docker images for local Kubernetes practice.
 
 .DESCRIPTION
-    Builds product, order, basket, auth, inventory, shipping, payment, and api-gateway
+    Builds product, order, basket, auth, inventory, shipping, payment, saga, and api-gateway
     images tagged as `local/<service>:latest`, with the repo root as build context so
     that shared-libs/, Directory.Build.props, and local-nuget-packages/ are visible.
 
@@ -42,6 +42,7 @@ try {
         @{ Name = 'inventory';  Context = 'inventory-microservice/Inventory.Service'; Image = 'inventoryservice'  },
         @{ Name = 'shipping';   Context = 'shipping-microservice/Shipping.Service';   Image = 'shippingservice'   },
         @{ Name = 'payment';    Context = 'payment-microservice/Payment.Service';     Image = 'paymentservice'    },
+        @{ Name = 'saga';       Context = 'saga-microservice/Saga.Service';           Image = 'sagaservice'       },
         @{ Name = 'apigateway'; Context = 'api-gateway/ApiGateway';                   Image = 'apigateway'        }
     )
 

@@ -52,6 +52,7 @@ See [Shared-Library](Shared-Library) for what these do internally.
 ```
 Auth.Service/
 ├── Program.cs
+├── Dockerfile                  # Multi-stage build
 ├── Features/
 │   ├── Login/                     # /login (user tokens, RS256)
 │   ├── IssueServiceToken/         # /token (client_credentials, RS256)
