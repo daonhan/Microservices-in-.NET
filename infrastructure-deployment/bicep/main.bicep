@@ -11,7 +11,7 @@
 //   - Application Insights
 //   - Azure Service Bus namespace + topics
 //
-// Per-environment values come from parameters/{dev,staging,prod}.bicepparam.
+// Per-environment values come from parameters/{dev,staging,prod,sandbox}.bicepparam.
 
 targetScope = 'resourceGroup'
 
@@ -20,8 +20,16 @@ targetScope = 'resourceGroup'
   'dev'
   'staging'
   'prod'
+  'sandbox'
 ])
 param environment string
+
+@description('Cost-tier selector. "minimal" activates cheap SKUs in SKU-bearing modules; "standard" is the default and preserves existing behavior.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
 
 @description('Short workload identifier used in resource names.')
 @minLength(2)
@@ -116,11 +124,38 @@ param keyVaultSku string = 'standard'
 @maxValue(730)
 param logRetentionDays int = 30
 
+@description('Log Analytics daily ingestion cap in GB. -1 (default) leaves the workspace uncapped; set a positive integer to enforce a daily quota.')
+param logDailyCapGb int = -1
+
+// ── App Insights ──────────────────────────────────────────────────────────────
+
+@description('Application Insights ingestion sampling percentage (1-100). 100 (default) means no sampling.')
+@minValue(1)
+@maxValue(100)
+param appInsightsSamplingPercentage int = 100
+
 // ── Service Bus ───────────────────────────────────────────────────────────────
 
 @description('Service Bus SKU.')
 @allowed(['Basic', 'Standard', 'Premium'])
 param serviceBusSku string = 'Standard'
+
+// ── Budget (sandbox only) ─────────────────────────────────────────────────────
+
+@description('Monthly cap in subscription currency for the sandbox budget. Only used when environment == "sandbox".')
+@minValue(1)
+param budgetAmount int = 100
+
+@description('Contact emails for the sandbox budget forecasted threshold alert. Only used when environment == "sandbox"; override for real deployments.')
+@minLength(1)
+param budgetContactEmails array = [
+  'your-email@example.com'
+]
+
+@description('Forecasted-spend threshold percentage (1-1000) that fires the sandbox budget alert.')
+@minValue(1)
+@maxValue(1000)
+param budgetFirstThresholdPercent int = 80
 
 var commonTags = {
   workload: workload
@@ -137,6 +172,9 @@ var keyVaultName = '${workload}-${environment}-kv'
 var logWorkspaceName = '${workload}-${environment}-logs'
 var appInsightsName = '${workload}-${environment}-ai'
 var serviceBusName = '${workload}-${environment}-sb'
+var budgetName = '${workload}-${environment}-budget'
+
+var isSandbox = environment == 'sandbox'
 
 module vnet 'modules/vnet.bicep' = {
   name: 'vnet-deploy'
@@ -151,7 +189,10 @@ module vnet 'modules/vnet.bicep' = {
   }
 }
 
-module acr 'modules/acr.bicep' = {
+// Sandbox reuses an existing shared ACR (typically in a separate resource group),
+// so the registry resource is not provisioned here. AcrPull on the kubelet identity
+// must be granted out-of-band after deploy — see docs/SANDBOX.md.
+module acr 'modules/acr.bicep' = if (!isSandbox) {
   name: 'acr-deploy'
   params: {
     acrName: acrName
@@ -174,14 +215,16 @@ module aks 'modules/aks.bicep' = {
     systemNodeVmSize: aksSystemNodeVmSize
     serviceCidr: serviceCidr
     dnsServiceIP: dnsServiceIP
+    costProfile: costProfile
     tags: commonTags
   }
 }
 
-module acrPull 'modules/acr-pull-role.bicep' = {
+module acrPull 'modules/acr-pull-role.bicep' = if (!isSandbox) {
   name: 'aks-acr-pull-role'
   params: {
-    acrName: acr.outputs.acrName
+    // Both modules share the same !isSandbox guard; safe-access satisfies the analyzer.
+    acrName: acr.?outputs.acrName ?? acrName
     principalId: aks.outputs.kubeletIdentityObjectId
     assignmentSeed: aks.outputs.aksId
   }
@@ -196,6 +239,7 @@ module sql 'modules/sql.bicep' = {
     adminPassword: sqlAdminPassword
     dbSkuName: dbSkuName
     dbSkuTier: dbSkuTier
+    costProfile: costProfile
     tags: commonTags
   }
 }
@@ -208,6 +252,7 @@ module redis 'modules/redis.bicep' = {
     skuFamily: redisSkuFamily
     skuName: redisSkuName
     skuCapacity: redisSkuCapacity
+    costProfile: costProfile
     tags: commonTags
   }
 }
@@ -228,6 +273,8 @@ module monitor 'modules/monitor.bicep' = {
     workspaceName: logWorkspaceName
     location: location
     retentionInDays: logRetentionDays
+    costProfile: costProfile
+    dailyCapGb: logDailyCapGb
     tags: commonTags
   }
 }
@@ -238,6 +285,8 @@ module appInsights 'modules/appinsights.bicep' = {
     appInsightsName: appInsightsName
     location: location
     workspaceId: monitor.outputs.workspaceId
+    costProfile: costProfile
+    samplingPercentage: appInsightsSamplingPercentage
     tags: commonTags
   }
 }
@@ -252,6 +301,16 @@ module serviceBus 'modules/servicebus.bicep' = {
   }
 }
 
+module budget 'modules/budget.bicep' = if (isSandbox) {
+  name: 'budget-deploy'
+  params: {
+    budgetName: budgetName
+    amount: budgetAmount
+    contactEmails: budgetContactEmails
+    firstThresholdPercent: budgetFirstThresholdPercent
+  }
+}
+
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
 @description('Resource ID of the deployed VNet.')
@@ -263,11 +322,11 @@ output aksSubnetId string = vnet.outputs.aksSubnetId
 @description('Resource ID of the private-endpoints subnet (for downstream slices).')
 output privateEndpointsSubnetId string = vnet.outputs.privateEndpointsSubnetId
 
-@description('Login server for the ACR.')
-output acrLoginServer string = acr.outputs.acrLoginServer
+@description('Login server for the ACR. Empty when environment == "sandbox" (sandbox reuses an existing shared ACR).')
+output acrLoginServer string = acr.?outputs.acrLoginServer ?? ''
 
-@description('Name of the ACR.')
-output acrName string = acr.outputs.acrName
+@description('Name of the ACR. Echoes the input acrName for sandbox; otherwise the deployed ACR name.')
+output acrName string = acr.?outputs.acrName ?? acrName
 
 @description('Name of the AKS cluster.')
 output aksName string = aks.outputs.aksName
@@ -282,6 +341,7 @@ output sqlServerFqdn string = sql.outputs.sqlServerFqdn
 output sqlConnectionStringPrefix string = sql.outputs.connectionStringPrefix
 
 @description('Redis connection string (host:port,password=...,ssl=True).')
+@secure()
 output redisConnectionString string = redis.outputs.connectionString
 
 @description('URI of the Key Vault.')
@@ -291,4 +351,5 @@ output keyVaultUri string = keyVault.outputs.keyVaultUri
 output appInsightsConnectionString string = appInsights.outputs.connectionString
 
 @description('Service Bus primary connection string.')
+@secure()
 output serviceBusConnectionString string = serviceBus.outputs.primaryConnectionString

@@ -1,0 +1,36 @@
+# Sandbox AKS start pipeline.
+#
+# Runs at 08:00 UTC Monday through Friday only. The weekend is intentionally
+# omitted -- to use the sandbox on a Saturday or Sunday, queue this pipeline
+# manually from Azure DevOps. `az aks start` reallocates the VMSS so pods can
+# schedule again after the nightly `sandbox-stop.yml` shutdown.
+#
+# Required pipeline variables (e.g. via a variable group attached at run time):
+#   SANDBOX_AZURE_SERVICE_CONNECTION  ARM service connection with rights on the RG
+#   SANDBOX_RG                        sandbox resource group name
+#   SANDBOX_AKS_NAME                  sandbox AKS cluster name
+
+trigger: none
+pr: none
+
+schedules:
+  - cron: "0 8 * * 1-5"
+    displayName: Weekday AKS start at 08:00 UTC
+    branches:
+      include:
+        - main
+    always: true
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: AzureCLI@2
+    displayName: Start sandbox AKS cluster
+    inputs:
+      azureSubscription: $(SANDBOX_AZURE_SERVICE_CONNECTION)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -euo pipefail
+        az aks start --resource-group "$(SANDBOX_RG)" --name "$(SANDBOX_AKS_NAME)"

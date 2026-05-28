@@ -35,8 +35,27 @@ param dbSkuName string = 'Basic'
 @description('Database SKU tier. Use "Basic" for dev, "Standard" for staging/prod.')
 param dbSkuTier string = 'Basic'
 
+@description('Cost-tier selector. When "minimal", databases are deployed on the SQL Serverless tier (GP_S_Gen5) with auto-pause; otherwise the provisioned SKU above is used.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
+
+@description('SQL Serverless minimum vCore capacity, passed as a string for json() conversion (e.g., "0.5"). Used only when costProfile == "minimal".')
+param minCapacity string = '0.5'
+
+@description('SQL Serverless auto-pause delay in minutes. Used only when costProfile == "minimal".')
+@minValue(60)
+@maxValue(10080)
+param autoPauseDelay int = 60
+
 @description('Resource tags.')
 param tags object = {}
+
+var isMinimal = costProfile == 'minimal'
+var serverlessTier = 'GP_S_Gen5'
+var serverlessSkuName = '${serverlessTier}_1'
 
 resource sqlServer 'Microsoft.Sql/servers@2023-05-01-preview' = {
   name: sqlServerName
@@ -67,14 +86,22 @@ resource databases 'Microsoft.Sql/servers/databases@2023-05-01-preview' = [
     name: dbName
     location: location
     tags: tags
-    sku: {
+    sku: isMinimal ? {
+      name: serverlessSkuName
+      tier: 'GeneralPurpose'
+      family: 'Gen5'
+      capacity: 1
+    } : {
       name: dbSkuName
       tier: dbSkuTier
     }
-    properties: {
+    properties: union({
       collation: 'SQL_Latin1_General_CP1_CI_AS'
       maxSizeBytes: 2147483648 // 2 GB
-    }
+    }, isMinimal ? {
+      autoPauseDelay: autoPauseDelay
+      minCapacity: json(minCapacity)
+    } : {})
   }
 ]
 

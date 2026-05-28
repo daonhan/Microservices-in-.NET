@@ -21,6 +21,16 @@ param retentionInDays int = 30
 ])
 param sku string = 'PerGB2018'
 
+@description('Cost-tier selector. Passthrough; cap behavior is controlled directly by dailyCapGb.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
+
+@description('Daily ingestion cap in GB. Set to a positive value to cap; -1 (default) leaves the workspace uncapped.')
+param dailyCapGb int = -1
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -28,7 +38,7 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: workspaceName
   location: location
   tags: tags
-  properties: {
+  properties: union({
     sku: {
       name: sku
     }
@@ -38,7 +48,11 @@ resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
     }
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
-  }
+  }, dailyCapGb > 0 ? {
+    workspaceCapping: {
+      dailyQuotaGb: dailyCapGb
+    }
+  } : {})
 }
 
 @description('Resource ID of the Log Analytics Workspace.')

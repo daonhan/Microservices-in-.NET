@@ -19,6 +19,18 @@ param workspaceId string
 ])
 param applicationType string = 'web'
 
+@description('Cost-tier selector. Passthrough; sampling behavior is controlled directly by samplingPercentage.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
+
+@description('Application Insights ingestion sampling percentage (1-100). 100 (default) means no sampling and preserves existing-environment behavior.')
+@minValue(1)
+@maxValue(100)
+param samplingPercentage int = 100
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -27,13 +39,15 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   location: location
   kind: 'web'
   tags: tags
-  properties: {
+  properties: union({
     Application_Type: applicationType
     WorkspaceResourceId: workspaceId
     publicNetworkAccessForIngestion: 'Enabled'
     publicNetworkAccessForQuery: 'Enabled'
     RetentionInDays: 90
-  }
+  }, samplingPercentage < 100 ? {
+    SamplingPercentage: samplingPercentage
+  } : {})
 }
 
 @description('Application Insights Instrumentation Key (legacy; prefer connection string).')

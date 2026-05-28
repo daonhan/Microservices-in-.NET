@@ -90,6 +90,7 @@ resource rootKey 'Microsoft.ServiceBus/namespaces/authorizationRules@2022-10-01-
 }
 
 @description('Primary connection string for the Service Bus namespace.')
+@secure()
 output primaryConnectionString string = rootKey.listKeys().primaryConnectionString
 
 @description('Namespace endpoint (e.g., for SDK connection).')

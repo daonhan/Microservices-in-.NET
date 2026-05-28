@@ -35,7 +35,7 @@ filename prefix:
 `aks-*.yml` files reference Azure-only secrets (ACR pull, App Insights connection
 strings) and will fail to start without them.
 
-> The `Infrastructure - Deployment/kube/` folder contains a few legacy adapter
+> The `kubernetes/` folder contains a few legacy adapter
 > manifests unrelated to this guide. Ignore it for local practice.
 
 ---
@@ -653,4 +653,4 @@ without losing Docker Desktop itself.
   ([`kubernetes/aks-dev-product.yml`](https://github.com/daonhan/Microservices-in-.NET/blob/main/kubernetes/aks-dev-product.yml)).
 - For the deployment pipeline that promotes images through these environments,
   see [Azure-Deployment](Azure-Deployment) and
-  [`Infrastructure - Deployment/docs/SYSTEM_DESIGN.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/SYSTEM_DESIGN.md).
+  [`infrastructure-deployment/docs/SYSTEM_DESIGN.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/infrastructure-deployment/docs/SYSTEM_DESIGN.md).

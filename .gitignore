@@ -14,15 +14,14 @@ docs/prd/.brief-*.md
 ralph/
 .codex/
 .ralph-tmp/
-Infrastructure - Deployment/kube/
-Infrastructure - Deployment/azure-pipelines.yml
-Infrastructure - Deployment/Devops Agent Setup.md
-Infrastructure - Deployment/Dockerfile.build
-Infrastructure - Deployment/Dockerfile.run
-Infrastructure - Deployment/OVERVIEW.md
-Infrastructure - Deployment/SYSTEM_DESIGN.md
-Infrastructure - Deployment/TECH_STACK.md
-Infrastructure - Deployment/ARCHITECTURE.md
+infrastructure-deployment/azure-pipelines.yml
+infrastructure-deployment/Devops Agent Setup.md
+infrastructure-deployment/Dockerfile.build
+infrastructure-deployment/Dockerfile.run
+infrastructure-deployment/OVERVIEW.md
+infrastructure-deployment/SYSTEM_DESIGN.md
+infrastructure-deployment/TECH_STACK.md
+infrastructure-deployment/ARCHITECTURE.md
 
 # Claude Code local state
 .claude/*

@@ -37,6 +37,13 @@ param skuCapacity int = 0
 ])
 param redisVersion string = '6'
 
+@description('Cost-tier selector. Passthrough only in this phase; branching logic lands in a later phase.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
+
 @description('Resource tags.')
 param tags object = {}
 
@@ -66,7 +73,9 @@ output redisHostName string = redis.properties.hostName
 output redisSslPort int = redis.properties.sslPort
 
 @description('Redis primary access key (for K8s secret injection).')
+@secure()
 output redisPrimaryKey string = redis.listKeys().primaryKey
 
 @description('Connection string for StackExchange.Redis / Azure Cache for Redis.')
+@secure()
 output connectionString string = '${redis.properties.hostName}:${redis.properties.sslPort},password=${redis.listKeys().primaryKey},ssl=True,abortConnect=False'

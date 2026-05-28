@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: basketservice
+  namespace: ecommerce-sandbox
+  labels:
+    app: basketservice
+    environment: sandbox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: basketservice
+  template:
+    metadata:
+      labels:
+        app: basketservice
+        environment: sandbox
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      imagePullSecrets:
+        - name: acr-pull-secret
+      containers:
+        - name: basketservice
+          image: $(ACR_NAME).azurecr.io/basketservice:$(IMAGE_TAG)
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 6
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: Redis__Configuration
+              valueFrom:
+                secretKeyRef:
+                  name: redis-secret
+                  key: connection-string
+            - name: RabbitMq__HostName
+              valueFrom:
+                secretKeyRef:
+                  name: messaging-secret
+                  key: rabbitmq-host
+            - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: appinsights-secret
+                  key: connection-string
+            - name: OpenTelemetry__Exporter
+              value: AzureMonitor
+            - name: OpenTelemetry__SamplingRatio
+              value: "0.1"
+            - name: OpenTelemetry__ServiceVersion
+              value: "1.0.0"
+            - name: OpenTelemetry__Environment
+              value: Sandbox
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: basket-clusterip-service
+  namespace: ecommerce-sandbox
+spec:
+  type: ClusterIP
+  selector:
+    app: basketservice
+  ports:
+    - port: 8080
+      targetPort: 8080

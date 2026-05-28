@@ -39,6 +39,13 @@ param serviceCidr string = '10.0.0.0/16'
 @description('DNS service IP. Must be inside serviceCidr.')
 param dnsServiceIP string = '10.0.0.10'
 
+@description('Cost-tier selector. Passthrough only in this phase; branching logic lands in a later phase.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
+
 @description('Tags applied to the AKS cluster.')
 param tags object = {}
 

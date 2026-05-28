@@ -47,7 +47,7 @@ An eight-business-service e-commerce platform on .NET 10, built to run locally i
 - **Async backbone.** RabbitMQ is the default local broker, and Azure Service Bus can be selected with `Messaging:Provider`. Use [docs/local-dev/messaging.md](docs/local-dev/messaging.md) to choose between Compose Rabbit, F5 + ASB emulator, F5 + shared dev namespace, and Compose `--profile asb`. Both broker paths use the gateway operator API for captured dead letters. Publishers go through a transactional outbox so a crash between "committed" and "published" cannot desynchronise the system.
 - **Saga.** Saga service starts from `OrderCreatedEvent`, stores saga instance state, sends commands to Order/Inventory/Payment/Shipping, and advances from their reply events.
 - **Observability.** OpenTelemetry traces, metrics, and logs flow through an OTEL Collector into Jaeger, Prometheus, and Loki, with Grafana on top and Alertmanager wired to a starter set of alerts.
-- **Deployment.** Docker Compose for local, Kubernetes manifests under `kubernetes/` for `dev`/`staging`/`prod`, and an Azure-flavoured infra/pipelines folder under `Infrastructure - Deployment/`.
+- **Deployment.** Docker Compose for local, Kubernetes manifests under `kubernetes/` for `dev`/`staging`/`prod`, and an Azure-flavoured infra/pipelines folder under `infrastructure-deployment/`.
 - **Shared library.** Shared-libs are published as lockstep NuGet packages against a local feed (`local-nuget-packages/`) and consumed by every service via `<PackageReference>`, not via project references. Production services narrow-pin direct capability packages; the umbrella `ECommerce.Shared` package remains for compatibility and prototypes.
 
 Service catalog:
@@ -336,7 +336,7 @@ Every doc, plan, ADR, runbook, and deployment manifest folder in the repo, index
 ### Deployment manifests
 
 - [Kubernetes manifests](kubernetes/) — `aks-{dev,staging,prod}-*` per-service manifests plus shared `rabbitmq.yaml`, `redis.yaml`, `sql.yaml`, `otel-collector.yaml`, `prometheus.yaml`, `grafana.yaml`, `loki.yaml`, `jaeger.yaml`, `alertmanager.yaml`, `exporters.yaml`
-- [Infrastructure & pipelines](Infrastructure%20-%20Deployment/) — Bicep, Azure DevOps pipelines, Dockerfiles
+- [Infrastructure & pipelines](infrastructure-deployment/) — Bicep, Azure DevOps pipelines, Dockerfiles
 - [Observability stack](observability/) — local OTEL collector + Grafana provisioning
 
 ### Other docs

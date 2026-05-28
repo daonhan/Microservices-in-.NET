@@ -366,12 +366,12 @@ three environments (`ecommerce-dev`, `ecommerce-staging`, `ecommerce-prod`).
 
 | Doc | What it covers |
 |---|---|
-| [OVERVIEW](Infrastructure%20-%20Deployment/docs/OVERVIEW.md) | Environments, deployment model, where everything lives |
-| [ARCHITECTURE](Infrastructure%20-%20Deployment/docs/ARCHITECTURE.md) | Cloud topology, network, AKS, data plane, observability |
-| [SYSTEM_DESIGN](Infrastructure%20-%20Deployment/docs/SYSTEM_DESIGN.md) | End-to-end CI/CD: build, test, push, deploy |
-| [TECH_STACK](Infrastructure%20-%20Deployment/docs/TECH_STACK.md) | Every Azure service and its role |
+| [OVERVIEW](infrastructure-deployment/docs/OVERVIEW.md) | Environments, deployment model, where everything lives |
+| [ARCHITECTURE](infrastructure-deployment/docs/ARCHITECTURE.md) | Cloud topology, network, AKS, data plane, observability |
+| [SYSTEM_DESIGN](infrastructure-deployment/docs/SYSTEM_DESIGN.md) | End-to-end CI/CD: build, test, push, deploy |
+| [TECH_STACK](infrastructure-deployment/docs/TECH_STACK.md) | Every Azure service and its role |
 | [PATTERNS](docs/PATTERNS.md) | Codebase implementation patterns: service shape, slices, messaging, outbox, tests |
-| [Devops Agent Setup](Infrastructure%20-%20Deployment/docs/Devops%20Agent%20Setup.md) | Migrating from Microsoft-hosted to self-hosted agents |
+| [Devops Agent Setup](infrastructure-deployment/docs/Devops%20Agent%20Setup.md) | Migrating from Microsoft-hosted to self-hosted agents |
 | [Local K8s Guide](docs/LOCAL_K8S_GUIDE.md) | Running the full stack on Docker Desktop / Minikube |
 
 ## Kubernetes Deployment

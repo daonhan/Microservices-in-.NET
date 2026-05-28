@@ -10,7 +10,7 @@ trigger:
       - order-microservice/*
       - shared-libs/*
       - Directory.Build.props
-      - Infrastructure - Deployment/pipelines/templates/*
+      - infrastructure-deployment/pipelines/templates/*
       - kubernetes/aks-dev-order.yml
       - kubernetes/aks-staging-order.yml
       - kubernetes/aks-prod-order.yml
@@ -24,7 +24,7 @@ pr:
       - order-microservice/*
       - shared-libs/*
       - Directory.Build.props
-      - Infrastructure - Deployment/pipelines/templates/*
+      - infrastructure-deployment/pipelines/templates/*
 
 variables:
   - name: acrName
@@ -33,7 +33,7 @@ variables:
     value: $(AcrServiceConnection)
 
 stages:
-  - template: ../Infrastructure - Deployment/pipelines/templates/build-stage.yml
+  - template: ../infrastructure-deployment/pipelines/templates/build-stage.yml
     parameters:
       serviceName: orderservice
       solutionPath: order-microservice/Order.Service.slnx
@@ -42,7 +42,7 @@ stages:
       acrName: $(acrName)
       acrServiceConnection: $(acrServiceConnection)
 
-  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+  - template: ../infrastructure-deployment/pipelines/templates/deploy-stage.yml
     parameters:
       environment: dev
       acrName: $(acrName)
@@ -62,7 +62,7 @@ stages:
         - name: appinsights-secret
           arguments: --from-literal=connection-string=$(DEV_APPINSIGHTS_CONNECTION_STRING)
 
-  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+  - template: ../infrastructure-deployment/pipelines/templates/deploy-stage.yml
     parameters:
       environment: staging
       acrName: $(acrName)
@@ -82,7 +82,7 @@ stages:
         - name: appinsights-secret
           arguments: --from-literal=connection-string=$(STAGING_APPINSIGHTS_CONNECTION_STRING)
 
-  - template: ../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+  - template: ../infrastructure-deployment/pipelines/templates/deploy-stage.yml
     parameters:
       environment: prod
       acrName: $(acrName)
