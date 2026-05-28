@@ -14,7 +14,8 @@ docs/prd/.brief-*.md
 ralph/
 .codex/
 .ralph-tmp/
-Infrastructure - Deployment/kube/
+Infrastructure - Deployment/kube/*
+!Infrastructure - Deployment/kube/aks-sandbox-*.yml
 Infrastructure - Deployment/azure-pipelines.yml
 Infrastructure - Deployment/Devops Agent Setup.md
 Infrastructure - Deployment/Dockerfile.build
