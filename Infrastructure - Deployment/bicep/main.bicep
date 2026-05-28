@@ -124,11 +124,35 @@ param keyVaultSku string = 'standard'
 @maxValue(730)
 param logRetentionDays int = 30
 
+@description('Log Analytics daily ingestion cap in GB. -1 (default) leaves the workspace uncapped; set a positive integer to enforce a daily quota.')
+param logDailyCapGb int = -1
+
+// ── App Insights ──────────────────────────────────────────────────────────────
+
+@description('Application Insights ingestion sampling percentage (1-100). 100 (default) means no sampling.')
+@minValue(1)
+@maxValue(100)
+param appInsightsSamplingPercentage int = 100
+
 // ── Service Bus ───────────────────────────────────────────────────────────────
 
 @description('Service Bus SKU.')
 @allowed(['Basic', 'Standard', 'Premium'])
 param serviceBusSku string = 'Standard'
+
+// ── Budget (sandbox only) ─────────────────────────────────────────────────────
+
+@description('Monthly cap in subscription currency for the sandbox budget. Only used when environment == "sandbox".')
+@minValue(1)
+param budgetAmount int = 100
+
+@description('Contact emails for the sandbox budget forecasted threshold alert. Empty when environment != "sandbox".')
+param budgetContactEmails array = []
+
+@description('Forecasted-spend threshold percentage (1-1000) that fires the sandbox budget alert.')
+@minValue(1)
+@maxValue(1000)
+param budgetFirstThresholdPercent int = 80
 
 var commonTags = {
   workload: workload
@@ -145,6 +169,9 @@ var keyVaultName = '${workload}-${environment}-kv'
 var logWorkspaceName = '${workload}-${environment}-logs'
 var appInsightsName = '${workload}-${environment}-ai'
 var serviceBusName = '${workload}-${environment}-sb'
+var budgetName = '${workload}-${environment}-budget'
+
+var isSandbox = environment == 'sandbox'
 
 module vnet 'modules/vnet.bicep' = {
   name: 'vnet-deploy'
@@ -159,7 +186,10 @@ module vnet 'modules/vnet.bicep' = {
   }
 }
 
-module acr 'modules/acr.bicep' = {
+// Sandbox reuses an existing shared ACR (typically in a separate resource group),
+// so the registry resource is not provisioned here. AcrPull on the kubelet identity
+// must be granted out-of-band after deploy — see docs/SANDBOX.md.
+module acr 'modules/acr.bicep' = if (!isSandbox) {
   name: 'acr-deploy'
   params: {
     acrName: acrName
@@ -187,10 +217,11 @@ module aks 'modules/aks.bicep' = {
   }
 }
 
-module acrPull 'modules/acr-pull-role.bicep' = {
+module acrPull 'modules/acr-pull-role.bicep' = if (!isSandbox) {
   name: 'aks-acr-pull-role'
   params: {
-    acrName: acr.outputs.acrName
+    // Both modules share the same !isSandbox guard; safe-access satisfies the analyzer.
+    acrName: acr.?outputs.acrName ?? acrName
     principalId: aks.outputs.kubeletIdentityObjectId
     assignmentSeed: aks.outputs.aksId
   }
@@ -240,6 +271,7 @@ module monitor 'modules/monitor.bicep' = {
     location: location
     retentionInDays: logRetentionDays
     costProfile: costProfile
+    dailyCapGb: logDailyCapGb
     tags: commonTags
   }
 }
@@ -251,6 +283,7 @@ module appInsights 'modules/appinsights.bicep' = {
     location: location
     workspaceId: monitor.outputs.workspaceId
     costProfile: costProfile
+    samplingPercentage: appInsightsSamplingPercentage
     tags: commonTags
   }
 }
@@ -265,6 +298,16 @@ module serviceBus 'modules/servicebus.bicep' = {
   }
 }
 
+module budget 'modules/budget.bicep' = if (isSandbox) {
+  name: 'budget-deploy'
+  params: {
+    budgetName: budgetName
+    amount: budgetAmount
+    contactEmails: budgetContactEmails
+    firstThresholdPercent: budgetFirstThresholdPercent
+  }
+}
+
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
 @description('Resource ID of the deployed VNet.')
@@ -276,11 +319,11 @@ output aksSubnetId string = vnet.outputs.aksSubnetId
 @description('Resource ID of the private-endpoints subnet (for downstream slices).')
 output privateEndpointsSubnetId string = vnet.outputs.privateEndpointsSubnetId
 
-@description('Login server for the ACR.')
-output acrLoginServer string = acr.outputs.acrLoginServer
+@description('Login server for the ACR. Empty when environment == "sandbox" (sandbox reuses an existing shared ACR).')
+output acrLoginServer string = acr.?outputs.acrLoginServer ?? ''
 
-@description('Name of the ACR.')
-output acrName string = acr.outputs.acrName
+@description('Name of the ACR. Echoes the input acrName for sandbox; otherwise the deployed ACR name.')
+output acrName string = acr.?outputs.acrName ?? acrName
 
 @description('Name of the AKS cluster.')
 output aksName string = aks.outputs.aksName
