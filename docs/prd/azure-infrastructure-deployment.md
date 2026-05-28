@@ -82,7 +82,7 @@ The approach supports a **layered learning path**:
 30. As a developer, I want HorizontalPodAutoscaler manifests for each microservice, so that services scale automatically based on CPU utilization
 31. As a developer, I want an Ingress manifest (Nginx Ingress Controller) for production, with path-based routing to the API Gateway, so that external traffic reaches the platform
 32. As a developer, I want Kubernetes manifests for infrastructure services (RabbitMQ — for environments where Azure Service Bus is not used), so that messaging works in all environments
-33. As a developer, I want Kubernetes manifests to be organized under `Infrastructure - Deployment/kube/` with a clear naming convention (e.g., `aks-dev-{service}.yml`, `aks-staging-{service}.yml`, `aks-prod-{service}.yml`), so that manifests are easy to find and manage
+33. As a developer, I want Kubernetes manifests to be organized under `infrastructure-deployment/kube/` with a clear naming convention (e.g., `aks-dev-{service}.yml`, `aks-staging-{service}.yml`, `aks-prod-{service}.yml`), so that manifests are easy to find and manage
 
 ### Azure Service Bus Integration (Optional Messaging Adapter)
 
@@ -114,7 +114,7 @@ The approach supports a **layered learning path**:
 
 ### Documentation
 
-51. As a developer, I want an `OVERVIEW.md` document in `Infrastructure - Deployment/` that explains what the platform is, how it's deployed, and how environments are structured, so that newcomers can understand the deployment architecture
+51. As a developer, I want an `OVERVIEW.md` document in `infrastructure-deployment/` that explains what the platform is, how it's deployed, and how environments are structured, so that newcomers can understand the deployment architecture
 52. As a developer, I want an `ARCHITECTURE.md` document that describes the cloud architecture (AKS, ACR, Azure SQL, Redis, Service Bus, monitoring), network topology, and deployment flow, so that the infrastructure design is documented
 53. As a developer, I want a `SYSTEM_DESIGN.md` document that describes how CI/CD works end-to-end (from code push to production deployment), so that the deployment pipeline is well-understood
 54. As a developer, I want a `TECH_STACK.md` document listing all Azure services used and their purpose, so that the technology choices are documented
@@ -134,7 +134,7 @@ The approach supports a **layered learning path**:
 ### CI/CD (Azure Pipelines)
 - **Per-service pipeline** — each of the 8 microservices (product, order, basket, inventory, shipping, payment, auth, api-gateway) has its own `azure-pipelines.yml`
 - Pipelines are stored in **each service's directory** (e.g., `product-microservice/azure-pipelines.yml`) — colocated with the service code for discoverability
-- Shared pipeline templates are stored in `Infrastructure - Deployment/pipelines/templates/` for reuse across services
+- Shared pipeline templates are stored in `infrastructure-deployment/pipelines/templates/` for reuse across services
 - **GitHub + Azure Pipelines** — code stays on GitHub, Azure Pipelines connects to the GitHub repo
 - **Microsoft-hosted agents** initially (`vmImage: 'ubuntu-latest'`) — simpler setup, no infrastructure to manage; self-hosted agents can be added later if private VNet access is needed
 - **Build stage**: NuGet restore → `dotnet format` check → `dotnet build` → `dotnet test` (with Coverlet coverage) → `dotnet publish` → Docker build → Docker push to ACR
@@ -147,7 +147,7 @@ The approach supports a **layered learning path**:
 - **Per-service K8s manifests**: Deployment (with probes, resource limits, env vars from secrets), Service (ClusterIP), HorizontalPodAutoscaler
 - **Ingress**: Nginx Ingress Controller with path-based routing (Production only initially)
 - **Secrets**: Created by the pipeline using `KubernetesManifest@0 createSecret` action — ACR pull secret, JWT keys, App Insights connection string, database connection strings, Redis connection strings, Service Bus connection strings
-- K8s manifests organized under `Infrastructure - Deployment/kube/` with naming convention: `aks-{env}-{service}.yml` and `aks-{env}-namespace.yml`
+- K8s manifests organized under `infrastructure-deployment/kube/` with naming convention: `aks-{env}-{service}.yml` and `aks-{env}-namespace.yml`
 
 ### Docker Images
 - Multi-stage Dockerfiles: SDK image for build/publish → ASP.NET runtime image for production
@@ -177,7 +177,7 @@ The approach supports a **layered learning path**:
 
 ### Local Kubernetes
 - Document how to use Docker Desktop Kubernetes or Minikube with the existing `kubernetes/` manifests
-- The existing manifests serve as the "local K8s" option; the new `Infrastructure - Deployment/kube/` manifests are for AKS
+- The existing manifests serve as the "local K8s" option; the new `infrastructure-deployment/kube/` manifests are for AKS
 - Provide a step-by-step guide in documentation
 
 ---
@@ -238,7 +238,7 @@ This PRD is designed as a **learning exercise** as well as a practical deploymen
 
 ### Reference Patterns
 
-The `Infrastructure - Deployment/` directory contains reference patterns for:
+The `infrastructure-deployment/` directory contains reference patterns for:
 - Azure Pipeline structure (`azure-pipelines.yml`)
 - AKS K8s manifest patterns (`kube/` directory)
 - Dockerfile patterns (`Dockerfile.build`, `Dockerfile.run`)
@@ -247,7 +247,7 @@ The `Infrastructure - Deployment/` directory contains reference patterns for:
 ### Proposed Directory Structure
 
 ```
-Infrastructure - Deployment/
+infrastructure-deployment/
 ├── bicep/                          # Infrastructure-as-Code
 │   ├── main.bicep                  # Orchestration
 │   ├── parameters/

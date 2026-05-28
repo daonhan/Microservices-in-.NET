@@ -26,9 +26,9 @@ Introduce a fourth environment value, `sandbox`, backed by a `costProfile` param
 16. As a developer, I want an Azure Pipelines `sandbox-stop.yml` pipeline on a cron schedule of 22:00 daily that runs `az aks stop` via the `AzureCLI@2` task to deallocate the VMSS, so that I pay nothing for compute overnight and on weekends.
 17. As a developer, I want the stop pipeline to use `az aks stop` (not `kubectl scale`), so that the underlying VMSS is actually deallocated and no node compute cost accrues while the cluster is stopped.
 18. As a developer, I want an Azure Pipelines `sandbox-start.yml` pipeline on a cron schedule of 08:00 Monday–Friday (weekdays only, no weekend start) that runs `az aks start`, so that the cluster is ready for use at the start of each working day.
-19. As a developer, I want the sandbox ops pipelines stored under `Infrastructure - Deployment/pipelines/ops/`, so that they are co-located with infrastructure concerns and separate from per-service build pipelines.
+19. As a developer, I want the sandbox ops pipelines stored under `infrastructure-deployment/pipelines/ops/`, so that they are co-located with infrastructure concerns and separate from per-service build pipelines.
 20. As a developer, I want the sandbox parameter file to accept the ACR name as an input parameter rather than provisioning its own ACR, so that I reuse an existing registry and avoid the ACR monthly fee.
-21. As a developer, I want a `SANDBOX.md` runbook in `Infrastructure - Deployment/docs/` that shows the cost breakdown table, start/stop schedule, budget alert wiring instructions, manual deploy pipeline trigger steps, and a note about SQL Serverless cold-start behavior, so that I can operate the sandbox without memorizing configuration details.
+21. As a developer, I want a `SANDBOX.md` runbook in `infrastructure-deployment/docs/` that shows the cost breakdown table, start/stop schedule, budget alert wiring instructions, manual deploy pipeline trigger steps, and a note about SQL Serverless cold-start behavior, so that I can operate the sandbox without memorizing configuration details.
 22. As a developer, I want all nine services to run as single-replica Deployments in the sandbox, so that I keep resource usage minimal while still being able to exercise the full saga flow end-to-end.
 23. As a developer, I want the resource naming convention `${workload}-${environment}-*` applied to sandbox resources (e.g., `ecom-sandbox-sql`), so that sandbox resources are immediately identifiable in the Azure portal.
 24. As a developer, I want existing Dev/Staging/Prod parameter files to remain untouched when the `environment` enum and `costProfile` param are added, so that there is no regression risk to those environments.
@@ -83,13 +83,13 @@ Introduce a fourth environment value, `sandbox`, backed by a `costProfile` param
 - Extend `monitor.bicep` with a `dailyCapGb` parameter (type `int`, default `-1` meaning unlimited, matching Log Analytics API convention). When set to a positive value, the `workspaceCapping` property is set on the workspace resource.
 - Extend `appinsights.bicep` with a `samplingPercentage` parameter (default 100, meaning no sampling). Wires to the App Insights `SamplingPercentage` property via the component's `properties` block.
 
-### Module 7: Sandbox ops pipelines (`Infrastructure - Deployment/pipelines/ops/`)
+### Module 7: Sandbox ops pipelines (`infrastructure-deployment/pipelines/ops/`)
 
 - `sandbox-deploy.yml`: `trigger: none`. Manual `parameters:` block with `imageTag` string input. Steps: `kubectl set image` for each of the nine Deployments using `$(imageTag)`. Uses `KubernetesManifest@1` or raw `kubectl` via `AzureCLI@2` after running `az aks get-credentials`.
 - `sandbox-stop.yml`: `trigger: none`. `schedules:` cron `0 22 * * *` (22:00 UTC daily). Single `AzureCLI@2` step: `az aks stop --resource-group ... --name ...`. No `kubectl` involved — VMSS is fully deallocated.
 - `sandbox-start.yml`: `trigger: none`. `schedules:` cron `0 8 * * 1-5` (08:00 UTC Monday–Friday; no weekend entry). Single `AzureCLI@2` step: `az aks start --resource-group ... --name ...`.
 
-### Module 8: Sandbox runbook (`Infrastructure - Deployment/docs/SANDBOX.md`)
+### Module 8: Sandbox runbook (`infrastructure-deployment/docs/SANDBOX.md`)
 
 - Operator-facing Markdown document.
 - Sections: Overview, Cost Breakdown (table with line items: AKS node, SQL Serverless, Redis, ASB, Load Balancer/IP, App Insights/Log Analytics, ACR shared cost), Start/Stop Schedule, Budget Alert Wiring, Manual Deploy Pipeline Steps, SQL Serverless Cold-Start Note, Cleanup / Teardown.
@@ -111,7 +111,7 @@ Tests should validate externally observable behavior — that a Bicep template p
 
 ### Prior art
 
-The existing `Infrastructure - Deployment/bicep/parameters/dev.bicepparam` serves as a reference for the param file structure. The existing `azure-pipelines.yml` files per service are prior art for Azure Pipelines YAML conventions used in this repo.
+The existing `infrastructure-deployment/bicep/parameters/dev.bicepparam` serves as a reference for the param file structure. The existing `azure-pipelines.yml` files per service are prior art for Azure Pipelines YAML conventions used in this repo.
 
 ## Out of Scope
 

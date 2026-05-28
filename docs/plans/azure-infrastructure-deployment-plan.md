@@ -94,13 +94,13 @@ Create Bicep templates to provision the foundational Azure infrastructure: Virtu
 
 ### Deliverables
 
-- `Infrastructure - Deployment/bicep/main.bicep` — orchestration file
-- `Infrastructure - Deployment/bicep/modules/vnet.bicep` — VNet + subnets
-- `Infrastructure - Deployment/bicep/modules/aks.bicep` — AKS cluster
-- `Infrastructure - Deployment/bicep/modules/acr.bicep` — Container Registry
-- `Infrastructure - Deployment/bicep/parameters/dev.bicepparam`
-- `Infrastructure - Deployment/bicep/parameters/staging.bicepparam`
-- `Infrastructure - Deployment/bicep/parameters/prod.bicepparam`
+- `infrastructure-deployment/bicep/main.bicep` — orchestration file
+- `infrastructure-deployment/bicep/modules/vnet.bicep` — VNet + subnets
+- `infrastructure-deployment/bicep/modules/aks.bicep` — AKS cluster
+- `infrastructure-deployment/bicep/modules/acr.bicep` — Container Registry
+- `infrastructure-deployment/bicep/parameters/dev.bicepparam`
+- `infrastructure-deployment/bicep/parameters/staging.bicepparam`
+- `infrastructure-deployment/bicep/parameters/prod.bicepparam`
 
 ### Acceptance Criteria
 
@@ -128,12 +128,12 @@ Extend the Bicep IaC to provision the remaining managed Azure services: Azure SQ
 
 ### Deliverables
 
-- `Infrastructure - Deployment/bicep/modules/sql.bicep` — Azure SQL Server + databases
-- `Infrastructure - Deployment/bicep/modules/redis.bicep` — Azure Cache for Redis
-- `Infrastructure - Deployment/bicep/modules/keyvault.bicep` — Azure Key Vault
-- `Infrastructure - Deployment/bicep/modules/monitor.bicep` — Log Analytics Workspace
-- `Infrastructure - Deployment/bicep/modules/appinsights.bicep` — Application Insights
-- `Infrastructure - Deployment/bicep/modules/servicebus.bicep` — Azure Service Bus namespace + topics
+- `infrastructure-deployment/bicep/modules/sql.bicep` — Azure SQL Server + databases
+- `infrastructure-deployment/bicep/modules/redis.bicep` — Azure Cache for Redis
+- `infrastructure-deployment/bicep/modules/keyvault.bicep` — Azure Key Vault
+- `infrastructure-deployment/bicep/modules/monitor.bicep` — Log Analytics Workspace
+- `infrastructure-deployment/bicep/modules/appinsights.bicep` — Application Insights
+- `infrastructure-deployment/bicep/modules/servicebus.bicep` — Azure Service Bus namespace + topics
 - Updated `main.bicep` to include all new modules
 - Updated parameter files for each environment
 
@@ -164,8 +164,8 @@ Create a shared Azure Pipeline template for the Build stage that all per-service
 
 ### Deliverables
 
-- `Infrastructure - Deployment/pipelines/templates/build-stage.yml`
-- `Infrastructure - Deployment/pipelines/templates/deploy-stage.yml` (skeleton for Slice 9)
+- `infrastructure-deployment/pipelines/templates/build-stage.yml`
+- `infrastructure-deployment/pipelines/templates/deploy-stage.yml` (skeleton for Slice 9)
 
 ### Acceptance Criteria
 
@@ -227,15 +227,15 @@ Create Kubernetes manifests for deploying all 8 microservices to the Dev environ
 
 ### Deliverables
 
-- `Infrastructure - Deployment/kube/aks-dev-namespace.yml`
-- `Infrastructure - Deployment/kube/aks-dev-product.yml`
-- `Infrastructure - Deployment/kube/aks-dev-order.yml`
-- `Infrastructure - Deployment/kube/aks-dev-basket.yml`
-- `Infrastructure - Deployment/kube/aks-dev-inventory.yml`
-- `Infrastructure - Deployment/kube/aks-dev-shipping.yml`
-- `Infrastructure - Deployment/kube/aks-dev-payment.yml`
-- `Infrastructure - Deployment/kube/aks-dev-auth.yml`
-- `Infrastructure - Deployment/kube/aks-dev-api-gateway.yml`
+- `infrastructure-deployment/kube/aks-dev-namespace.yml`
+- `infrastructure-deployment/kube/aks-dev-product.yml`
+- `infrastructure-deployment/kube/aks-dev-order.yml`
+- `infrastructure-deployment/kube/aks-dev-basket.yml`
+- `infrastructure-deployment/kube/aks-dev-inventory.yml`
+- `infrastructure-deployment/kube/aks-dev-shipping.yml`
+- `infrastructure-deployment/kube/aks-dev-payment.yml`
+- `infrastructure-deployment/kube/aks-dev-auth.yml`
+- `infrastructure-deployment/kube/aks-dev-api-gateway.yml`
 
 ### Acceptance Criteria
 
@@ -264,8 +264,8 @@ Create Kubernetes manifests for the Staging environment by adapting the Dev mani
 
 ### Deliverables
 
-- `Infrastructure - Deployment/kube/aks-staging-namespace.yml`
-- `Infrastructure - Deployment/kube/aks-staging-{service}.yml` (8 files, one per service)
+- `infrastructure-deployment/kube/aks-staging-namespace.yml`
+- `infrastructure-deployment/kube/aks-staging-{service}.yml` (8 files, one per service)
 
 ### Acceptance Criteria
 
@@ -292,9 +292,9 @@ Create Kubernetes manifests for the Production environment, including an Nginx I
 
 ### Deliverables
 
-- `Infrastructure - Deployment/kube/aks-prod-namespace.yml`
-- `Infrastructure - Deployment/kube/aks-prod-{service}.yml` (8 files)
-- `Infrastructure - Deployment/kube/aks-prod-ingress.yml`
+- `infrastructure-deployment/kube/aks-prod-namespace.yml`
+- `infrastructure-deployment/kube/aks-prod-{service}.yml` (8 files)
+- `infrastructure-deployment/kube/aks-prod-ingress.yml`
 
 ### Acceptance Criteria
 
@@ -321,7 +321,7 @@ Implement the deploy-stage template and add deployment stages to each per-servic
 
 ### Deliverables
 
-- Completed `Infrastructure - Deployment/pipelines/templates/deploy-stage.yml`
+- Completed `infrastructure-deployment/pipelines/templates/deploy-stage.yml`
 - Updated per-service `azure-pipelines.yml` files with Dev/Staging/Prod deployment stages
 
 ### Acceptance Criteria
@@ -352,7 +352,7 @@ Create Kubernetes manifests for deploying RabbitMQ in AKS environments where Azu
 
 ### Deliverables
 
-- `Infrastructure - Deployment/kube/aks-dev-rabbitmq.yml`
+- `infrastructure-deployment/kube/aks-dev-rabbitmq.yml`
 - Optionally: `aks-staging-rabbitmq.yml` (if Staging uses RabbitMQ instead of Service Bus)
 
 ### Acceptance Criteria
@@ -473,11 +473,11 @@ Write comprehensive documentation for the Azure infrastructure and deployment. T
 
 ### Deliverables
 
-- `Infrastructure - Deployment/docs/OVERVIEW.md` — Platform overview, environment structure, deployment model
-- `Infrastructure - Deployment/docs/ARCHITECTURE.md` — Cloud architecture (AKS, ACR, Azure SQL, Redis, Service Bus, Monitor), network topology, service mesh
-- `Infrastructure - Deployment/docs/SYSTEM_DESIGN.md` — End-to-end CI/CD flow (code push → build → test → Docker → deploy → AKS)
-- `Infrastructure - Deployment/docs/TECH_STACK.md` — All Azure services, their purpose, and how they integrate
-- `Infrastructure - Deployment/docs/Devops Agent Setup.md` — Future self-hosted agent migration guide
+- `infrastructure-deployment/docs/OVERVIEW.md` — Platform overview, environment structure, deployment model
+- `infrastructure-deployment/docs/ARCHITECTURE.md` — Cloud architecture (AKS, ACR, Azure SQL, Redis, Service Bus, Monitor), network topology, service mesh
+- `infrastructure-deployment/docs/SYSTEM_DESIGN.md` — End-to-end CI/CD flow (code push → build → test → Docker → deploy → AKS)
+- `infrastructure-deployment/docs/TECH_STACK.md` — All Azure services, their purpose, and how they integrate
+- `infrastructure-deployment/docs/Devops Agent Setup.md` — Future self-hosted agent migration guide
 - Updated `README.md` with "Deployment" section
 
 ### Acceptance Criteria
@@ -506,7 +506,7 @@ Create a step-by-step guide for running the microservices platform on local Kube
 
 ### Deliverables
 
-- `Infrastructure - Deployment/docs/LOCAL_K8S_GUIDE.md`
+- `infrastructure-deployment/docs/LOCAL_K8S_GUIDE.md`
 
 ### Acceptance Criteria
 

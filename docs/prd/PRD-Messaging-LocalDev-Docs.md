@@ -39,7 +39,7 @@ Add explicit `Messaging:Provider` config to each service's `appsettings.json` (d
 - Update `docker-compose.yaml` with documentation comments referencing the ASB profile and the `Messaging__Provider` env var. Default Rabbit env stays unchanged.
 - New file `docs/local-dev/messaging.md` (or equivalent path) covering four scenarios: (1) default Compose Rabbit, (2) F5 + ASB Emulator, (3) F5 + shared dev namespace, (4) Compose `--profile asb`.
 - Update `README.md` and `CONTEXT.md` to link the new guide.
-- Update `docs/wiki/Architecture.md` and `Infrastructure - Deployment/docs/TECH_STACK.md` to reflect dual-provider local-dev support.
+- Update `docs/wiki/Architecture.md` and `infrastructure-deployment/docs/TECH_STACK.md` to reflect dual-provider local-dev support.
 - Confirm in docs that `dotnet test` and the Phase-4 smoke workflow stay Rabbit-only.
 
 ## Testing Decisions

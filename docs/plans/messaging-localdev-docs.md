@@ -104,12 +104,12 @@ Extend the guide with a manual end-to-end saga verification checklist and a trou
 
 ### What to build
 
-Close the loop with the surrounding documentation so the new guide is not an island. Update `docs/wiki/Architecture.md` and `Infrastructure - Deployment/docs/TECH_STACK.md` to reflect dual-provider local-dev support and to state the production / staging / dev provider expectations. Add documentation comments in `docker-compose.yaml` referencing the `asb` profile and the `Messaging__Provider` override env var so a code-search of the Compose file surfaces the dual-broker story. Add an explicit doc statement that `dotnet test` and the Phase-4 smoke workflow stay RabbitMQ-only.
+Close the loop with the surrounding documentation so the new guide is not an island. Update `docs/wiki/Architecture.md` and `infrastructure-deployment/docs/TECH_STACK.md` to reflect dual-provider local-dev support and to state the production / staging / dev provider expectations. Add documentation comments in `docker-compose.yaml` referencing the `asb` profile and the `Messaging__Provider` override env var so a code-search of the Compose file surfaces the dual-broker story. Add an explicit doc statement that `dotnet test` and the Phase-4 smoke workflow stay RabbitMQ-only.
 
 ### Acceptance criteria
 
 - [ ] `docs/wiki/Architecture.md` references dual-provider local-dev support and links to `docs/local-dev/messaging.md`.
-- [ ] `Infrastructure - Deployment/docs/TECH_STACK.md` states which provider is expected per environment (dev, staging, prod) and notes that ASB topology stays Bicep-owned.
+- [ ] `infrastructure-deployment/docs/TECH_STACK.md` states which provider is expected per environment (dev, staging, prod) and notes that ASB topology stays Bicep-owned.
 - [ ] `docker-compose.yaml` has documentation comments near the `servicebus-emulator` / `servicebus-sql` services pointing to the `asb` profile and the `Messaging__Provider=AzureServiceBus` override pattern.
 - [ ] `docker-compose.yaml` default service environment blocks are unchanged: no default Compose env var flips a service from RabbitMQ to ASB.
 - [ ] `docs/local-dev/messaging.md` contains an explicit "CI and smoke contract" subsection stating that `dotnet test` and the Phase-4 smoke workflow remain RabbitMQ-only and that contributors must not add ASB to the Phase-4 gate without a separate PRD.

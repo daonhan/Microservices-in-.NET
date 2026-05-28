@@ -45,7 +45,7 @@ Add an opt-in Compose profile that runs the Microsoft Service Bus Emulator (and 
 ## Out of Scope
 
 - Replacing Rabbit in Compose, smoke tests, or CI gating (smoke tests stay Rabbit-only).
-- Production topology management — remains Bicep-driven in `Infrastructure - Deployment/`.
+- Production topology management — remains Bicep-driven in `infrastructure-deployment/`.
 - DLQ poller behavior on ASB (PRD C).
 
 ## Further Notes

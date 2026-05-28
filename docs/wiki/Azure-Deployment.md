@@ -1,6 +1,6 @@
 # Azure Deployment
 
-The platform deploys to **Microsoft Azure** on AKS with a per-service Azure Pipelines CI/CD flow. This page is the wiki entry point; the authoritative narrative lives in [`Infrastructure - Deployment/docs/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/Infrastructure%20-%20Deployment/docs).
+The platform deploys to **Microsoft Azure** on AKS with a per-service Azure Pipelines CI/CD flow. This page is the wiki entry point; the authoritative narrative lives in [`infrastructure-deployment/docs/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/infrastructure-deployment/docs).
 
 Tracked under [Epic #33 — Azure Cloud Infrastructure & Deployment](https://github.com/daonhan/Microservices-in-.NET/issues/33). All 16 implementation slices are merged.
 
@@ -63,7 +63,7 @@ Same Bicep templates, same Kubernetes manifests, parameterized per env. Manifest
 
 ## Infrastructure as Code (Bicep)
 
-[`Infrastructure - Deployment/bicep/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/Infrastructure%20-%20Deployment/bicep) provisions everything:
+[`infrastructure-deployment/bicep/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/infrastructure-deployment/bicep) provisions everything:
 
 | Module | Resource |
 |---|---|
@@ -83,13 +83,13 @@ ENV=dev
 RG=rg-ecommerce-${ENV}-eastus
 az group create --name "$RG" --location eastus
 az deployment group create -g "$RG" \
-  --template-file "Infrastructure - Deployment/bicep/main.bicep" \
-  --parameters "Infrastructure - Deployment/bicep/parameters/${ENV}.bicepparam"
+  --template-file "infrastructure-deployment/bicep/main.bicep" \
+  --parameters "infrastructure-deployment/bicep/parameters/${ENV}.bicepparam"
 ```
 
 ## CI/CD (Azure Pipelines)
 
-Each microservice has its own `azure-pipelines.yml` that `extends` shared templates in [`Infrastructure - Deployment/pipelines/templates/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/Infrastructure%20-%20Deployment/pipelines/templates):
+Each microservice has its own `azure-pipelines.yml` that `extends` shared templates in [`infrastructure-deployment/pipelines/templates/`](https://github.com/daonhan/Microservices-in-.NET/tree/main/infrastructure-deployment/pipelines/templates):
 
 - **`build-stage.yml`** — `dotnet restore` → `format --verify-no-changes` → `build` → `test` (Cobertura) → `publish` → `docker build` → `docker push` to ACR. Image tag = `<branch>-<buildnumber>` or the git tag verbatim. `latest` is intentionally not used.
 - **`deploy-stage.yml`** — login to AKS → create K8s secrets from pipeline variables (`DEV_*`, `STAGING_*`, `PROD_*`) → `KubernetesManifest@0 deploy` with the freshly built image tag substituted into `aks-<env>-<service>.yml`.
@@ -131,12 +131,12 @@ OTel context propagates through Service Bus messages (`AzureServiceBusTelemetry`
 
 | Doc | What it covers |
 |---|---|
-| [`OVERVIEW.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/OVERVIEW.md) | Topology summary and where things live |
-| [`ARCHITECTURE.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/ARCHITECTURE.md) | Cloud architecture, network, data plane, observability |
-| [`SYSTEM_DESIGN.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/SYSTEM_DESIGN.md) | End-to-end CI/CD flow with stage details |
-| [`TECH_STACK.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/TECH_STACK.md) | Every Azure service, purpose, integration point |
-| [`PATTERNS.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/PATTERNS.md) | Codebase implementation patterns for services, shared libraries, messaging, and tests |
-| [`Devops Agent Setup.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/Infrastructure%20-%20Deployment/docs/Devops%20Agent%20Setup.md) | Microsoft-hosted vs self-hosted agent guidance |
+| [`OVERVIEW.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/infrastructure-deployment/docs/OVERVIEW.md) | Topology summary and where things live |
+| [`ARCHITECTURE.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/infrastructure-deployment/docs/ARCHITECTURE.md) | Cloud architecture, network, data plane, observability |
+| [`SYSTEM_DESIGN.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/infrastructure-deployment/docs/SYSTEM_DESIGN.md) | End-to-end CI/CD flow with stage details |
+| [`TECH_STACK.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/infrastructure-deployment/docs/TECH_STACK.md) | Every Azure service, purpose, integration point |
+| [`PATTERNS.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/infrastructure-deployment/docs/PATTERNS.md) | Codebase implementation patterns for services, shared libraries, messaging, and tests |
+| [`Devops Agent Setup.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/infrastructure-deployment/docs/Devops%20Agent%20Setup.md) | Microsoft-hosted vs self-hosted agent guidance |
 | [`LOCAL_K8S_GUIDE.md`](https://github.com/daonhan/Microservices-in-.NET/blob/main/docs/LOCAL_K8S_GUIDE.md) | Practising K8s manifests locally before AKS |
 | [PRD #34](https://github.com/daonhan/Microservices-in-.NET/issues/34) · [Plan #35](https://github.com/daonhan/Microservices-in-.NET/issues/35) | Source-of-truth requirements and slice plan |
 

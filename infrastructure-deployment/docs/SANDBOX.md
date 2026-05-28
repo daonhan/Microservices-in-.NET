@@ -185,7 +185,7 @@ Two mitigations make this transparent to the running services:
 
 ### Kubernetes readiness probe
 
-Every sandbox manifest at [`kube/aks-sandbox-*.yml`](../kube) uses:
+Every sandbox manifest at [`kubernetes/aks-sandbox-*.yml`](../../kubernetes) uses:
 
 ```yaml
 readinessProbe:

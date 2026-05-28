@@ -147,6 +147,6 @@ Delivered as two PRs: (1) root files + `docs/wiki/` + GH Wiki publish tooling + 
 - The prior baseline is `PRD-Docs-Refresh-2026-05` (issues #138–#144). Only deltas from the ~30-day window (2026-04-27 to 2026-05-27) need patching; do not redo the saga-cutover documentation.
 - The GitHub Wiki remote is `github.com/daonhan/Microservices-in-.NET.wiki.git`. The one-shot push overwrites stale pages but must only be executed after PR #1 has been reviewed and merged to main.
 - ADR-0011 documents the Order Clean Arch + VSA pilot; ADR-0012 promotes the pattern to the repo default; ADR-0013 documents the shared-libs decomposition. All three are currently missing from `docs/adr/README.md`.
-- `PATTERNS.md` lives at `Infrastructure - Deployment/docs/PATTERNS.md` and is already referenced from several CLAUDE.md files; wiki and root-doc links should point to its canonical in-repo location.
+- `PATTERNS.md` lives at `infrastructure-deployment/docs/PATTERNS.md` and is already referenced from several CLAUDE.md files; wiki and root-doc links should point to its canonical in-repo location.
 - The spec-pipeline / AFK / custom-agents workflow shipped in PR #295. The CONTEXT.md paragraph and Roadmap bullet should be brief (2–4 sentences / one bullet); a full wiki page is deferred.
 - Two-PR sequencing is a deliberate reviewer-ergonomics choice: public narrative (PR #1) is easier to review without nine CLAUDE.md diffs mixed in.

@@ -43,7 +43,7 @@ trigger:
       - <service>-microservice/
       - shared-libs/
       - Directory.Build.props
-      - Infrastructure - Deployment/pipelines/templates/
+      - infrastructure-deployment/pipelines/templates/
 
 pr:
   branches:
@@ -101,7 +101,7 @@ Deploy stages use different agent pools by environment:
 | Production  | Self-hosted pool, e.g. `ecommerce-self-hosted` | Production deployments should run from inside or near the AKS VNet, especially when AKS and data services use private endpoints. |
 
 ```yaml
-- template: ../../Infrastructure - Deployment/pipelines/templates/deploy-stage.yml
+- template: ../../infrastructure-deployment/pipelines/templates/deploy-stage.yml
   parameters:
     environment: dev
     aksServiceConnection: $(DEV_AKS_SERVICE_CONNECTION)

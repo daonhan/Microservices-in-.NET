@@ -13,7 +13,7 @@ Durable decisions that apply across all phases:
 - **Sandbox ACR**: no new ACR is provisioned. The sandbox param file accepts an existing `acrName`; the ACR module invocation in `main.bicep` is skipped conditionally for sandbox.
 - **Kubernetes manifests**: one Deployment + ClusterIP Service per service, named `aks-sandbox-<service>.yml`. All nine services (basket, order, product, auth, api-gateway, inventory, shipping, payment, saga). Resource requests `50m / 128Mi`; limits `200m / 256Mi`. Readiness probe `initialDelaySeconds: 60`, `periodSeconds: 10`, `failureThreshold: 6`. Image tag placeholder `$(IMAGE_TAG)` for pipeline variable substitution.
 - **Ingress**: a single `aks-sandbox-ingress.yml` deploys Nginx Ingress Controller and the `IngressClass` resource. All services remain `ClusterIP`; external traffic enters via one public IP assigned to the Ingress load balancer.
-- **Ops pipelines location**: `Infrastructure - Deployment/pipelines/ops/`. Stop (`sandbox-stop.yml`) runs `az aks stop` at 22:00 UTC daily. Start (`sandbox-start.yml`) runs `az aks start` at 08:00 UTC Mon–Fri only. Deploy (`sandbox-deploy.yml`) has `trigger: none` and a manual `imageTag` input parameter.
+- **Ops pipelines location**: `infrastructure-deployment/pipelines/ops/`. Stop (`sandbox-stop.yml`) runs `az aks stop` at 22:00 UTC daily. Start (`sandbox-start.yml`) runs `az aks start` at 08:00 UTC Mon–Fri only. Deploy (`sandbox-deploy.yml`) has `trigger: none` and a manual `imageTag` input parameter.
 - **Budget enforcement**: `modules/budget.bicep` wraps `Microsoft.Consumption/budgets` at resource group scope. Deployed from `main.bicep` only when `environment == 'sandbox'`. $100/month cap, 80% forecasted threshold alert.
 
 ---
@@ -93,7 +93,7 @@ Create the `modules/budget.bicep` module and the `parameters/sandbox.bicepparam`
 
 ### What to build
 
-Create ten Kubernetes manifest files under `Infrastructure - Deployment/kube/`:
+Create ten Kubernetes manifest files under `infrastructure-deployment/kube/`:
 
 - `aks-sandbox-<service>.yml` for each of: basket, order, product, auth, api-gateway, inventory, shipping, payment, saga (nine files).
 - `aks-sandbox-ingress.yml` for the Nginx Ingress Controller and `IngressClass` resource.
@@ -104,7 +104,7 @@ The ingress manifest deploys the `ingress-nginx` controller Deployment and the `
 
 ### Acceptance criteria
 
-- [ ] `kubectl --dry-run=client -f "Infrastructure - Deployment/kube/aks-sandbox-*.yml"` passes for all ten manifests.
+- [ ] `kubectl --dry-run=client -f "infrastructure-deployment/kube/aks-sandbox-*.yml"` passes for all ten manifests.
 - [ ] Each of the nine service manifests has `replicas: 1`, requests `50m/128Mi`, limits `200m/256Mi`.
 - [ ] Each readiness probe has `initialDelaySeconds: 60`, `periodSeconds: 10`, `failureThreshold: 6`.
 - [ ] Image references contain the `$(ACR_NAME)` and `$(IMAGE_TAG)` placeholders.
@@ -119,7 +119,7 @@ The ingress manifest deploys the `ingress-nginx` controller Deployment and the `
 
 ### What to build
 
-Create three Azure Pipelines YAML files under `Infrastructure - Deployment/pipelines/ops/`:
+Create three Azure Pipelines YAML files under `infrastructure-deployment/pipelines/ops/`:
 
 `sandbox-stop.yml`: `trigger: none`. A `schedules:` block with cron `0 22 * * *` (22:00 UTC daily, including weekends). One `AzureCLI@2` step that runs `az aks stop --resource-group $(SANDBOX_RG) --name $(SANDBOX_AKS_NAME)`. No kubectl involved — VMSS is fully deallocated.
 
@@ -132,7 +132,7 @@ Create three Azure Pipelines YAML files under `Infrastructure - Deployment/pipel
 - [ ] `sandbox-stop.yml` cron expression is `0 22 * * *` and the `az aks stop` command references the correct resource group and cluster name variables.
 - [ ] `sandbox-start.yml` cron expression is `0 8 * * 1-5` (weekdays only; no Saturday/Sunday entry).
 - [ ] `sandbox-deploy.yml` has `trigger: none` and a `parameters:` block accepting `imageTag`.
-- [ ] All three files are stored under `Infrastructure - Deployment/pipelines/ops/`.
+- [ ] All three files are stored under `infrastructure-deployment/pipelines/ops/`.
 - [ ] YAML schema validation (e.g. `az pipelines run --validate` or equivalent) passes without errors on all three files.
 - [ ] No per-service `azure-pipelines.yml` files are modified.
 
@@ -144,7 +144,7 @@ Create three Azure Pipelines YAML files under `Infrastructure - Deployment/pipel
 
 ### What to build
 
-Create `Infrastructure - Deployment/docs/SANDBOX.md` as the operator-facing runbook. Sections:
+Create `infrastructure-deployment/docs/SANDBOX.md` as the operator-facing runbook. Sections:
 
 1. **Overview** — purpose (learning/demo, not production), $80/month target, $100/month hard cap.
 2. **Cost Breakdown** — table with line items: AKS node (`Standard_B2ms`), SQL Serverless (7 databases), Redis Basic C0, Service Bus Standard, Load Balancer / public IP, Log Analytics (0.1 GB/day cap), App Insights (10% sampling), ACR (shared, cost not charged to this RG). Total estimated and hard cap.
@@ -156,7 +156,7 @@ Create `Infrastructure - Deployment/docs/SANDBOX.md` as the operator-facing runb
 
 ### Acceptance criteria
 
-- [ ] `SANDBOX.md` exists at `Infrastructure - Deployment/docs/SANDBOX.md`.
+- [ ] `SANDBOX.md` exists at `infrastructure-deployment/docs/SANDBOX.md`.
 - [ ] All seven sections listed above are present.
 - [ ] Cost breakdown table shows individual line items summing to the ~$80/month estimate with a $100 cap call-out.
 - [ ] Start/stop schedule table correctly notes weekday-only auto-start and manual weekend start procedure.

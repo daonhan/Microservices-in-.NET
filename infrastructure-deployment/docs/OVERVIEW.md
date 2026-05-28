@@ -7,7 +7,7 @@
 
 This document describes the **Azure deployment topology** for the
 microservices platform in this repository. It is the entry point into the
-documentation under [`Infrastructure - Deployment/docs/`](.).
+documentation under [`infrastructure-deployment/docs/`](.).
 
 The platform consists of 8 services (Auth, Product, Basket, Order,
 Inventory, Shipping, Payment, API Gateway) plus shared messaging and
@@ -78,12 +78,12 @@ Azure Pipelines (per-service azure-pipelines.yml)
 
 | Concern                       | Path                                                                 |
 |-------------------------------|----------------------------------------------------------------------|
-| IaC (Bicep)                   | [`Infrastructure - Deployment/bicep/`](../bicep/)                    |
-| Pipeline templates            | [`Infrastructure - Deployment/pipelines/templates/`](../pipelines/templates/) |
+| IaC (Bicep)                   | [`infrastructure-deployment/bicep/`](../bicep/)                    |
+| Pipeline templates            | [`infrastructure-deployment/pipelines/templates/`](../pipelines/templates/) |
 | Per-service pipelines         | `<service>-microservice/azure-pipelines.yml`                         |
 | Kubernetes manifests (local + AKS) | [`kubernetes/`](../../kubernetes/)                             |
 | Dockerfiles                   | `<service>-microservice/<Service>.Service/Dockerfile`                |
-| Implementation patterns       | [`Infrastructure - Deployment/docs/PATTERNS.md`](PATTERNS.md)        |
+| Implementation patterns       | [`infrastructure-deployment/docs/PATTERNS.md`](PATTERNS.md)        |
 | PRD                           | [`docs/prd/azure-infrastructure-deployment.md`](../../docs/prd/azure-infrastructure-deployment.md) |
 | Implementation plan           | [`docs/plans/azure-infrastructure-deployment-plan.md`](../../docs/plans/azure-infrastructure-deployment-plan.md) |
 

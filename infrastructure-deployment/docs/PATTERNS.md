@@ -327,7 +327,7 @@ test suites before pushing.
 ## Deployment and CI/CD patterns
 
 Each deployable service owns an `azure-pipelines.yml` and extends the shared
-pipeline templates under `Infrastructure - Deployment/pipelines/templates/`.
+pipeline templates under `infrastructure-deployment/pipelines/templates/`.
 
 The normal flow is:
 
