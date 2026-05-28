@@ -93,7 +93,7 @@ Create the `modules/budget.bicep` module and the `parameters/sandbox.bicepparam`
 
 ### What to build
 
-Create ten Kubernetes manifest files under `infrastructure-deployment/kube/`:
+Create ten Kubernetes manifest files under `kubernetes/`:
 
 - `aks-sandbox-<service>.yml` for each of: basket, order, product, auth, api-gateway, inventory, shipping, payment, saga (nine files).
 - `aks-sandbox-ingress.yml` for the Nginx Ingress Controller and `IngressClass` resource.
@@ -104,7 +104,7 @@ The ingress manifest deploys the `ingress-nginx` controller Deployment and the `
 
 ### Acceptance criteria
 
-- [ ] `kubectl --dry-run=client -f "infrastructure-deployment/kube/aks-sandbox-*.yml"` passes for all ten manifests.
+- [ ] `kubectl --dry-run=client -f "kubernetes/aks-sandbox-*.yml"` passes for all ten manifests.
 - [ ] Each of the nine service manifests has `replicas: 1`, requests `50m/128Mi`, limits `200m/256Mi`.
 - [ ] Each readiness probe has `initialDelaySeconds: 60`, `periodSeconds: 10`, `failureThreshold: 6`.
 - [ ] Image references contain the `$(ACR_NAME)` and `$(IMAGE_TAG)` placeholders.

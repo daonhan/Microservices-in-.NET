@@ -69,7 +69,7 @@ Introduce a fourth environment value, `sandbox`, backed by a `costProfile` param
 - No ACR provisioned: file includes an `acrName` parameter pointing to an existing registry; `acrSku` is omitted or the ACR module is skipped via conditional.
 - Budget: `budgetAmount = 100`, contact email wired to the operator.
 
-### Module 5: Sandbox Kubernetes manifests (`kube/aks-sandbox-*.yml`)
+### Module 5: Sandbox Kubernetes manifests (`kubernetes/aks-sandbox-*.yml`)
 
 - One Deployment + Service manifest per service: basket, order, product, auth, api-gateway, inventory, shipping, payment, saga. Nine files total, named `aks-sandbox-<service>.yml`.
 - All Deployments: `replicas: 1`.
@@ -106,7 +106,7 @@ Tests should validate externally observable behavior — that a Bicep template p
 - **Bicep parameter validation**: `sandbox.bicepparam` should pass `az bicep build --file` without error. The `costProfile` conditional paths in `sql.bicep` and `monitor.bicep` should be validated by running `az deployment group what-if` against a sandbox resource group.
 - **SQL Serverless properties**: when `costProfile == 'minimal'`, the SQL module should produce a deployment with `sku.tier == 'GeneralPurpose'`, `sku.name == 'GP_S_Gen5'`, and `properties.autoPauseDelay == 60`. A Pester or Bicep unit test using `Assert-WhatIf` (or equivalent ARM template JSON comparison) covers this.
 - **Budget module**: `modules/budget.bicep` in isolation — verify the `thresholds[0].thresholdType == 'Forecasted'` and `amount == 100`.
-- **Kubernetes manifests**: A simple manifest lint (e.g., `kubectl --dry-run=client -f kube/aks-sandbox-*.yml`) confirms all nine manifests are valid. Resource limits and probe `initialDelaySeconds` are verified via `yq` assertions or equivalent in the CI pipeline.
+- **Kubernetes manifests**: A simple manifest lint (e.g., `kubectl --dry-run=client -f kubernetes/aks-sandbox-*.yml`) confirms all nine manifests are valid. Resource limits and probe `initialDelaySeconds` are verified via `yq` assertions or equivalent in the CI pipeline.
 - **Pipeline YAML syntax**: `az pipelines` CLI or a YAML schema validator confirms the cron expressions and task names are syntactically correct.
 
 ### Prior art
