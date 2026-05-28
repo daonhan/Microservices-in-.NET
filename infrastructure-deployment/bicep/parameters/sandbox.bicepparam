@@ -48,5 +48,5 @@ param serviceBusSku = 'Standard'
 
 // ── Budget ────────────────────────────────────────────────────────────────────
 param budgetAmount = 100
-param budgetContactEmails = ['daonhan@gmail.com']
+param budgetContactEmails = ['your-email@example.com']
 param budgetFirstThresholdPercent = 80

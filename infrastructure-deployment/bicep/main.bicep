@@ -146,8 +146,11 @@ param serviceBusSku string = 'Standard'
 @minValue(1)
 param budgetAmount int = 100
 
-@description('Contact emails for the sandbox budget forecasted threshold alert. Empty when environment != "sandbox".')
-param budgetContactEmails array = []
+@description('Contact emails for the sandbox budget forecasted threshold alert. Only used when environment == "sandbox"; override for real deployments.')
+@minLength(1)
+param budgetContactEmails array = [
+  'your-email@example.com'
+]
 
 @description('Forecasted-spend threshold percentage (1-1000) that fires the sandbox budget alert.')
 @minValue(1)
@@ -338,6 +341,7 @@ output sqlServerFqdn string = sql.outputs.sqlServerFqdn
 output sqlConnectionStringPrefix string = sql.outputs.connectionStringPrefix
 
 @description('Redis connection string (host:port,password=...,ssl=True).')
+@secure()
 output redisConnectionString string = redis.outputs.connectionString
 
 @description('URI of the Key Vault.')
@@ -347,4 +351,5 @@ output keyVaultUri string = keyVault.outputs.keyVaultUri
 output appInsightsConnectionString string = appInsights.outputs.connectionString
 
 @description('Service Bus primary connection string.')
+@secure()
 output serviceBusConnectionString string = serviceBus.outputs.primaryConnectionString

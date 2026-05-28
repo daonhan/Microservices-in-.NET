@@ -120,7 +120,7 @@ The notification recipients are stored in
 [`parameters/sandbox.bicepparam`](../bicep/parameters/sandbox.bicepparam):
 
 ```bicep
-param budgetContactEmails = ['daonhan@gmail.com']
+param budgetContactEmails = ['your-email@example.com']
 ```
 
 To change the recipient:

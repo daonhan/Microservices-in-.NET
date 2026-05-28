@@ -177,7 +177,7 @@ The `modules/budget.bicep` module emails an alert at 80% forecast.
 Set the email in `sandbox.bicepparam`:
 
 ```bicep
-param budgetContactEmails = ['daonhan@gmail.com']
+param budgetContactEmails = ['your-email@example.com']
 ```
 
 Test once after Phase 3 deploy by temporarily lowering the cap and verifying the alert fires.
@@ -237,7 +237,7 @@ Before kicking off Phase 1 (issue [#306](https://github.com/daonhan/Microservice
 - [ ] GitHub service connection created (`daonhan/Microservices-in-.NET`)
 - [ ] Azure service connection created (`azure-sandbox`, workload identity federation)
 - [ ] Service connection has Contributor on `ecom-sandbox-rg`
-- [ ] Budget contact email confirmed (`daonhan@gmail.com`)
+- [ ] Budget contact email confirmed (`your-email@example.com` replaced)
 - [ ] kubectl + bicep + helm installed locally
 
 ---

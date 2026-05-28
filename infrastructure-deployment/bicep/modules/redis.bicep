@@ -73,7 +73,9 @@ output redisHostName string = redis.properties.hostName
 output redisSslPort int = redis.properties.sslPort
 
 @description('Redis primary access key (for K8s secret injection).')
+@secure()
 output redisPrimaryKey string = redis.listKeys().primaryKey
 
 @description('Connection string for StackExchange.Redis / Azure Cache for Redis.')
+@secure()
 output connectionString string = '${redis.properties.hostName}:${redis.properties.sslPort},password=${redis.listKeys().primaryKey},ssl=True,abortConnect=False'
