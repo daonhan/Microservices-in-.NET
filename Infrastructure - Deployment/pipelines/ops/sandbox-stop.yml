@@ -1,0 +1,36 @@
+# Sandbox AKS stop pipeline.
+#
+# Runs daily at 22:00 UTC (including weekends) and deallocates the sandbox
+# AKS node pool via `az aks stop`. The control plane (AKS Free tier) remains
+# free; VMSS compute is fully deallocated until `sandbox-start.yml` brings it
+# back at 08:00 UTC on the next weekday.
+#
+# Required pipeline variables (e.g. via a variable group attached at run time):
+#   SANDBOX_AZURE_SERVICE_CONNECTION  ARM service connection with rights on the RG
+#   SANDBOX_RG                        sandbox resource group name
+#   SANDBOX_AKS_NAME                  sandbox AKS cluster name
+
+trigger: none
+pr: none
+
+schedules:
+  - cron: "0 22 * * *"
+    displayName: Daily AKS stop at 22:00 UTC
+    branches:
+      include:
+        - main
+    always: true
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: AzureCLI@2
+    displayName: Stop sandbox AKS cluster
+    inputs:
+      azureSubscription: $(SANDBOX_AZURE_SERVICE_CONNECTION)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -euo pipefail
+        az aks stop --resource-group "$(SANDBOX_RG)" --name "$(SANDBOX_AKS_NAME)"

@@ -1,0 +1,83 @@
+# Sandbox manual deploy pipeline.
+#
+# Trigger this manually from Azure DevOps and supply `imageTag` to roll all
+# nine services to a new image revision in the sandbox AKS cluster. The
+# pipeline has no branch trigger so it never fights the nightly
+# `sandbox-stop.yml` shutdown.
+#
+# Required pipeline variables (e.g. via a variable group attached at run time):
+#   SANDBOX_AZURE_SERVICE_CONNECTION  ARM service connection with rights on the RG
+#   SANDBOX_RG                        sandbox resource group name
+#   SANDBOX_AKS_NAME                  sandbox AKS cluster name
+#   SANDBOX_ACR_NAME                  ACR hostname prefix (e.g. ecomshared)
+#   SANDBOX_NAMESPACE                 Kubernetes namespace (e.g. ecommerce-sandbox)
+
+trigger: none
+pr: none
+
+parameters:
+  - name: imageTag
+    displayName: Image tag to roll across all nine services
+    type: string
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  imageTag: ${{ parameters.imageTag }}
+
+steps:
+  - task: AzureCLI@2
+    displayName: Roll all nine services to ${{ parameters.imageTag }}
+    inputs:
+      azureSubscription: $(SANDBOX_AZURE_SERVICE_CONNECTION)
+      scriptType: bash
+      scriptLocation: inlineScript
+      addSpnToEnvironment: true
+      inlineScript: |
+        set -euo pipefail
+
+        # kubelogin lets the SPN exchange its token for AKS AAD access.
+        if ! command -v kubelogin >/dev/null 2>&1; then
+          az aks install-cli --install-location "$HOME/.local/bin/kubectl" \
+                             --kubelogin-install-location "$HOME/.local/bin/kubelogin"
+          export PATH="$HOME/.local/bin:$PATH"
+        fi
+
+        az aks get-credentials \
+          --resource-group "$(SANDBOX_RG)" \
+          --name "$(SANDBOX_AKS_NAME)" \
+          --overwrite-existing
+        kubelogin convert-kubeconfig -l azurecli
+
+        registry="$(SANDBOX_ACR_NAME).azurecr.io"
+        namespace="$(SANDBOX_NAMESPACE)"
+        tag="$(imageTag)"
+
+        # deployment_name=container_name=image_repo (all three identical for
+        # every service except api-gateway, which uses `apigateway` for all).
+        services=(
+          "apigateway=apigateway=apigateway"
+          "authservice=authservice=authservice"
+          "basketservice=basketservice=basketservice"
+          "inventoryservice=inventoryservice=inventoryservice"
+          "orderservice=orderservice=orderservice"
+          "paymentservice=paymentservice=paymentservice"
+          "productservice=productservice=productservice"
+          "sagaservice=sagaservice=sagaservice"
+          "shippingservice=shippingservice=shippingservice"
+        )
+
+        for entry in "${services[@]}"; do
+          IFS='=' read -r deployment container image <<<"$entry"
+          kubectl set image \
+            "deployment/${deployment}" \
+            "${container}=${registry}/${image}:${tag}" \
+            --namespace "${namespace}"
+        done
+
+        for entry in "${services[@]}"; do
+          IFS='=' read -r deployment _ _ <<<"$entry"
+          kubectl rollout status "deployment/${deployment}" \
+            --namespace "${namespace}" --timeout=5m
+        done
