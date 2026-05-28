@@ -82,7 +82,7 @@ The approach supports a **layered learning path**:
 30. As a developer, I want HorizontalPodAutoscaler manifests for each microservice, so that services scale automatically based on CPU utilization
 31. As a developer, I want an Ingress manifest (Nginx Ingress Controller) for production, with path-based routing to the API Gateway, so that external traffic reaches the platform
 32. As a developer, I want Kubernetes manifests for infrastructure services (RabbitMQ — for environments where Azure Service Bus is not used), so that messaging works in all environments
-33. As a developer, I want Kubernetes manifests to be organized under `infrastructure-deployment/kube/` with a clear naming convention (e.g., `aks-dev-{service}.yml`, `aks-staging-{service}.yml`, `aks-prod-{service}.yml`), so that manifests are easy to find and manage
+33. As a developer, I want Kubernetes manifests to be organized under `kubernetes/` with a clear naming convention (e.g., `aks-dev-{service}.yml`, `aks-staging-{service}.yml`, `aks-prod-{service}.yml`), so that manifests are easy to find and manage
 
 ### Azure Service Bus Integration (Optional Messaging Adapter)
 
@@ -147,7 +147,7 @@ The approach supports a **layered learning path**:
 - **Per-service K8s manifests**: Deployment (with probes, resource limits, env vars from secrets), Service (ClusterIP), HorizontalPodAutoscaler
 - **Ingress**: Nginx Ingress Controller with path-based routing (Production only initially)
 - **Secrets**: Created by the pipeline using `KubernetesManifest@0 createSecret` action — ACR pull secret, JWT keys, App Insights connection string, database connection strings, Redis connection strings, Service Bus connection strings
-- K8s manifests organized under `infrastructure-deployment/kube/` with naming convention: `aks-{env}-{service}.yml` and `aks-{env}-namespace.yml`
+- K8s manifests organized under `kubernetes/` with naming convention: `aks-{env}-{service}.yml` and `aks-{env}-namespace.yml`
 
 ### Docker Images
 - Multi-stage Dockerfiles: SDK image for build/publish → ASP.NET runtime image for production
@@ -177,7 +177,7 @@ The approach supports a **layered learning path**:
 
 ### Local Kubernetes
 - Document how to use Docker Desktop Kubernetes or Minikube with the existing `kubernetes/` manifests
-- The existing manifests serve as the "local K8s" option; the new `infrastructure-deployment/kube/` manifests are for AKS
+- The existing manifests serve as the "local K8s" option; the new `kubernetes/` manifests are for AKS
 - Provide a step-by-step guide in documentation
 
 ---
@@ -240,7 +240,7 @@ This PRD is designed as a **learning exercise** as well as a practical deploymen
 
 The `infrastructure-deployment/` directory contains reference patterns for:
 - Azure Pipeline structure (`azure-pipelines.yml`)
-- AKS K8s manifest patterns (`kube/` directory)
+- AKS K8s manifest patterns (`kubernetes/aks-{env}-*.yml`)
 - Dockerfile patterns (`Dockerfile.build`, `Dockerfile.run`)
 - Documentation structure (`OVERVIEW.md`, `ARCHITECTURE.md`, `SYSTEM_DESIGN.md`, `TECH_STACK.md`)
 
@@ -268,21 +268,6 @@ infrastructure-deployment/
 │   └── templates/
 │       ├── build-stage.yml         # Shared build template
 │       └── deploy-stage.yml        # Shared deploy template
-├── kube/                           # AKS Kubernetes Manifests
-│   ├── aks-dev-namespace.yml
-│   ├── aks-dev-product.yml
-│   ├── aks-dev-order.yml
-│   ├── aks-dev-basket.yml
-│   ├── aks-dev-inventory.yml
-│   ├── aks-dev-shipping.yml
-│   ├── aks-dev-payment.yml
-│   ├── aks-dev-auth.yml
-│   ├── aks-dev-api-gateway.yml
-│   ├── aks-staging-namespace.yml
-│   ├── aks-staging-*.yml           # (same pattern for all services)
-│   ├── aks-prod-namespace.yml
-│   ├── aks-prod-*.yml              # (same pattern for all services)
-│   └── aks-prod-ingress.yml
 ├── docs/
 │   ├── OVERVIEW.md
 │   ├── ARCHITECTURE.md

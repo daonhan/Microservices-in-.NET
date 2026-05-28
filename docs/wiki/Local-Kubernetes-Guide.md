@@ -35,7 +35,7 @@ filename prefix:
 `aks-*.yml` files reference Azure-only secrets (ACR pull, App Insights connection
 strings) and will fail to start without them.
 
-> The `infrastructure-deployment/kube/` folder contains a few legacy adapter
+> The `kubernetes/` folder contains a few legacy adapter
 > manifests unrelated to this guide. Ignore it for local practice.
 
 ---

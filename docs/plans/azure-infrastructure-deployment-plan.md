@@ -227,15 +227,15 @@ Create Kubernetes manifests for deploying all 8 microservices to the Dev environ
 
 ### Deliverables
 
-- `infrastructure-deployment/kube/aks-dev-namespace.yml`
-- `infrastructure-deployment/kube/aks-dev-product.yml`
-- `infrastructure-deployment/kube/aks-dev-order.yml`
-- `infrastructure-deployment/kube/aks-dev-basket.yml`
-- `infrastructure-deployment/kube/aks-dev-inventory.yml`
-- `infrastructure-deployment/kube/aks-dev-shipping.yml`
-- `infrastructure-deployment/kube/aks-dev-payment.yml`
-- `infrastructure-deployment/kube/aks-dev-auth.yml`
-- `infrastructure-deployment/kube/aks-dev-api-gateway.yml`
+- `kubernetes/aks-dev-namespace.yml`
+- `kubernetes/aks-dev-product.yml`
+- `kubernetes/aks-dev-order.yml`
+- `kubernetes/aks-dev-basket.yml`
+- `kubernetes/aks-dev-inventory.yml`
+- `kubernetes/aks-dev-shipping.yml`
+- `kubernetes/aks-dev-payment.yml`
+- `kubernetes/aks-dev-auth.yml`
+- `kubernetes/aks-dev-api-gateway.yml`
 
 ### Acceptance Criteria
 
@@ -264,8 +264,8 @@ Create Kubernetes manifests for the Staging environment by adapting the Dev mani
 
 ### Deliverables
 
-- `infrastructure-deployment/kube/aks-staging-namespace.yml`
-- `infrastructure-deployment/kube/aks-staging-{service}.yml` (8 files, one per service)
+- `kubernetes/aks-staging-namespace.yml`
+- `kubernetes/aks-staging-{service}.yml` (8 files, one per service)
 
 ### Acceptance Criteria
 
@@ -292,9 +292,9 @@ Create Kubernetes manifests for the Production environment, including an Nginx I
 
 ### Deliverables
 
-- `infrastructure-deployment/kube/aks-prod-namespace.yml`
-- `infrastructure-deployment/kube/aks-prod-{service}.yml` (8 files)
-- `infrastructure-deployment/kube/aks-prod-ingress.yml`
+- `kubernetes/aks-prod-namespace.yml`
+- `kubernetes/aks-prod-{service}.yml` (8 files)
+- `kubernetes/aks-prod-ingress.yml`
 
 ### Acceptance Criteria
 
@@ -352,7 +352,7 @@ Create Kubernetes manifests for deploying RabbitMQ in AKS environments where Azu
 
 ### Deliverables
 
-- `infrastructure-deployment/kube/aks-dev-rabbitmq.yml`
+- `kubernetes/aks-dev-rabbitmq.yml`
 - Optionally: `aks-staging-rabbitmq.yml` (if Staging uses RabbitMQ instead of Service Bus)
 
 ### Acceptance Criteria
@@ -515,7 +515,7 @@ Create a step-by-step guide for running the microservices platform on local Kube
 - [ ] Guide for deploying all services to local K8s using existing `kubernetes/` manifests
 - [ ] Troubleshooting section for common local K8s issues
 - [ ] Verification steps (health checks, API requests) to confirm successful deployment
-- [ ] Guide explains the difference between local K8s manifests (`kubernetes/`) and AKS manifests (`kube/`)
+- [ ] Guide explains the difference between local K8s manifests (`kubernetes/*.yaml`) and AKS manifests (`kubernetes/aks-{env}-*.yml`)
 
 ### User Stories Covered
 
