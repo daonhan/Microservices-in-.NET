@@ -35,6 +35,13 @@ param dbSkuName string = 'Basic'
 @description('Database SKU tier. Use "Basic" for dev, "Standard" for staging/prod.')
 param dbSkuTier string = 'Basic'
 
+@description('Cost-tier selector. Passthrough only in this phase; branching logic lands in Phase 2.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
+
 @description('Resource tags.')
 param tags object = {}
 

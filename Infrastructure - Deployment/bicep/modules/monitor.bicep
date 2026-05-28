@@ -21,6 +21,13 @@ param retentionInDays int = 30
 ])
 param sku string = 'PerGB2018'
 
+@description('Cost-tier selector. Passthrough only in this phase; branching logic lands in Phase 2.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
+
 @description('Resource tags.')
 param tags object = {}
 

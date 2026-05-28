@@ -37,6 +37,13 @@ param skuCapacity int = 0
 ])
 param redisVersion string = '6'
 
+@description('Cost-tier selector. Passthrough only in this phase; branching logic lands in a later phase.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
+
 @description('Resource tags.')
 param tags object = {}
 

@@ -11,7 +11,7 @@
 //   - Application Insights
 //   - Azure Service Bus namespace + topics
 //
-// Per-environment values come from parameters/{dev,staging,prod}.bicepparam.
+// Per-environment values come from parameters/{dev,staging,prod,sandbox}.bicepparam.
 
 targetScope = 'resourceGroup'
 
@@ -20,8 +20,16 @@ targetScope = 'resourceGroup'
   'dev'
   'staging'
   'prod'
+  'sandbox'
 ])
 param environment string
+
+@description('Cost-tier selector. "minimal" activates cheap SKUs in SKU-bearing modules; "standard" is the default and preserves existing behavior.')
+@allowed([
+  'minimal'
+  'standard'
+])
+param costProfile string = 'standard'
 
 @description('Short workload identifier used in resource names.')
 @minLength(2)
@@ -174,6 +182,7 @@ module aks 'modules/aks.bicep' = {
     systemNodeVmSize: aksSystemNodeVmSize
     serviceCidr: serviceCidr
     dnsServiceIP: dnsServiceIP
+    costProfile: costProfile
     tags: commonTags
   }
 }
@@ -196,6 +205,7 @@ module sql 'modules/sql.bicep' = {
     adminPassword: sqlAdminPassword
     dbSkuName: dbSkuName
     dbSkuTier: dbSkuTier
+    costProfile: costProfile
     tags: commonTags
   }
 }
@@ -208,6 +218,7 @@ module redis 'modules/redis.bicep' = {
     skuFamily: redisSkuFamily
     skuName: redisSkuName
     skuCapacity: redisSkuCapacity
+    costProfile: costProfile
     tags: commonTags
   }
 }
@@ -228,6 +239,7 @@ module monitor 'modules/monitor.bicep' = {
     workspaceName: logWorkspaceName
     location: location
     retentionInDays: logRetentionDays
+    costProfile: costProfile
     tags: commonTags
   }
 }
@@ -238,6 +250,7 @@ module appInsights 'modules/appinsights.bicep' = {
     appInsightsName: appInsightsName
     location: location
     workspaceId: monitor.outputs.workspaceId
+    costProfile: costProfile
     tags: commonTags
   }
 }
