@@ -143,7 +143,7 @@ See [Observability](Observability) for dashboards and alerts.
 ## Authentication flow
 
 1. Client calls `POST /login` on the Gateway → proxied to Auth service.
-2. Auth validates credentials against its SQL Server store and returns a JWT (HMAC-SHA256) with `user_role` claims.
+2. Auth validates credentials against its SQL Server store and returns a JWT (RS256) with `user_role` claims.
 3. Client includes `Authorization: Bearer <jwt>` on subsequent requests.
 4. The Gateway validates the token and enforces role policies (e.g. `Administrator` for write ops on Product and Inventory).
 5. Downstream services validate the token again via the shared `AddJwtAuthentication()` extension.
