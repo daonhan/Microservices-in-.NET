@@ -84,7 +84,7 @@ RS256 user JWTs from Auth (`POST /login`); `client_credentials` service tokens (
 
 ## CI/CD
 
-Azure Pipelines per service (`azure-pipelines.yml`). Bicep provisions AKS/ACR/Azure SQL/Service Bus/App Insights. Deploys to `ecommerce-{dev,staging,prod}` namespaces. **GitHub Actions is not used.**
+GitHub Actions runs build verification (`docker-build.yml`) and QA smoke checks (`smoke-test.yml`) as CI gates; Azure Pipelines (per-service `azure-pipelines.yml`) is the deployment path. Bicep provisions AKS/ACR/Azure SQL/Service Bus/App Insights. Deploys to `ecommerce-{dev,staging,prod}` namespaces.
 
 ## Conventions
 

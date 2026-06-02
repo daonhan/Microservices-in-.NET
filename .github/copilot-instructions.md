@@ -38,7 +38,7 @@ Services and ports (from [docker-compose.yaml](../docker-compose.yaml)):
 - **Messaging:** RabbitMQ by default or Azure Service Bus via `Messaging:Provider`, wrapped by `IEventBus` from `ECommerce.Shared.EventBus` and provider-aware composition from `ECommerce.Shared.Messaging`
 - **Observability:** OpenTelemetry, Jaeger, Loki, Grafana, Prometheus (see `observability/` and `kubernetes/`)
 - **Containerization:** Docker / Docker Compose; Kubernetes manifests under `kubernetes/`
-- **CI/CD:** **Azure Pipelines** (`azure-pipelines.yml` per service). GitHub Actions is not used.
+- **CI/CD:** GitHub Actions runs build verification (`docker-build.yml`) and QA smoke checks (`smoke-test.yml`) as CI gates; Azure Pipelines (per-service `azure-pipelines.yml`) is the deployment path.
 - **Cloud target:** Azure (AKS manifests prefixed `aks-*` in `kubernetes/`)
 
 ## Build, test, run
