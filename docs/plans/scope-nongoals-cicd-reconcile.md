@@ -88,4 +88,4 @@ Per PRD Testing Decisions: docs-only, automated tests would only couple to prose
    Select-String -Path CLAUDE.md, AGENTS.md, .github/copilot-instructions.md -Pattern "GitHub Actions"
    ```
 4. **Badge** — confirm `CONTEXT.md:4` badge label = "QA Smoke Test", URL still `smoke-test.yml`; both badges still resolve to existing workflows.
-5. **No drift** — `git diff --stat` touches only `CONTEXT.md`, `README.md`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`. No workflow/pipeline/PATTERNS files.
+5. **No drift** — `git diff --stat` touches only `CONTEXT.md`, `README.md`, `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md`, and `docs/plans/scope-nongoals-cicd-reconcile.md`. No workflow/pipeline/PATTERNS files.
