@@ -1,7 +1,7 @@
 # E-Commerce Microservices Platform — Project Context
 
 [![Docker Build](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/docker-build.yml/badge.svg)](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/docker-build.yml)
-[![Docker Build](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/smoke-test.yml/badge.svg)](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/smoke-test.yml)
+[![QA Smoke Test](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/smoke-test.yml/badge.svg)](https://github.com/daonhan/Microservices-in-.NET/actions/workflows/smoke-test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 
@@ -239,6 +239,25 @@ In rough order of how surprising each one was:
 The gateway's combined Swagger UI is the fastest way to show the "single front door, many services" shape of the platform without explaining the route table first.
 
 ![API Gateway combined Swagger UI](docs/assets/swagger.png)
+
+## Scope & Non-Goals
+
+### What this is
+
+A learning and portfolio backend, not a production storefront. There is no frontend or UI — the public surface is the API Gateway plus the aggregated Swagger it fronts. Payments are simulated: authorize/capture/void/refund are pattern demonstrations rather than calls to a real processor. The intent is depth over breadth — eight services that walk the hard distributed-systems paths (saga orchestration, transactional outbox, JWKS, DLQ operator API, OpenTelemetry end-to-end) rather than a wide-but-shallow commerce catalog. Single-author portfolio and learning intent, written down so a reader can judge the scoping choices in under a minute.
+
+### Non-goals
+
+- No frontend or UI — the public surface is the API Gateway plus aggregated Swagger.
+- Simulated payments — authorize/capture/void/refund are pattern demos, not a real processor integration.
+- Depth-over-breadth — no wide commerce catalog (returns, promotions, multi-tenant pricing, etc.); the eight services in the platform are the scope.
+- Gateway provider switch is boot-time; per-route selection and hot reload are out of scope ([ADR-0001](docs/adr/0001-api-gateway-yarp-default-ocelot-fallback.md)).
+- Ocelot removal deferred — dual-gateway is by design ([PRD-ApiGateway-Yarp](docs/prd/PRD-ApiGateway-Yarp.md)).
+- Local NuGet feed only; no public-feed publishing ([ADR-0005](docs/adr/0005-ecommerce-shared-as-nuget-via-local-feed.md), [shared-libs versioning runbook](docs/runbooks/shared-libs-versioning.md)).
+- Cosmos DB migration deferred; Azure SQL is the current datastore ([PRD — Azure Infrastructure Deployment](docs/prd/azure-infrastructure-deployment.md)).
+- Auth per-slice request validation deferred ([PRD-Auth-CleanArch-VSA-Pilot](docs/prd/PRD-Auth-CleanArch-VSA-Pilot.md)).
+- No microservice code consolidation — services deploy as-is ([PRD-Aks-Deployment](docs/prd/PRD-Aks-Deployment.md)).
+- Gateway-internal JWT claim helper not promoted to shared lib ([PRD-ApiGateway-CleanArch-VSA-Pilot](docs/prd/PRD-ApiGateway-CleanArch-VSA-Pilot.md)).
 
 ## Link tree
 

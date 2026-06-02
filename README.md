@@ -253,6 +253,10 @@ cp shared-libs/**/bin/Release/*.nupkg local-nuget-packages/
 | **Resilience** | Polly retry pipelines for RabbitMQ, EF Core `EnableRetryOnFailure` for SQL |
 | **Distributed tracing** | OpenTelemetry with context propagation across RabbitMQ messages, including DLQ replay spans |
 
+## Scope & Non-Goals
+
+For what this project is and isn't — the framing (learning/portfolio backend, no frontend, simulated payments, depth-over-breadth) and the consolidated non-goals list with links back to the authoritative ADRs/PRDs/runbooks — see [`CONTEXT.md#scope--non-goals`](CONTEXT.md#scope--non-goals).
+
 ## API Gateway Provider (YARP / Ocelot)
 
 The API Gateway ships with two reverse-proxy implementations compiled into the same project. The active one is selected at runtime via the `Gateway:Provider` config key. Defaults to **`Yarp`**.
