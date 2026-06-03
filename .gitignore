@@ -49,3 +49,6 @@ infrastructure-deployment/ARCHITECTURE.md
 !.claude/commands/
 !.claude/CLAUDE.md
 !.claude/scripts/afk-commit-gate.sh
+
+# Postman smoke-suite Newman report (qa/postman/run-smoke.sh)
+qa/postman/out.json

@@ -80,6 +80,18 @@ newman run qa/postman/ECommerce-Smoke.postman_collection.json \
 
 A clean run exits `0` with `run.stats.assertions.failed == 0` in `out.json`.
 
+## One-shot script
+
+[`run-smoke.sh`](run-smoke.sh) mechanizes everything above — clean stack, wait
+for all nine `/health/ready`, run Newman, print the verdict — and exits non-zero
+on any failed assertion:
+
+```bash
+./qa/postman/run-smoke.sh                 # full gate: down -v, up --build, run
+RESET=0 ./qa/postman/run-smoke.sh         # run against the current stack
+SKIP_BUILD=1 ./qa/postman/run-smoke.sh    # reset without rebuilding images
+```
+
 ## Overriding individual variables
 
 Each environment value can be overridden at the CLI without editing the file:
