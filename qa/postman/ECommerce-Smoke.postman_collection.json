@@ -655,6 +655,443 @@
           ]
         }
       ]
+    },
+    {
+      "name": "02 Stock Shortage",
+      "description": "Customer-cancel attempts to buy product-zero-stock (qty 1). Saga compensates and the order reaches Cancelled. Reuses the canonical polling pattern with TERMINAL = 'Cancelled'.",
+      "item": [
+        {
+          "name": "login-customer-cancel",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{customerCancelEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{authBaseUrl}}/login", "host": ["{{authBaseUrl}}"], "path": ["login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns a customer-cancel token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.greaterThan(0);",
+                  "});",
+                  "pm.collectionVariables.set('customerToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "get-seeded-basket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{basketBaseUrl}}/{{customerCancelId}}",
+              "host": ["{{basketBaseUrl}}"],
+              "path": ["{{customerCancelId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns the cancel customer zero-stock basket', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.customerId).to.equal(pm.environment.get('customerCancelId'));",
+                  "  pm.expect(body.products).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "  const product = body.products.find(p => String(p.productId) === String(pm.environment.get('productZeroStockId')));",
+                  "  pm.expect(product, 'product-zero-stock in basket').to.exist;",
+                  "  pm.expect(product.productName).to.equal('product-zero-stock');",
+                  "  pm.expect(product.productPrice).to.equal(10);",
+                  "  pm.expect(product.quantity).to.equal(1);",
+                  "  pm.expect(body.basketTotal).to.be.a('number').and.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "get-zero-stock",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryBaseUrl}}/{{productZeroStockId}}",
+              "host": ["{{inventoryBaseUrl}}"],
+              "path": ["{{productZeroStockId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns the zero-stock inventory fixture', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.productId).to.equal(Number(pm.environment.get('productZeroStockId')));",
+                  "  pm.expect(body.totalOnHand).to.equal(0);",
+                  "  pm.expect(body.totalReserved).to.equal(0);",
+                  "  pm.expect(body.available).to.equal(0);",
+                  "  pm.expect(body.threshold).to.be.a('number');",
+                  "  pm.expect(body.perWarehouse).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "place-order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderProducts\": [\n    {\n      \"productId\": \"{{productZeroStockId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{orderBaseUrl}}/{{customerCancelId}}",
+              "host": ["{{orderBaseUrl}}"],
+              "path": ["{{customerCancelId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('creates a stock-shortage order and returns a location', () => {",
+                  "  pm.expect(pm.response.code).to.equal(201);",
+                  "  const location = pm.response.headers.get('Location');",
+                  "  pm.expect(location, 'Location header').to.be.a('string').and.not.empty;",
+                  "  pm.expect(location).to.contain(pm.environment.get('customerCancelId'));",
+                  "  const orderId = location.split('/').pop();",
+                  "  pm.expect(orderId).to.match(/^[0-9a-fA-F-]{36}$/);",
+                  "});",
+                  "const location = pm.response.headers.get('Location');",
+                  "if (location) {",
+                  "  pm.collectionVariables.set('orderLocation', location);",
+                  "  pm.collectionVariables.set('orderId', location.split('/').pop());",
+                  "}",
+                  "pm.collectionVariables.set('pollAttempts', 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "poll-order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{orderBaseUrl}}/{{customerCancelId}}/{{orderId}}",
+              "host": ["{{orderBaseUrl}}"],
+              "path": ["{{customerCancelId}}", "{{orderId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const TERMINAL = 'Cancelled';",
+                  "const MAX_ATTEMPTS = 80;",
+                  "pm.test('poll-order response shape', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.orderId).to.equal(pm.collectionVariables.get('orderId'));",
+                  "  pm.expect(body.customerId).to.equal(pm.environment.get('customerCancelId'));",
+                  "  pm.expect(body.status).to.be.a('string').and.not.empty;",
+                  "});",
+                  "const status = pm.response.json().status;",
+                  "let n = Number(pm.collectionVariables.get('pollAttempts') || 0);",
+                  "pm.collectionVariables.set('orderStatus', status);",
+                  "if (status === TERMINAL) {",
+                  "  pm.collectionVariables.set('pollAttempts', 0);",
+                  "  pm.test(`order reached ${TERMINAL}`, () => pm.expect(status).to.equal(TERMINAL));",
+                  "} else if (n + 1 >= MAX_ATTEMPTS) {",
+                  "  pm.collectionVariables.set('pollAttempts', 0);",
+                  "  pm.test(`order reached ${TERMINAL}`, () => pm.expect.fail(`stuck at ${status} after ${MAX_ATTEMPTS} attempts`));",
+                  "} else {",
+                  "  pm.collectionVariables.set('pollAttempts', n + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Payment Decline",
+      "description": "Customer-decline attempts to buy product-decline (qty 1). Payment is declined, saga compensates to Cancelled, and reserved stock is released. Reuses the canonical polling pattern with TERMINAL = 'Cancelled'.",
+      "item": [
+        {
+          "name": "login-customer-decline",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{customerDeclineEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{authBaseUrl}}/login", "host": ["{{authBaseUrl}}"], "path": ["login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns a customer-decline token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.greaterThan(0);",
+                  "});",
+                  "pm.collectionVariables.set('customerToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "get-seeded-basket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{basketBaseUrl}}/{{customerDeclineId}}",
+              "host": ["{{basketBaseUrl}}"],
+              "path": ["{{customerDeclineId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns the decline customer seeded basket', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.customerId).to.equal(pm.environment.get('customerDeclineId'));",
+                  "  pm.expect(body.products).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "  const product = body.products.find(p => String(p.productId) === String(pm.environment.get('productDeclineId')));",
+                  "  pm.expect(product, 'product-decline in basket').to.exist;",
+                  "  pm.expect(product.productName).to.equal('product-decline');",
+                  "  pm.expect(product.productPrice).to.equal(9.99);",
+                  "  pm.expect(product.quantity).to.equal(1);",
+                  "  pm.expect(body.basketTotal).to.be.a('number').and.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "get-decline-product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productBaseUrl}}/{{productDeclineId}}",
+              "host": ["{{productBaseUrl}}"],
+              "path": ["{{productDeclineId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns the decline-priced product', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.id).to.equal(Number(pm.environment.get('productDeclineId')));",
+                  "  pm.expect(body.name).to.equal('product-decline');",
+                  "  pm.expect(body.price).to.equal(9.99);",
+                  "  pm.expect(body.productType).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "place-order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderProducts\": [\n    {\n      \"productId\": \"{{productDeclineId}}\",\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{orderBaseUrl}}/{{customerDeclineId}}",
+              "host": ["{{orderBaseUrl}}"],
+              "path": ["{{customerDeclineId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('creates a payment-decline order and returns a location', () => {",
+                  "  pm.expect(pm.response.code).to.equal(201);",
+                  "  const location = pm.response.headers.get('Location');",
+                  "  pm.expect(location, 'Location header').to.be.a('string').and.not.empty;",
+                  "  pm.expect(location).to.contain(pm.environment.get('customerDeclineId'));",
+                  "  const orderId = location.split('/').pop();",
+                  "  pm.expect(orderId).to.match(/^[0-9a-fA-F-]{36}$/);",
+                  "});",
+                  "const location = pm.response.headers.get('Location');",
+                  "if (location) {",
+                  "  pm.collectionVariables.set('orderLocation', location);",
+                  "  pm.collectionVariables.set('orderId', location.split('/').pop());",
+                  "}",
+                  "pm.collectionVariables.set('pollAttempts', 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "poll-order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{orderBaseUrl}}/{{customerDeclineId}}/{{orderId}}",
+              "host": ["{{orderBaseUrl}}"],
+              "path": ["{{customerDeclineId}}", "{{orderId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const TERMINAL = 'Cancelled';",
+                  "const MAX_ATTEMPTS = 80;",
+                  "pm.test('poll-order response shape', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.orderId).to.equal(pm.collectionVariables.get('orderId'));",
+                  "  pm.expect(body.customerId).to.equal(pm.environment.get('customerDeclineId'));",
+                  "  pm.expect(body.status).to.be.a('string').and.not.empty;",
+                  "});",
+                  "const status = pm.response.json().status;",
+                  "let n = Number(pm.collectionVariables.get('pollAttempts') || 0);",
+                  "pm.collectionVariables.set('orderStatus', status);",
+                  "if (status === TERMINAL) {",
+                  "  pm.collectionVariables.set('pollAttempts', 0);",
+                  "  pm.test(`order reached ${TERMINAL}`, () => pm.expect(status).to.equal(TERMINAL));",
+                  "} else if (n + 1 >= MAX_ATTEMPTS) {",
+                  "  pm.collectionVariables.set('pollAttempts', 0);",
+                  "  pm.test(`order reached ${TERMINAL}`, () => pm.expect.fail(`stuck at ${status} after ${MAX_ATTEMPTS} attempts`));",
+                  "} else {",
+                  "  pm.collectionVariables.set('pollAttempts', n + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "confirm-stock-released",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryBaseUrl}}/{{productDeclineId}}",
+              "host": ["{{inventoryBaseUrl}}"],
+              "path": ["{{productDeclineId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns the decline-path inventory shape after release', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.productId).to.equal(Number(pm.environment.get('productDeclineId')));",
+                  "  pm.expect(body.totalOnHand).to.be.a('number').and.at.least(1);",
+                  "  pm.expect(body.totalReserved).to.be.a('number');",
+                  "  pm.expect(body.available).to.be.a('number').and.at.least(0);",
+                  "  pm.expect(body.threshold).to.be.a('number');",
+                  "  pm.expect(body.perWarehouse).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
