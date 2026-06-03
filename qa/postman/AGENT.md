@@ -117,7 +117,7 @@ Categories:
   `paymentBaseUrl`, `sagaBaseUrl`. Override these to point at a non-localhost
   stack.
 - **Service credentials (2):** `serviceClientId`, `serviceClientSecret`.
-- **Personas (8):** `customerHappyId`/`Email`, `customerDeclineId`/`Email`,
+- **Personas (9):** `customerHappyId`/`Email`, `customerDeclineId`/`Email`,
   `customerCancelId`/`Email`, `adminEmail`. Plus `customerPassword`,
   `adminPassword`.
 - **Products (5):** `productHappyId`, `productDeclineId`,
@@ -128,7 +128,7 @@ Categories:
   `shipmentDispatchedTrackingNumber`, `shipmentFailDispatchedTrackingNumber`,
   `shipmentReturnDispatchedTrackingNumber`.
 - **Saga + carrier (2):** `operatorSagaId`, `carrierGroundSecret`.
-- **Runtime captures (1, not in env file):** `orderId`, `shipmentId`,
+- **Runtime captures (8, not in env file):** `orderId`, `shipmentId`,
   `customerToken`, `adminToken`, `serviceToken`, `orderStatus`, `orderLocation`,
   `pollAttempts` are collection-level variables initialised at run start. Do
   not pre-seed them.
