@@ -166,11 +166,12 @@ do {
 $shipmentId = $shipment.shipmentId
 ```
 
-During the Bruno smoke soak, keep `qa/bruno/qa-local.bru` and the `$Qa` hash in
+During the Bruno smoke soak, keep `qa/bruno/qa-local.bru`,
+`qa/postman/qa-local.postman_environment.json`, and the `$Qa` hash in
 `scripts/local-smoke-test.ps1` in lockstep. Any PR that changes persona emails,
-passwords, product IDs, customer IDs, or seeded shipment IDs must update both
-surfaces so the legacy PowerShell smoke gate and the non-blocking `bruno-smoke`
-job exercise the same dataset.
+passwords, product IDs, customer IDs, or seeded shipment IDs must update all
+three dataset surfaces so the legacy PowerShell smoke gate, the non-blocking
+`bruno-smoke` job, and the Postman/Newman runbook exercise the same dataset.
 
 Bruno request files that run in CI should include a `tests` block with three
 layers: expected HTTP status, fields consumed by downstream requests, and a
