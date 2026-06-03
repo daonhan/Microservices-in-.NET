@@ -1,0 +1,669 @@
+{
+  "info": {
+    "_postman_id": "b2f5a9d3-1c4e-4a8a-9d2f-ecommerce0001",
+    "name": "E-Commerce Smoke",
+    "description": "QA smoke suite ported from qa/bruno. Self-contained polling — runnable in Postman desktop Runner, Newman CLI, and the Postman MCP. See qa/postman/README.md (human) and qa/postman/AGENT.md (AI QA agent).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Health",
+      "description": "GET /health/ready on every published service port. Order matches the CI smoke wait order (auth → resources → gateway), with saga at the end.",
+      "item": [
+        {
+          "name": "auth health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{authBaseUrl}}/health/ready", "host": ["{{authBaseUrl}}"], "path": ["health", "ready"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('auth /health/ready returns 200', () => pm.expect(pm.response.code).to.equal(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "product health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{productBaseUrl}}/health/ready", "host": ["{{productBaseUrl}}"], "path": ["health", "ready"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('product /health/ready returns 200', () => pm.expect(pm.response.code).to.equal(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "basket health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{basketBaseUrl}}/health/ready", "host": ["{{basketBaseUrl}}"], "path": ["health", "ready"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('basket /health/ready returns 200', () => pm.expect(pm.response.code).to.equal(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "order health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{orderBaseUrl}}/health/ready", "host": ["{{orderBaseUrl}}"], "path": ["health", "ready"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('order /health/ready returns 200', () => pm.expect(pm.response.code).to.equal(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "inventory health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{inventoryBaseUrl}}/health/ready", "host": ["{{inventoryBaseUrl}}"], "path": ["health", "ready"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('inventory /health/ready returns 200', () => pm.expect(pm.response.code).to.equal(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "shipping health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{shippingBaseUrl}}/health/ready", "host": ["{{shippingBaseUrl}}"], "path": ["health", "ready"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('shipping /health/ready returns 200', () => pm.expect(pm.response.code).to.equal(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "payment health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{paymentBaseUrl}}/health/ready", "host": ["{{paymentBaseUrl}}"], "path": ["health", "ready"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('payment /health/ready returns 200', () => pm.expect(pm.response.code).to.equal(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "gateway health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{gatewayBaseUrl}}/health/ready", "host": ["{{gatewayBaseUrl}}"], "path": ["health", "ready"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('gateway /health/ready returns 200', () => pm.expect(pm.response.code).to.equal(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "saga health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{sagaBaseUrl}}/health/ready", "host": ["{{sagaBaseUrl}}"], "path": ["health", "ready"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('saga /health/ready returns 200', () => pm.expect(pm.response.code).to.equal(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Happy Path",
+      "description": "Customer-happy buys product-happy (qty 2). Saga reaches Confirmed; admin walks the shipment to Delivered. Polling is self-contained via pm.execution.setNextRequest; runner supplies the 750ms inter-iteration delay.",
+      "item": [
+        {
+          "name": "login-customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{customerHappyEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{authBaseUrl}}/login", "host": ["{{authBaseUrl}}"], "path": ["login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns a customer token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.greaterThan(0);",
+                  "});",
+                  "pm.collectionVariables.set('customerToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "login-admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{authBaseUrl}}/login", "host": ["{{authBaseUrl}}"], "path": ["login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns an admin token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.greaterThan(0);",
+                  "});",
+                  "pm.collectionVariables.set('adminToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "get-basket",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{basketBaseUrl}}/{{customerHappyId}}",
+              "host": ["{{basketBaseUrl}}"],
+              "path": ["{{customerHappyId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns the happy customer seeded basket', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.customerId).to.equal(pm.environment.get('customerHappyId'));",
+                  "  pm.expect(body.products).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "  const product = body.products.find(p => String(p.productId) === String(pm.environment.get('productHappyId')));",
+                  "  pm.expect(product, 'product-happy in basket').to.exist;",
+                  "  pm.expect(product.productName).to.be.a('string').and.not.empty;",
+                  "  pm.expect(product.productPrice).to.be.a('number');",
+                  "  pm.expect(product.quantity).to.equal(2);",
+                  "  pm.expect(body.basketTotal).to.be.a('number').and.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "get-product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productBaseUrl}}/{{productHappyId}}",
+              "host": ["{{productBaseUrl}}"],
+              "path": ["{{productHappyId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns product-happy catalog data', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.id).to.equal(Number(pm.environment.get('productHappyId')));",
+                  "  pm.expect(body.name).to.equal('product-happy');",
+                  "  pm.expect(body.price).to.equal(10);",
+                  "  pm.expect(body.productType).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "get-inventory",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{inventoryBaseUrl}}/{{productHappyId}}",
+              "host": ["{{inventoryBaseUrl}}"],
+              "path": ["{{productHappyId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns available inventory for product-happy', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.productId).to.equal(Number(pm.environment.get('productHappyId')));",
+                  "  pm.expect(body.totalOnHand).to.be.a('number').and.at.least(2);",
+                  "  pm.expect(body.totalReserved).to.be.a('number');",
+                  "  pm.expect(body.available).to.be.a('number').and.at.least(2);",
+                  "  pm.expect(body.threshold).to.be.a('number');",
+                  "  pm.expect(body.perWarehouse).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "place-order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderProducts\": [\n    {\n      \"productId\": \"{{productHappyId}}\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{orderBaseUrl}}/{{customerHappyId}}",
+              "host": ["{{orderBaseUrl}}"],
+              "path": ["{{customerHappyId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('creates an order and returns a location', () => {",
+                  "  pm.expect(pm.response.code).to.equal(201);",
+                  "  const location = pm.response.headers.get('Location');",
+                  "  pm.expect(location, 'Location header').to.be.a('string').and.not.empty;",
+                  "  pm.expect(location).to.contain(pm.environment.get('customerHappyId'));",
+                  "  const orderId = location.split('/').pop();",
+                  "  pm.expect(orderId).to.match(/^[0-9a-fA-F-]{36}$/);",
+                  "});",
+                  "const location = pm.response.headers.get('Location');",
+                  "if (location) {",
+                  "  pm.collectionVariables.set('orderLocation', location);",
+                  "  pm.collectionVariables.set('orderId', location.split('/').pop());",
+                  "}",
+                  "pm.collectionVariables.set('pollAttempts', 0);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "poll-order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{orderBaseUrl}}/{{customerHappyId}}/{{orderId}}",
+              "host": ["{{orderBaseUrl}}"],
+              "path": ["{{customerHappyId}}", "{{orderId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const TERMINAL = 'Confirmed';",
+                  "const MAX_ATTEMPTS = 80;",
+                  "pm.test('poll-order response shape', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.orderId).to.equal(pm.collectionVariables.get('orderId'));",
+                  "  pm.expect(body.customerId).to.equal(pm.environment.get('customerHappyId'));",
+                  "  pm.expect(body.status).to.be.a('string').and.not.empty;",
+                  "});",
+                  "const status = pm.response.json().status;",
+                  "let n = Number(pm.collectionVariables.get('pollAttempts') || 0);",
+                  "pm.collectionVariables.set('orderStatus', status);",
+                  "if (status === TERMINAL) {",
+                  "  pm.collectionVariables.set('pollAttempts', 0);",
+                  "  pm.test(`order reached ${TERMINAL}`, () => pm.expect(status).to.equal(TERMINAL));",
+                  "} else if (n + 1 >= MAX_ATTEMPTS) {",
+                  "  pm.collectionVariables.set('pollAttempts', 0);",
+                  "  pm.test(`order reached ${TERMINAL}`, () => pm.expect.fail(`stuck at ${status} after ${MAX_ATTEMPTS} attempts`));",
+                  "} else {",
+                  "  pm.collectionVariables.set('pollAttempts', n + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "list-shipping-by-order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{shippingBaseUrl}}/by-order/{{orderId}}",
+              "host": ["{{shippingBaseUrl}}"],
+              "path": ["by-order", "{{orderId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const MAX_ATTEMPTS = 80;",
+                  "pm.test('list-shipping-by-order returns 200 array', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});",
+                  "const body = pm.response.json();",
+                  "const arr = Array.isArray(body) ? body : [];",
+                  "let n = Number(pm.collectionVariables.get('pollAttempts') || 0);",
+                  "const first = arr[0];",
+                  "const shipmentId = first ? (first.shipmentId || first.id) : null;",
+                  "if (shipmentId) {",
+                  "  pm.collectionVariables.set('pollAttempts', 0);",
+                  "  pm.collectionVariables.set('shipmentId', shipmentId);",
+                  "  pm.test('shipment created for order', () => {",
+                  "    pm.expect(arr).to.have.lengthOf.at.least(1);",
+                  "    pm.expect(first.orderId).to.equal(pm.collectionVariables.get('orderId'));",
+                  "    pm.expect(first.customerId).to.equal(pm.environment.get('customerHappyId'));",
+                  "    pm.expect(first.status).to.be.a('string').and.not.empty;",
+                  "    pm.expect(first.lines).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "  });",
+                  "} else if (n + 1 >= MAX_ATTEMPTS) {",
+                  "  pm.collectionVariables.set('pollAttempts', 0);",
+                  "  pm.test('shipment created for order', () => pm.expect.fail(`no shipment after ${MAX_ATTEMPTS} attempts`));",
+                  "} else {",
+                  "  pm.collectionVariables.set('pollAttempts', n + 1);",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "pick-shipment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{shippingBaseUrl}}/{{shipmentId}}/pick",
+              "host": ["{{shippingBaseUrl}}"],
+              "path": ["{{shipmentId}}", "pick"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('moves the shipment to Picked', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.shipmentId).to.equal(pm.collectionVariables.get('shipmentId'));",
+                  "  pm.expect(body.orderId).to.equal(pm.collectionVariables.get('orderId'));",
+                  "  pm.expect(body.customerId).to.equal(pm.environment.get('customerHappyId'));",
+                  "  pm.expect(body.status).to.equal('Picked');",
+                  "  pm.expect(body.lines).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "pack-shipment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{shippingBaseUrl}}/{{shipmentId}}/pack",
+              "host": ["{{shippingBaseUrl}}"],
+              "path": ["{{shipmentId}}", "pack"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('moves the shipment to Packed', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.shipmentId).to.equal(pm.collectionVariables.get('shipmentId'));",
+                  "  pm.expect(body.orderId).to.equal(pm.collectionVariables.get('orderId'));",
+                  "  pm.expect(body.customerId).to.equal(pm.environment.get('customerHappyId'));",
+                  "  pm.expect(body.status).to.equal('Packed');",
+                  "  pm.expect(body.lines).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "dispatch-shipment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"carrierKey\": \"fake-ground\",\n  \"shippingAddress\": {\n    \"recipient\": \"QA Happy Customer\",\n    \"line1\": \"1 QA Way\",\n    \"line2\": null,\n    \"city\": \"Testville\",\n    \"state\": \"WA\",\n    \"postalCode\": \"98052\",\n    \"country\": \"US\"\n  },\n  \"overrideQuote\": null\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{shippingBaseUrl}}/{{shipmentId}}/dispatch",
+              "host": ["{{shippingBaseUrl}}"],
+              "path": ["{{shipmentId}}", "dispatch"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('dispatches the shipment', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.shipmentId).to.equal(pm.collectionVariables.get('shipmentId'));",
+                  "  pm.expect(body.status).to.equal('Shipped');",
+                  "  pm.expect(body.carrierKey).to.equal('fake-ground');",
+                  "  pm.expect(body.trackingNumber).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.labelRef).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.quotedPriceAmount).to.be.a('number');",
+                  "  pm.expect(body.quotedPriceCurrency).to.equal('USD');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "deliver-shipment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{shippingBaseUrl}}/{{shipmentId}}/deliver",
+              "host": ["{{shippingBaseUrl}}"],
+              "path": ["{{shipmentId}}", "deliver"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('moves the shipment to Delivered', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.shipmentId).to.equal(pm.collectionVariables.get('shipmentId'));",
+                  "  pm.expect(body.orderId).to.equal(pm.collectionVariables.get('orderId'));",
+                  "  pm.expect(body.customerId).to.equal(pm.environment.get('customerHappyId'));",
+                  "  pm.expect(body.status).to.equal('Delivered');",
+                  "  pm.expect(body.lines).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "pollAttempts", "value": "0" },
+    { "key": "orderStatus", "value": "" },
+    { "key": "orderId", "value": "" },
+    { "key": "orderLocation", "value": "" },
+    { "key": "shipmentId", "value": "" },
+    { "key": "customerToken", "value": "" },
+    { "key": "adminToken", "value": "" }
+  ]
+}
