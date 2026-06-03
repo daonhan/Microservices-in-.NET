@@ -1,6 +1,6 @@
 # PRD: Postman Smoke Testing (port + extend the Bruno suite)
 
-> Status: Appoved.
+> Status: Approved.
 
 ## Context
 

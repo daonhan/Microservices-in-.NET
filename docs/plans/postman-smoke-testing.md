@@ -132,7 +132,7 @@ Port Bruno's `saga-operator`, using the cleaner urlencoded service-token request
 
 The gap-closing folders that Bruno lacks. All are self-contained and require no seed changes.
 
-- **`07 Auth & Negative`** — fetch JWKS (`GET {{authBaseUrl}}/jwks` → 200, `keys[]`; verify path vs `/.well-known/jwks.json`); AdminOnly rejects customer JWT (`POST :8005/9005/restock` with `customerToken` → 403); protected endpoint rejects anonymous (`POST :8001/{{customerHappyId}}` no auth → 401); protected endpoint rejects garbage token (`GET :8001/{{customerHappyId}}/{{orderId}}` with `Bearer not.a.jwt` → 401).
+- **`07 Auth & Negative`** — fetch JWKS (`GET {{authBaseUrl}}/.well-known/jwks.json` → 200, `keys[]`); AdminOnly rejects customer JWT (`POST :8005/9005/restock` with `customerToken` → 403); protected endpoint rejects anonymous (`POST :8005/9005/restock` no auth → 401); protected endpoint rejects garbage token (`POST :8005/9005/restock` with `Bearer not.a.jwt` → 401). Order place/get endpoints are not authorization-guarded, so they cannot demonstrate this boundary.
 - **`06 DLQ Operator (authz boundary)`** — `GET {{gatewayBaseUrl}}/operator/api/failures` with service token → 403; with admin user JWT → 403; with no token → 401.
 
 Verify exact 401-vs-403 codes against the live stack and adjust assertions to match.

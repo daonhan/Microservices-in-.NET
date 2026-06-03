@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "b2f5a9d3-1c4e-4a8a-9d2f-ecommerce0001",
+    "_postman_id": "b2f5a9d3-1c4e-4a8a-9d2f-ec0aace00001",
     "name": "E-Commerce Smoke",
     "description": "QA smoke suite ported from qa/bruno. Self-contained polling — runnable in Postman desktop Runner, Newman CLI, and the Postman MCP. See qa/postman/README.md (human) and qa/postman/AGENT.md (AI QA agent).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"

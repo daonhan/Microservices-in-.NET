@@ -69,7 +69,8 @@ set -e
 echo ""
 echo "=== Verdict (from $REPORT) ==="
 node -e '
-const r = require(process.argv[1]).run, s = r.stats.assertions;
+const reportPath = require("path").resolve(process.argv[1]);
+const r = require(reportPath).run, s = r.stats.assertions;
 console.log(`requests: ${r.stats.requests.total} | assertions: ${s.total} total, ${s.failed} failed`);
 if (s.failed) {
   const g = {};
