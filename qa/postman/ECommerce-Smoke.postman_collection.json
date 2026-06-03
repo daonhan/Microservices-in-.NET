@@ -1923,6 +1923,181 @@
           ]
         }
       ]
+    },
+    {
+      "name": "05 Saga Operator",
+      "description": "Port of qa/bruno/saga-operator. Issues a service-role token via x-www-form-urlencoded (Newman has no @usebruno/cli@3.3.0 multipart regression), then drives the seeded operatorSagaId through list -> detail -> retry -> abort. service-role satisfies RequireService on the saga operator routes.",
+      "item": [
+        {
+          "name": "issue-service-token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "client_id", "value": "{{serviceClientId}}", "type": "text" },
+                { "key": "client_secret", "value": "{{serviceClientSecret}}", "type": "text" }
+              ]
+            },
+            "url": { "raw": "{{authBaseUrl}}/token", "host": ["{{authBaseUrl}}"], "path": ["token"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns a service token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(body.expiresIn).to.be.a('number').and.greaterThan(0);",
+                  "});",
+                  "pm.collectionVariables.set('serviceToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "list-sagas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{serviceToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{sagaBaseUrl}}/operator/api/sagas?type=Order&status=Running",
+              "host": ["{{sagaBaseUrl}}"],
+              "path": ["operator", "api", "sagas"],
+              "query": [
+                { "key": "type", "value": "Order" },
+                { "key": "status", "value": "Running" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "const seededId = pm.environment.get('operatorSagaId');",
+                  "pm.test('lists order sagas including the seeded fixture', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  pm.expect(body.total).to.be.a('number');",
+                  "  pm.expect(body.items.some(function (item) { return item.sagaId === seededId; })).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "get-saga-detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{serviceToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{sagaBaseUrl}}/operator/api/sagas/{{operatorSagaId}}",
+              "host": ["{{sagaBaseUrl}}"],
+              "path": ["operator", "api", "sagas", "{{operatorSagaId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns saga detail with transitions', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body.sagaId).to.equal(pm.environment.get('operatorSagaId'));",
+                  "  pm.expect(body.transitions).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "retry-saga",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{serviceToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{sagaBaseUrl}}/operator/api/sagas/{{operatorSagaId}}/retry",
+              "host": ["{{sagaBaseUrl}}"],
+              "path": ["operator", "api", "sagas", "{{operatorSagaId}}", "retry"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('requeues the in-flight saga command', () => {",
+                  "  pm.expect(pm.response.code).to.equal(202);",
+                  "  pm.expect(body.sagaId).to.equal(pm.environment.get('operatorSagaId'));",
+                  "  pm.expect(body.currentStep).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "abort-saga",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{serviceToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{sagaBaseUrl}}/operator/api/sagas/{{operatorSagaId}}/abort",
+              "host": ["{{sagaBaseUrl}}"],
+              "path": ["operator", "api", "sagas", "{{operatorSagaId}}", "abort"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('starts saga compensation', () => {",
+                  "  pm.expect(pm.response.code).to.equal(202);",
+                  "  pm.expect(body.sagaId).to.equal(pm.environment.get('operatorSagaId'));",
+                  "  pm.expect(body.status).to.equal('Compensating');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -1932,6 +2107,7 @@
     { "key": "orderLocation", "value": "" },
     { "key": "shipmentId", "value": "" },
     { "key": "customerToken", "value": "" },
-    { "key": "adminToken", "value": "" }
+    { "key": "adminToken", "value": "" },
+    { "key": "serviceToken", "value": "" }
   ]
 }
