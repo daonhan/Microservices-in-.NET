@@ -2098,6 +2098,317 @@
           ]
         }
       ]
+    },
+    {
+      "name": "06 DLQ Operator (authz boundary)",
+      "description": "Authz boundary on the gateway DLQ operator API. No seeded credential yields user_role=Operator (PRD #317), so positive coverage is out of scope; this folder pins the negative codes: RequireOperator returns 403 for service-role and Administrator tokens, 401 anonymous.",
+      "item": [
+        {
+          "name": "login-admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{authBaseUrl}}/login", "host": ["{{authBaseUrl}}"], "path": ["login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns an admin token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('adminToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "issue-service-token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "client_id", "value": "{{serviceClientId}}", "type": "text" },
+                { "key": "client_secret", "value": "{{serviceClientSecret}}", "type": "text" }
+              ]
+            },
+            "url": { "raw": "{{authBaseUrl}}/token", "host": ["{{authBaseUrl}}"], "path": ["token"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns a service token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('serviceToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "dlq-failures-with-service-token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{serviceToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/operator/api/failures",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["operator", "api", "failures"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('service-role token is forbidden from DLQ operator API', () => {",
+                  "  pm.expect(pm.response.code).to.equal(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "dlq-failures-with-admin-token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/operator/api/failures",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["operator", "api", "failures"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('admin user token is forbidden from DLQ operator API', () => {",
+                  "  pm.expect(pm.response.code).to.equal(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "dlq-failures-anonymous",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/operator/api/failures",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["operator", "api", "failures"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('anonymous request to DLQ operator API is unauthorized', () => {",
+                  "  pm.expect(pm.response.code).to.equal(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 Auth & Negative",
+      "description": "Gap-closing negative coverage Bruno lacks. Fetches the OIDC JWKS document at /.well-known/jwks.json (the path the auth service actually publishes; AddJwtAuthentication discovers it via the OIDC convention), then pins 403 for AdminOnly-with-customer-token and 401 for both anonymous and garbage-token requests against the same inventory restock endpoint. Order place/get were considered for the anonymous/garbage cases but are not RequireAuthorization-guarded, so they cannot demonstrate the boundary; inventory restock is used instead.",
+      "item": [
+        {
+          "name": "login-customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{customerHappyEmail}}\",\n  \"password\": \"{{customerPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{authBaseUrl}}/login", "host": ["{{authBaseUrl}}"], "path": ["login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns a customer token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('customerToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "fetch-jwks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authBaseUrl}}/.well-known/jwks.json",
+              "host": ["{{authBaseUrl}}"],
+              "path": [".well-known", "jwks.json"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('publishes a non-empty JWKS document', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body).to.be.an('object');",
+                  "  pm.expect(body.keys).to.be.an('array').and.have.lengthOf.at.least(1);",
+                  "  pm.expect(body.keys[0].kid).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin-only-rejects-customer-token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{customerToken}}", "type": "string" }]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{inventoryBaseUrl}}/9005/restock",
+              "host": ["{{inventoryBaseUrl}}"],
+              "path": ["9005", "restock"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('AdminOnly restock rejects a customer JWT', () => {",
+                  "  pm.expect(pm.response.code).to.equal(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "protected-rejects-anonymous",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{inventoryBaseUrl}}/9005/restock",
+              "host": ["{{inventoryBaseUrl}}"],
+              "path": ["9005", "restock"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('protected endpoint rejects anonymous request', () => {",
+                  "  pm.expect(pm.response.code).to.equal(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "protected-rejects-garbage-token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer not.a.jwt" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{inventoryBaseUrl}}/9005/restock",
+              "host": ["{{inventoryBaseUrl}}"],
+              "path": ["9005", "restock"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('protected endpoint rejects garbage token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
