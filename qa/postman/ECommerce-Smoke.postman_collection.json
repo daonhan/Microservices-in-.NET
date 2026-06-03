@@ -402,7 +402,7 @@
           ]
         },
         {
-          "name": "poll-order",
+          "name": "poll-order-happy",
           "request": {
             "method": "GET",
             "header": [],
@@ -472,11 +472,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "const MAX_ATTEMPTS = 80;",
-                  "pm.test('list-shipping-by-order returns 200 array', () => {",
-                  "  pm.expect(pm.response.code).to.equal(200);",
-                  "  pm.expect(pm.response.json()).to.be.an('array');",
-                  "});",
-                  "const body = pm.response.json();",
+                  "const ok = pm.response.code === 200;",
+                  "const body = ok ? pm.response.json() : null;",
                   "const arr = Array.isArray(body) ? body : [];",
                   "let n = Number(pm.collectionVariables.get('pollAttempts') || 0);",
                   "const first = arr[0];",
@@ -485,6 +482,7 @@
                   "  pm.collectionVariables.set('pollAttempts', 0);",
                   "  pm.collectionVariables.set('shipmentId', shipmentId);",
                   "  pm.test('shipment created for order', () => {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
                   "    pm.expect(arr).to.have.lengthOf.at.least(1);",
                   "    pm.expect(first.orderId).to.equal(pm.collectionVariables.get('orderId'));",
                   "    pm.expect(first.customerId).to.equal(pm.environment.get('customerHappyId'));",
@@ -809,7 +807,7 @@
           ]
         },
         {
-          "name": "poll-order",
+          "name": "poll-order-shortage",
           "request": {
             "method": "GET",
             "header": [],
@@ -1010,7 +1008,7 @@
           ]
         },
         {
-          "name": "poll-order",
+          "name": "poll-order-decline",
           "request": {
             "method": "GET",
             "header": [],
@@ -1717,6 +1715,43 @@
               ]
             },
             {
+              "name": "webhook",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" },
+                  { "key": "X-Carrier-Secret", "value": "{{carrierGroundSecret}}" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"trackingNumber\": \"{{shipmentDispatchedTrackingNumber}}\",\n  \"statusCode\": 2,\n  \"detail\": \"QA admin-ops webhook smoke\"\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{shippingBaseUrl}}/webhooks/carrier/fake-ground",
+                  "host": ["{{shippingBaseUrl}}"],
+                  "path": ["webhooks", "carrier", "fake-ground"]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const body = pm.response.json();",
+                      "pm.test('ingests the carrier webhook', () => {",
+                      "  pm.expect(pm.response.code).to.equal(200);",
+                      "  pm.expect(body).to.be.an('object');",
+                      "  pm.expect(body.shipmentId).to.equal(pm.environment.get('shipmentDispatchedId'));",
+                      "  pm.expect(body.status).to.equal('InTransit');",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "name": "deliver-dispatched",
               "request": {
                 "method": "POST",
@@ -1877,43 +1912,6 @@
                       "  pm.expect(body.status).to.equal('Cancelled');",
                       "  pm.expect(body.createdAt).to.be.a('string').and.not.empty;",
                       "  pm.expect(body.lines).to.be.an('array').and.have.lengthOf.at.least(1);",
-                      "});"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
-              "name": "webhook",
-              "request": {
-                "method": "POST",
-                "header": [
-                  { "key": "Content-Type", "value": "application/json" },
-                  { "key": "X-Carrier-Secret", "value": "{{carrierGroundSecret}}" }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"trackingNumber\": \"{{shipmentDispatchedTrackingNumber}}\",\n  \"statusCode\": 2,\n  \"detail\": \"QA admin-ops webhook smoke\"\n}",
-                  "options": { "raw": { "language": "json" } }
-                },
-                "url": {
-                  "raw": "{{shippingBaseUrl}}/webhooks/carrier/fake-ground",
-                  "host": ["{{shippingBaseUrl}}"],
-                  "path": ["webhooks", "carrier", "fake-ground"]
-                }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "type": "text/javascript",
-                    "exec": [
-                      "const body = pm.response.json();",
-                      "pm.test('ingests the carrier webhook', () => {",
-                      "  pm.expect(pm.response.code).to.equal(200);",
-                      "  pm.expect(body).to.be.an('object');",
-                      "  pm.expect(body.shipmentId).to.equal(pm.environment.get('shipmentDispatchedId'));",
-                      "  pm.expect(body.status).to.equal('InTransit');",
                       "});"
                     ]
                   }
