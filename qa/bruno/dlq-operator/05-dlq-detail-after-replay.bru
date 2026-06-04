@@ -1,0 +1,24 @@
+meta {
+  name: 05-dlq-detail-after-replay
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{gatewayBaseUrl}}/operator/api/failures/{{operatorDlqReplayId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+tests {
+  test("replayed row transitions to Replayed status", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.message.id).to.equal(bru.getEnvVar("operatorDlqReplayId"));
+    expect(res.body.message.status).to.equal(1);
+    expect(res.body.message.replayedAt).to.be.a("string").and.not.be.empty;
+  });
+}

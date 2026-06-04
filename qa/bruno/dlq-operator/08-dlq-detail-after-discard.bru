@@ -1,0 +1,25 @@
+meta {
+  name: 08-dlq-detail-after-discard
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{gatewayBaseUrl}}/operator/api/failures/{{operatorDlqDiscardId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+tests {
+  test("discarded row transitions to Discarded status", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.message.id).to.equal(bru.getEnvVar("operatorDlqDiscardId"));
+    expect(res.body.message.status).to.equal(2);
+    expect(res.body.message.discardedAt).to.be.a("string").and.not.be.empty;
+    expect(res.body.message.discardReason).to.equal("qa smoke discard");
+  });
+}

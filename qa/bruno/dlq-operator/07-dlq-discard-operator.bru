@@ -1,0 +1,33 @@
+meta {
+  name: 07-dlq-discard-operator
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{gatewayBaseUrl}}/operator/api/failures/{{operatorDlqDiscardId}}/discard
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+body:json {
+  {
+    "reason": "qa smoke discard"
+  }
+}
+
+tests {
+  test("operator discard returns 202 with reason echoed", function () {
+    expect(res.status).to.equal(202);
+    expect(res.body.id).to.equal(bru.getEnvVar("operatorDlqDiscardId"));
+    expect(res.body.reason).to.equal("qa smoke discard");
+  });
+}

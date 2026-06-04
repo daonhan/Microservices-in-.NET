@@ -1,0 +1,25 @@
+meta {
+  name: 03-dlq-detail-operator
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{gatewayBaseUrl}}/operator/api/failures/{{operatorDlqListId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+tests {
+  test("operator can fetch qa-operator failure detail", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.message).to.be.an("object");
+    expect(res.body.message.id).to.equal(bru.getEnvVar("operatorDlqListId"));
+    expect(res.body.message.service).to.equal("qa-operator");
+    expect(res.body.message.status).to.equal(0);
+  });
+}
