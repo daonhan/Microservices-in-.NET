@@ -10,7 +10,7 @@ public static class AuthQaOperatorSeeder
     public static readonly Guid OperatorId = new("d0000000-0000-0000-0000-000000000001");
 
     // Reuses the QA persona PBKDF2 hash (decodes to OperatorPassword via IPasswordHasher<User>).
-    private const string OperatorPasswordHash =
+    internal const string OperatorPasswordHash =
         "AQAAAAIAAYagAAAAEDgcVTWsoKHvpybMHFtFOBxG0zYOvKUkB+xDTlq54OejnLzLBpFVNL0oIbrhJs7+hw==";
 
     public static void SeedQaOperatorUser(this IServiceProvider serviceProvider)

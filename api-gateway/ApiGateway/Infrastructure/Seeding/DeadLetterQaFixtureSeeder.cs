@@ -1,5 +1,5 @@
 using ECommerce.Shared.Infrastructure.DeadLetter;
-using Microsoft.EntityFrameworkCore;
+using ECommerce.Shared.Infrastructure.DeadLetter.Models;
 
 namespace ApiGateway.Infrastructure.Seeding;
 
@@ -15,37 +15,70 @@ public static class DeadLetterQaFixtureSeeder
     public static readonly Guid BatchReplayBId = new("f0000000-0000-0000-0000-000000000004");
     public static readonly Guid DiscardId = new("f0000000-0000-0000-0000-000000000005");
 
-    private static readonly DateTime SeedFailedAt = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly Guid SeedCorrelationId = new("f0000000-0000-0000-0000-0000000000a1");
+    internal static readonly DateTime SeedFailedAt = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    internal static readonly Guid SeedCorrelationId = new("f0000000-0000-0000-0000-0000000000a1");
+
+    internal static readonly Guid[] FixtureIds =
+    [
+        ListId, ReplayId, BatchReplayAId, BatchReplayBId, DiscardId,
+    ];
+
+    internal static readonly Guid[] MutatingFixtureIds =
+    [
+        ReplayId, BatchReplayAId, BatchReplayBId, DiscardId,
+    ];
 
     public static void SeedQaDeadLetterFixture(this WebApplication webApp)
     {
         using var scope = webApp.Services.CreateScope();
         using var context = scope.ServiceProvider.GetRequiredService<DeadLetterDbContext>();
+        SeedQaDeadLetterFixture(context);
+    }
 
-        foreach (var id in new[] { ListId, ReplayId, BatchReplayAId, BatchReplayBId, DiscardId })
+    internal static void SeedQaDeadLetterFixture(DeadLetterDbContext context)
+    {
+        var existingIds = context.DeadLetterMessages
+            .Where(m => FixtureIds.Contains(m.Id))
+            .Select(m => m.Id)
+            .ToHashSet();
+
+        foreach (var id in FixtureIds)
         {
-            context.Database.ExecuteSqlInterpolated(
-                $@"IF NOT EXISTS (SELECT 1 FROM [dead_letter_messages] WHERE [id] = {id})
-                   INSERT INTO [dead_letter_messages]
-                       ([id], [event_type], [routing_key], [original_queue], [service], [payload],
-                        [failure_reason], [attempts], [failed_at], [status],
-                        [correlation_id], [origin])
-                   VALUES ({id}, {OperatorEventType}, {InertReplaySinkQueue}, {InertReplaySinkQueue},
-                           {OperatorService}, N'{{}}',
-                           N'qa seed', 0, {SeedFailedAt}, 0,
-                           {SeedCorrelationId}, 0);");
+            if (existingIds.Contains(id))
+            {
+                continue;
+            }
+            context.DeadLetterMessages.Add(new DeadLetterMessage
+            {
+                Id = id,
+                EventType = OperatorEventType,
+                RoutingKey = InertReplaySinkQueue,
+                OriginalQueue = InertReplaySinkQueue,
+                Service = OperatorService,
+                Payload = "{}",
+                FailureReason = "qa seed",
+                Attempts = 0,
+                FailedAt = SeedFailedAt,
+                Status = DeadLetterStatus.Pending,
+                CorrelationId = SeedCorrelationId,
+                Origin = DeadLetterOrigin.DeadLetter,
+            });
         }
 
         // Reset the four mutating targets back to Pending on every boot so reruns do not 409.
-        foreach (var id in new[] { ReplayId, BatchReplayAId, BatchReplayBId, DiscardId })
+        var mutating = context.DeadLetterMessages
+            .Where(m => MutatingFixtureIds.Contains(m.Id))
+            .ToList();
+        foreach (var row in mutating)
         {
-            context.Database.ExecuteSqlInterpolated(
-                $@"UPDATE [dead_letter_messages]
-                   SET [status] = 0,
-                       [replayed_at] = NULL, [replayed_by] = NULL,
-                       [discarded_at] = NULL, [discarded_by] = NULL, [discard_reason] = NULL
-                   WHERE [id] = {id};");
+            row.Status = DeadLetterStatus.Pending;
+            row.ReplayedAt = null;
+            row.ReplayedBy = null;
+            row.DiscardedAt = null;
+            row.DiscardedBy = null;
+            row.DiscardReason = null;
         }
+
+        context.SaveChanges();
     }
 }
