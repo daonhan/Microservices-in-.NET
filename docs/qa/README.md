@@ -15,6 +15,19 @@ Plaintext passwords below are for local QA runbooks only. Do not reuse them outs
 | Happy customer | `5ff2d67e-c6b5-4870-911f-79393ed416fd` | `customer-happy@qa.test` | `oKNrqkO7iC#G` | `Customer` |
 | Decline customer | `be0d0a1d-c8fe-4b17-bf6a-051e8c809aa6` | `customer-decline@qa.test` | `oKNrqkO7iC#G` | `Customer` |
 | Cancel customer | `00faac97-9ae4-4b7f-b8aa-00e7c569dd66` | `customer-cancel@qa.test` | `oKNrqkO7iC#G` | `Customer` |
+| Operator | `d0000000-0000-0000-0000-000000000001` | `operator@qa.test` | `oKNrqkO7iC#G` | `Operator` |
+
+The Operator persona and the DLQ fixtures below are seeded by env-gated runtime seeders (not the migration-based customer dataset) — see [ADR-0014](../adr/0014-env-gated-qa-runtime-seeders-for-operator-and-dlq.md).
+
+Seeded DLQ operator fixtures (gateway-owned `dead_letter_messages`, all `service = qa-operator`, born `Pending`):
+
+| Fixture id | Env var | Role |
+| --- | --- | --- |
+| `f0000000-0000-0000-0000-000000000001` | `operatorDlqListId` | list + detail (never mutated) |
+| `f0000000-0000-0000-0000-000000000002` | `operatorDlqReplayId` | single replay |
+| `f0000000-0000-0000-0000-000000000003` | `operatorDlqBatchAId` | batch replay |
+| `f0000000-0000-0000-0000-000000000004` | `operatorDlqBatchBId` | batch replay |
+| `f0000000-0000-0000-0000-000000000005` | `operatorDlqDiscardId` | discard |
 
 Seeded catalog data:
 
@@ -234,3 +247,4 @@ Scenario pages:
 - [03 Payment Decline](scenarios/03-payment-decline.md)
 - [04 Admin Ops](scenarios/04-admin-ops.md)
 - [05 Saga Operator Abort](scenarios/05-saga-operator-abort.md)
+- [06 DLQ Operator](scenarios/06-dlq-operator.md)

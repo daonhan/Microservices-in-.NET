@@ -66,7 +66,7 @@ jq '.run.failures[] | {
 
 Also useful:
 
-- `.run.stats.requests`         — total requests dispatched (68 on a green run;
+- `.run.stats.requests`         — total requests dispatched (76 on a green run;
                                   higher when polling iterates).
 - `.run.stats.assertions.total` — total assertions evaluated.
 - `.run.executions[]`           — per-request response code, body, timings.
@@ -84,7 +84,7 @@ terminal display and may shift between Newman versions.
 | `03 Payment Decline`              | Order `Cancelled`, stock for `productDeclineId` released | `200`/`201`, polled            |
 | `04 Admin Ops` (3 sub-folders)    | Inventory restock / payment capture+refund / shipping pick→deliver and alt-paths succeed | `200`/`201`/`204` |
 | `05 Saga Operator`                | `retry-saga` and `abort-saga` accepted; saga moves to `Compensating` | `202` × 2          |
-| `06 DLQ Operator (authz boundary)`| Operator API rejects non-Operator callers            | `403` (service), `403` (admin), `401` (anon) |
+| `06 DLQ Operator`                 | Operator lists/details/replays/batch-replays/discards the five `qa-operator` fixtures (`Pending`→`Replayed`/`Discarded`); non-Operator callers rejected | `200`/`202` positive; `403` (service), `403` (admin), `401` (anon) |
 | `07 Auth & Negative`              | JWKS published; AdminOnly rejects customer; protected endpoints reject anon and garbage | `200` (jwks), `403`, `401`, `401` |
 
 A green run is `assertions.failed == 0` *and* every folder above appears in
@@ -108,7 +108,7 @@ no global pre-request hook on the workspace is required.
 
 ## Overridable environment variables
 
-All thirty-seven keys in `qa-local.postman_environment.json` are overridable
+All forty-four keys in `qa-local.postman_environment.json` are overridable
 via `--env-var key=value`. The agent should prefer overrides to file edits.
 Categories:
 
@@ -128,6 +128,10 @@ Categories:
   `shipmentDispatchedTrackingNumber`, `shipmentFailDispatchedTrackingNumber`,
   `shipmentReturnDispatchedTrackingNumber`.
 - **Saga + carrier (2):** `operatorSagaId`, `carrierGroundSecret`.
+- **DLQ operator (7):** `operatorEmail`, `operatorPassword`, `operatorDlqListId`,
+  `operatorDlqReplayId`, `operatorDlqBatchAId`, `operatorDlqBatchBId`,
+  `operatorDlqDiscardId`. The persona logs into the `06 DLQ Operator` folder;
+  the five GUIDs back the seeded `qa-operator` `dead_letter_messages` fixtures.
 - **Runtime captures (8, not in env file):** `orderId`, `shipmentId`,
   `customerToken`, `adminToken`, `serviceToken`, `orderStatus`, `orderLocation`,
   `pollAttempts` are collection-level variables initialised at run start. Do

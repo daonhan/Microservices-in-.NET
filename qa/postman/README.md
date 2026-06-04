@@ -1,9 +1,10 @@
 # Postman Smoke Suite (human runbook)
 
-A self-contained Postman v2.1.0 mirror of the Bruno smoke suite. Sixty-eight
+A self-contained Postman v2.1.0 mirror of the Bruno smoke suite. Seventy-six
 requests across eight folders cover health, the happy path end-to-end, the two
 canonical failure paths, admin ops on inventory/payment/shipping, the saga
-operator API, and the auth/DLQ-authz boundary.
+operator API, the DLQ operator API (positive + authz boundary), and the auth
+negative boundary.
 
 The agent-oriented variant (Newman + MCP, deterministic JSON report) lives in
 [AGENT.md](AGENT.md).
@@ -13,7 +14,7 @@ The agent-oriented variant (Newman + MCP, deterministic JSON report) lives in
 | File                                          | Purpose                                  |
 | --------------------------------------------- | ---------------------------------------- |
 | `ECommerce-Smoke.postman_collection.json`     | The collection (schema v2.1.0).          |
-| `qa-local.postman_environment.json`           | Mirrors `qa/bruno/qa-local.bru` (37 keys). |
+| `qa-local.postman_environment.json`           | Mirrors `qa/bruno/qa-local.bru` (44 keys). |
 
 The environment file is one of three dataset surfaces that must stay in
 lockstep with `Qa.Seed` (see [docs/qa/README.md](../../docs/qa/README.md)).
@@ -52,7 +53,7 @@ via `pm.execution.setNextRequest(pm.info.requestName)`, bounded at
 `MAX_ATTEMPTS = 80` (~60 s at the 750 ms delay). The runner only supplies
 the delay; do not add any external polling wrapper.
 
-Expected outcome: all sixty-eight requests pass (green `Test Results`). Scenario
+Expected outcome: all seventy-six requests pass (green `Test Results`). Scenario
 endings:
 
 - Happy path → order `Confirmed`, shipment `Delivered`.
@@ -62,7 +63,10 @@ endings:
   through their admin transitions.
 - Saga operator → `202` on retry/abort against seeded `operatorSagaId`
   (`e000…0001`).
-- DLQ authz → `403` for service/admin tokens, `401` for anonymous.
+- DLQ operator → `operator@qa.test` lists/details/replays/batch-replays/discards
+  the five seeded `qa-operator` fixtures (`f000…0001`–`0005`), pinning the
+  `Pending`→`Replayed`/`Discarded` transitions; non-Operator callers get `403`
+  for service/admin tokens, `401` for anonymous.
 - Auth negative → `401` for anonymous/garbage, `403` for AdminOnly with a
   customer token.
 

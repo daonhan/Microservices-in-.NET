@@ -52,6 +52,9 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # Constants — must match qa/bruno/qa-local.bru and the QaPersonas/seed migrations.
+# The Operator persona + DLQ fixture GUIDs come from the env-gated runtime seeders
+# (see docs/adr/0014-env-gated-qa-runtime-seeders-for-operator-and-dlq.md); they are
+# carried here for the dataset lockstep invariant, not driven by a scenario yet.
 $Qa = @{
     CustomerHappyId         = '5ff2d67e-c6b5-4870-911f-79393ed416fd'
     CustomerHappyEmail      = 'customer-happy@qa.test'
@@ -67,6 +70,13 @@ $Qa = @{
     ProductZeroStockId      = 9003
     ProductLowStockId       = 9004
     ProductRestockTargetId  = 9005
+    OperatorEmail           = 'operator@qa.test'
+    OperatorPassword        = 'oKNrqkO7iC#G'
+    OperatorDlqListId       = 'f0000000-0000-0000-0000-000000000001'
+    OperatorDlqReplayId     = 'f0000000-0000-0000-0000-000000000002'
+    OperatorDlqBatchAId     = 'f0000000-0000-0000-0000-000000000003'
+    OperatorDlqBatchBId     = 'f0000000-0000-0000-0000-000000000004'
+    OperatorDlqDiscardId    = 'f0000000-0000-0000-0000-000000000005'
 }
 
 function Write-Step([string]$Tag, [string]$Message) {
