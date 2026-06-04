@@ -2099,7 +2099,7 @@
     },
     {
       "name": "06 DLQ Operator (authz boundary)",
-      "description": "Authz boundary on the gateway DLQ operator API. No seeded credential yields user_role=Operator (PRD #317), so positive coverage is out of scope; this folder pins the negative codes: RequireOperator returns 403 for service-role and Administrator tokens, 401 anonymous.",
+      "description": "Gateway DLQ operator API coverage. Positive: operator@qa.test logs in and lists the seeded qa-operator failures (PRD #317 tracer bullet). Negative: RequireOperator returns 403 for service-role and Administrator tokens, 401 anonymous.",
       "item": [
         {
           "name": "login-operator",
