@@ -2102,6 +2102,69 @@
       "description": "Authz boundary on the gateway DLQ operator API. No seeded credential yields user_role=Operator (PRD #317), so positive coverage is out of scope; this folder pins the negative codes: RequireOperator returns 403 for service-role and Administrator tokens, 401 anonymous.",
       "item": [
         {
+          "name": "login-operator",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{operatorEmail}}\",\n  \"password\": \"{{operatorPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{authBaseUrl}}/login", "host": ["{{authBaseUrl}}"], "path": ["login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('returns an operator token', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body.token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('operatorToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "dlq-list-operator",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{operatorToken}}", "type": "string" }]
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/operator/api/failures?service=qa-operator",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["operator", "api", "failures"],
+              "query": [{ "key": "service", "value": "qa-operator" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('operator can list qa-operator failures', () => {",
+                  "  pm.expect(pm.response.code).to.equal(200);",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  const listId = pm.environment.get('operatorDlqListId');",
+                  "  pm.expect(body.items.some(i => i.id === listId)).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "login-admin",
           "request": {
             "method": "POST",

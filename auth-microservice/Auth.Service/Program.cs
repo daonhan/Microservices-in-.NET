@@ -40,7 +40,7 @@ if (QaSeedingExtensions.IsQaSeedingEnabled(app.Environment, app.Configuration))
     app.MigrateDatabase();
 }
 
-app.SeedQaData();
+app.SeedQaData(sp => sp.SeedQaOperatorUser());
 
 app.MapLogin();
 app.MapIssueServiceToken();
