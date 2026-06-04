@@ -25,7 +25,7 @@ Seed the Operator credential and the DLQ fixtures with **env-gated runtime seede
 
 ### Production safety — the gate is the contract
 
-The Development / `Qa:Seed` gate is the single trustworthy signal that QA artifacts never reach a non-dev environment. It is verified false in **every** AKS manifest: `kubernetes/aks-{dev,sandbox,prod}-{auth,api-gateway}.yml` all set `ASPNETCORE_ENVIRONMENT=Production` and none set `Qa__Seed`. QA seeding therefore runs **only** in the local `docker-compose` stack (Development).
+The Development / `Qa:Seed` gate is the single trustworthy signal that QA artifacts never reach a non-dev environment. It is verified false in **every** AKS manifest: `kubernetes/aks-{dev,sandbox,staging,prod}-{auth,api-gateway}.yml` all set `ASPNETCORE_ENVIRONMENT=Production` and none set `Qa__Seed`. QA seeding therefore runs **only** in the local `docker-compose` stack (Development).
 
 **Forbidden:** do not add `Qa__Seed` (or `Qa:Seed`) to any non-dev manifest — Kubernetes, Azure Pipelines variables, Bicep, or any deployed config. Doing so would enable the auth seeder and insert the break-glass Operator account into that environment. `docker-compose.yaml` sets `Qa__Seed=true` on `auth` and `gateway` only as self-documenting intent (redundant under Development; the gateway block keys off `IsDevelopment()` and ignores the variable entirely).
 
