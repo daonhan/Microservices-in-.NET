@@ -8,8 +8,9 @@
 #
 # Env knobs:
 #   RESET=0       skip "docker compose down -v && up" and run against the
-#                 current stack (faster, but the happy basket may already be
-#                 consumed -> false happy-path failures; see README).
+#                 current stack (faster). Bounces only the gateway to reseed the
+#                 DLQ operator fixtures (folder 06); the happy basket may still
+#                 be consumed -> false happy-path failures; see README.
 #   SKIP_BUILD=1  bring the stack up without "--build" (images already built).
 #   DELAY=750     --delay-request value (must match the polling cadence).
 #   REPORT=path   where to write the Newman JSON report.
@@ -40,6 +41,13 @@ if [[ "$RESET" == "1" ]]; then
     echo "=== Starting stack (docker compose up -d --build) ==="
     docker compose up -d --build
   fi
+else
+  # RESET=0 keeps the running stack, but the DLQ operator fixtures (folder 06)
+  # only reset to Pending when the gateway boots. Bounce just the gateway so a
+  # rerun reseeds those rows instead of 409-ing on already-Replayed/Discarded
+  # state. No -v, no data loss; the readiness loop below waits for it back.
+  echo "=== RESET=0: restarting gateway to reseed DLQ operator fixtures ==="
+  docker compose restart gateway
 fi
 
 echo "=== Waiting for /health/ready on ${#PORTS[@]} services (timeout 300s) ==="
