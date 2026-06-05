@@ -23,7 +23,7 @@
     Each scenario only checks HTTP responses (per Phase 4 of the QA dataset PRD); SQL,
     event-bus and Jaeger checks remain manual and live in docs/qa/scenarios/.
 
-    Constants below mirror qa/bruno/qa-local.bru. If you change one, change both — and the
+    Constants below mirror qa/bruno/environments/qa-local.bru. If you change one, change both — and the
     scenario will fail loudly the next time anything touches the corresponding seed.
 
     Prerequisite: the gateway is reachable at the given -Base URL. For local Docker:
@@ -51,7 +51,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Constants — must match qa/bruno/qa-local.bru and the QaPersonas/seed migrations.
+# Constants — must match qa/bruno/environments/qa-local.bru and the QaPersonas/seed migrations.
+# The Operator persona + DLQ fixture GUIDs come from the env-gated runtime seeders
+# (see docs/adr/0014-env-gated-qa-runtime-seeders-for-operator-and-dlq.md); they are
+# carried here for the dataset lockstep invariant, not driven by a scenario yet.
 $Qa = @{
     CustomerHappyId         = '5ff2d67e-c6b5-4870-911f-79393ed416fd'
     CustomerHappyEmail      = 'customer-happy@qa.test'
@@ -67,6 +70,13 @@ $Qa = @{
     ProductZeroStockId      = 9003
     ProductLowStockId       = 9004
     ProductRestockTargetId  = 9005
+    OperatorEmail           = 'operator@qa.test'
+    OperatorPassword        = 'oKNrqkO7iC#G'
+    OperatorDlqListId       = 'f0000000-0000-0000-0000-000000000001'
+    OperatorDlqReplayId     = 'f0000000-0000-0000-0000-000000000002'
+    OperatorDlqBatchAId     = 'f0000000-0000-0000-0000-000000000003'
+    OperatorDlqBatchBId     = 'f0000000-0000-0000-0000-000000000004'
+    OperatorDlqDiscardId    = 'f0000000-0000-0000-0000-000000000005'
 }
 
 function Write-Step([string]$Tag, [string]$Message) {

@@ -18,3 +18,4 @@ Narrow-pins shared-libs per [ADR-0013](../docs/adr/0013-shared-libs-multi-packag
 - RS256 user JWTs (`POST /login`); `client_credentials` service tokens (`POST /token`).
 - Dev keys: `Auth.Service/dev-keys/`.
 - Resources elsewhere validate via `AddJwtAuthentication()` (fetches+caches `/jwks` — no shared secret).
+- `AuthQaOperatorSeeder` seeds the break-glass `operator@qa.test` (`Role=Operator`) for the DLQ smoke suite via the existing `SeedQaData(...)` call, gated by `IsQaSeedingEnabled` (Development OR `Qa:Seed`). Env-gated runtime seeder, not a migration — [ADR-0014](../docs/adr/0014-env-gated-qa-runtime-seeders-for-operator-and-dlq.md). **Never add `Qa__Seed` to a non-dev manifest** — it would insert this high-privilege account there.

@@ -1,0 +1,25 @@
+meta {
+  name: 02-dlq-list-operator
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{gatewayBaseUrl}}/operator/api/failures?service=qa-operator
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+tests {
+  test("operator can list qa-operator failures", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.be.an("object");
+    expect(res.body.items).to.be.an("array");
+    const listId = bru.getEnvVar("operatorDlqListId");
+    expect(res.body.items.some(function (item) { return item.id === listId; })).to.equal(true);
+  });
+}

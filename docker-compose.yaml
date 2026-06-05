@@ -167,6 +167,7 @@ services:
       - ./auth-microservice/Auth.Service/dev-keys:/app/dev-keys:ro
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
+      - "Qa__Seed=true"
       - "ConnectionStrings__Default=Server=host.docker.internal,1433;Database=Auth;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
       - "Outbox__PublishIntervalInSeconds=2"
@@ -187,6 +188,7 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - "ASPNETCORE_ENVIRONMENT=Development"
+      - "Qa__Seed=true"
       - "Authentication__AuthMicroserviceBaseAddress=http://auth:8080"
       - "RabbitMq__HostName=host.docker.internal"
       - "ConnectionStrings__DeadLetter=Server=host.docker.internal,1433;Database=DeadLetter;User Id=sa;Password=micR0S3rvice$;TrustServerCertificate=True"

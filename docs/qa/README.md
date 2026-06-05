@@ -15,6 +15,19 @@ Plaintext passwords below are for local QA runbooks only. Do not reuse them outs
 | Happy customer | `5ff2d67e-c6b5-4870-911f-79393ed416fd` | `customer-happy@qa.test` | `oKNrqkO7iC#G` | `Customer` |
 | Decline customer | `be0d0a1d-c8fe-4b17-bf6a-051e8c809aa6` | `customer-decline@qa.test` | `oKNrqkO7iC#G` | `Customer` |
 | Cancel customer | `00faac97-9ae4-4b7f-b8aa-00e7c569dd66` | `customer-cancel@qa.test` | `oKNrqkO7iC#G` | `Customer` |
+| Operator | `d0000000-0000-0000-0000-000000000001` | `operator@qa.test` | `oKNrqkO7iC#G` | `Operator` |
+
+The Operator persona and the DLQ fixtures below are seeded by env-gated runtime seeders (not the migration-based customer dataset) — see [ADR-0014](../adr/0014-env-gated-qa-runtime-seeders-for-operator-and-dlq.md).
+
+Seeded DLQ operator fixtures (gateway-owned `dead_letter_messages`, all `service = qa-operator`, born `Pending`):
+
+| Fixture id | Env var | Role |
+| --- | --- | --- |
+| `f0000000-0000-0000-0000-000000000001` | `operatorDlqListId` | list + detail (never mutated) |
+| `f0000000-0000-0000-0000-000000000002` | `operatorDlqReplayId` | single replay |
+| `f0000000-0000-0000-0000-000000000003` | `operatorDlqBatchAId` | batch replay |
+| `f0000000-0000-0000-0000-000000000004` | `operatorDlqBatchBId` | batch replay |
+| `f0000000-0000-0000-0000-000000000005` | `operatorDlqDiscardId` | discard |
 
 Seeded catalog data:
 
@@ -31,8 +44,8 @@ Default warehouse: `DEFAULT` (`1`).
 Pricing convention: scenarios that should succeed use `*.00` prices. Payment-decline scenarios use `*.99`, matching the `InMemoryPaymentGateway` decline rule (cents == 99).
 
 Run the Bruno collection from `qa/bruno` with the `qa-local` environment after the stack is healthy.
-For Bruno CLI, run from a collection copy/root and pass `--env-file qa-local.bru`;
-the desktop app can use the `qa-local` environment directly.
+The environment lives at `qa/bruno/environments/qa-local.bru`, so Bruno CLI resolves it
+with `--env qa-local` and the desktop app lists it directly.
 
 ## Local Bruno CLI smoke run
 
@@ -77,14 +90,14 @@ foreach ($port in $ports) {
 }
 ```
 
-For CLI runs, copy the collection to a temporary root like CI does. Do not run
-directly from `qa/bruno` with `qa-local.bru` in the same folder; Bruno CLI may
-try to parse `qa-local.bru` as a request and print `parseBruRequest error`.
+With the environment under `qa/bruno/environments/`, you can run directly from
+`qa/bruno` with `--env qa-local` (no stray request-parse warning). The temp-root
+copy below mirrors CI exactly and is optional.
 
 ```powershell
 $repo = Resolve-Path .
 $collectionRoot = Join-Path $env:TEMP "bruno-smoke-local"
-$envFile = Join-Path $repo "qa\bruno\qa-local.bru"
+$envFile = Join-Path $repo "qa\bruno\environments\qa-local.bru"
 
 Remove-Item $collectionRoot -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $collectionRoot | Out-Null
@@ -166,7 +179,7 @@ do {
 $shipmentId = $shipment.shipmentId
 ```
 
-During the Bruno smoke soak, keep `qa/bruno/qa-local.bru`,
+During the Bruno smoke soak, keep `qa/bruno/environments/qa-local.bru`,
 `qa/postman/qa-local.postman_environment.json`, and the `$Qa` hash in
 `scripts/local-smoke-test.ps1` in lockstep. Any PR that changes persona emails,
 passwords, product IDs, customer IDs, or seeded shipment IDs must update all
@@ -234,3 +247,4 @@ Scenario pages:
 - [03 Payment Decline](scenarios/03-payment-decline.md)
 - [04 Admin Ops](scenarios/04-admin-ops.md)
 - [05 Saga Operator Abort](scenarios/05-saga-operator-abort.md)
+- [06 DLQ Operator](scenarios/06-dlq-operator.md)

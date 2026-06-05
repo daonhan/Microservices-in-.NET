@@ -151,7 +151,7 @@ jobs:
           $brunoVersion = '3.3.0'
           $collectionRoot = Join-Path $env:RUNNER_TEMP 'bruno-smoke'
           $reportRoot = Join-Path $env:RUNNER_TEMP 'bruno-reports'
-          $envFile = Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/qa-local.bru'
+          $envFile = Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/environments/qa-local.bru'
 
           New-Item -ItemType Directory -Force $collectionRoot, $reportRoot | Out-Null
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/bruno.json') $collectionRoot
@@ -160,6 +160,7 @@ jobs:
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/03-payment-decline') $collectionRoot -Recurse
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/04-admin-ops') $collectionRoot -Recurse
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/saga-operator') $collectionRoot -Recurse
+          Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/dlq-operator') $collectionRoot -Recurse
 
           function Write-Summary([string]$Line) {
             Write-Host $Line
@@ -459,6 +460,17 @@ jobs:
             'saga-operator/03-get-saga-detail.bru',
             'saga-operator/04-retry-saga.bru',
             'saga-operator/05-abort-saga.bru'
+          ) | Out-Null
+
+          Invoke-Bruno 'dlq-operator' @(
+            'dlq-operator/01-login-operator.bru',
+            'dlq-operator/02-dlq-list-operator.bru',
+            'dlq-operator/03-dlq-detail-operator.bru',
+            'dlq-operator/04-dlq-single-replay-operator.bru',
+            'dlq-operator/05-dlq-detail-after-replay.bru',
+            'dlq-operator/06-dlq-batch-replay-operator.bru',
+            'dlq-operator/07-dlq-discard-operator.bru',
+            'dlq-operator/08-dlq-detail-after-discard.bru'
           ) | Out-Null
 
           $stockShortageSetup = Invoke-Bruno 'stock-shortage-setup' @(

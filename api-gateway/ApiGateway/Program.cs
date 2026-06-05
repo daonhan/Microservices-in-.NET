@@ -5,6 +5,7 @@ using ApiGateway.Features.Operator.ListFailures;
 using ApiGateway.Features.Operator.ReplayFailure;
 using ApiGateway.Infrastructure.Polling;
 using ApiGateway.Infrastructure.Proxy;
+using ApiGateway.Infrastructure.Seeding;
 using ECommerce.Shared.Authentication;
 using ECommerce.Shared.HealthChecks;
 using ECommerce.Shared.Infrastructure.DeadLetter;
@@ -45,6 +46,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.ApplyDeadLetterMigrations();
+    app.SeedQaDeadLetterFixture();
 }
 
 app.UsePrometheusExporter();

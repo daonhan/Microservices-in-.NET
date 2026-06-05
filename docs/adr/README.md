@@ -21,3 +21,4 @@ New ADRs start from [`0000-template.md`](0000-template.md).
 | [ADR-0011](0011-order-cleanarch-vsa-pilot.md)                                | Order service Clean Architecture + Vertical Slice pilot                          | Accepted |
 | [ADR-0012](0012-clean-arch-vsa-default-service-shape.md)                     | Clean Architecture + Vertical Slices is the default service shape                | Accepted |
 | [ADR-0013](0013-shared-libs-multi-package-split.md)                          | `ECommerce.Shared` split into nine capability packages + umbrella metapackage    | Accepted |
+| [ADR-0014](0014-env-gated-qa-runtime-seeders-for-operator-and-dlq.md)        | Env-gated runtime seeders for the QA Operator credential and DLQ fixtures        | Accepted |

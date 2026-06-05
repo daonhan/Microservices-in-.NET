@@ -1,0 +1,23 @@
+meta {
+  name: 04-dlq-single-replay-operator
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{gatewayBaseUrl}}/operator/api/failures/{{operatorDlqReplayId}}/replay
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{operatorToken}}
+}
+
+tests {
+  test("operator replay returns 202 with newMessageId", function () {
+    expect(res.status).to.equal(202);
+    expect(res.body.id).to.equal(bru.getEnvVar("operatorDlqReplayId"));
+    expect(res.body.newMessageId).to.be.a("string").and.not.be.empty;
+  });
+}

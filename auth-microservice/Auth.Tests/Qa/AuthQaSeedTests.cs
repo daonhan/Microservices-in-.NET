@@ -49,4 +49,26 @@ public class AuthQaSeedTests
                                  or PasswordVerificationResult.SuccessRehashNeeded);
         Assert.Equal(QaPersonas.CustomerRole, user.Role);
     }
+
+    [Fact]
+    public void GivenOperatorSeederConstants_WhenVerifyingDocumentedPassword_ThenLiteralHashDecodes()
+    {
+        Assert.Equal("operator@qa.test", AuthQaOperatorSeeder.OperatorEmail);
+        Assert.Equal("Operator", AuthQaOperatorSeeder.OperatorRole);
+        Assert.Equal(QaPersonas.CustomerPassword, AuthQaOperatorSeeder.OperatorPassword);
+
+        var user = new User
+        {
+            Id = AuthQaOperatorSeeder.OperatorId,
+            Username = AuthQaOperatorSeeder.OperatorEmail,
+            Role = AuthQaOperatorSeeder.OperatorRole,
+            PasswordHash = AuthQaOperatorSeeder.OperatorPasswordHash
+        };
+
+        var verification = new PasswordHasher<User>()
+            .VerifyHashedPassword(user, user.PasswordHash, AuthQaOperatorSeeder.OperatorPassword);
+
+        Assert.True(verification is PasswordVerificationResult.Success
+                                 or PasswordVerificationResult.SuccessRehashNeeded);
+    }
 }
