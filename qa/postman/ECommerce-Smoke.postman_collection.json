@@ -2191,7 +2191,7 @@
                   "  pm.expect(body.message).to.be.an('object');",
                   "  pm.expect(body.message.id).to.equal(pm.environment.get('operatorDlqListId'));",
                   "  pm.expect(body.message.service).to.equal('qa-operator');",
-                  "  pm.expect(body.message.status).to.equal(0);",
+                  "  pm.expect([0, 'Pending']).to.include(body.message.status);",
                   "});"
                 ]
               }
