@@ -79,7 +79,7 @@ Rename the folder `06 DLQ Operator`; update its description to drop "positive co
 ### What to build
 
 - **Create** `qa/bruno/dlq-operator/*.bru` mirroring `qa/bruno/saga-operator/*` (login-operator, list, detail, single replay, batch replay, discard) with the same assertions as Phase 2.
-- **Modify** `qa/bruno/qa-local.bru` — add the seven new vars (operator persona + five fixture GUIDs), lockstep with the Postman env.
+- **Modify** `qa/bruno/environments/qa-local.bru` — add the seven new vars (operator persona + five fixture GUIDs), lockstep with the Postman env.
 - **Modify** `.github/workflows/smoke-test.yml` `bruno-smoke` job — `Copy-Item … 'qa/bruno/dlq-operator'` next to `saga-operator`; add an `Invoke-Bruno 'dlq-operator' @(...)` batch.
 
 ### Acceptance criteria
