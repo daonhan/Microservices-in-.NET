@@ -14,7 +14,7 @@ The agent-oriented variant (Newman + MCP, deterministic JSON report) lives in
 | File                                          | Purpose                                  |
 | --------------------------------------------- | ---------------------------------------- |
 | `ECommerce-Smoke.postman_collection.json`     | The collection (schema v2.1.0).          |
-| `qa-local.postman_environment.json`           | Mirrors `qa/bruno/qa-local.bru` (44 keys). |
+| `qa-local.postman_environment.json`           | Mirrors `qa/bruno/environments/qa-local.bru` (44 keys). |
 
 The environment file is one of three dataset surfaces that must stay in
 lockstep with `Qa.Seed` (see [docs/qa/README.md](../../docs/qa/README.md)).
