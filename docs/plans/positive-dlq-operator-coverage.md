@@ -15,7 +15,7 @@ Durable across all phases:
 - **Replay side-effect-free.** `RabbitMqDeadLetterPublisher.Publish` → default exchange, `routingKey=OriginalQueue`, `mandatory:false`. Inert sink `qa-dlq-replay-sink` (no subscriber) → message dropped, `newMessageId` returned, replay 202. Empty `OriginalQueue` throws, so the sink is non-empty.
 - **Fixture layout.** Five rows, fixed GUIDs `f0000000-0000-0000-0000-00000000000N`, all `Status=Pending(0)`, `Origin=DeadLetter(0)`, `Service="qa-operator"`, `EventType="Qa.OperatorSmokeEvent"`, `OriginalQueue="qa-dlq-replay-sink"`, `Payload="{}"`, fixed `FailedAt`/`CorrelationId`. `…0001` list/detail (never mutated); `…0002` single replay; `…0003`/`…0004` batch replay; `…0005` discard.
 - **Idempotent across reruns.** The gateway seeder resets the four mutating rows to Pending on every boot (`UPDATE … SET status=0, replayed_at=NULL, discarded_at=NULL`), so a `RESET=0` rerun does not 409. `RESET=1` (runner default) wipes volumes + reseeds.
-- **Lockstep GUIDs.** Every new GUID/persona is mirrored across `qa/postman/qa-local.postman_environment.json`, `qa/bruno/qa-local.bru`, `qa/postman/AGENT.md`, and `scripts/local-smoke-test.ps1 $Qa` per `docs/qa/README.md`.
+- **Lockstep GUIDs.** Every new GUID/persona is mirrored across `qa/postman/qa-local.postman_environment.json`, `qa/bruno/environments/qa-local.bru`, `qa/postman/AGENT.md`, and `scripts/local-smoke-test.ps1 $Qa` per `docs/qa/README.md`.
 
 ---
 
