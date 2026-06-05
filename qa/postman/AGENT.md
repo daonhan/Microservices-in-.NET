@@ -138,5 +138,5 @@ Categories:
   not pre-seed them.
 
 Personas, products, and seeded GUIDs are dataset constants. Changing them
-requires lockstep updates to `qa/bruno/qa-local.bru` and `scripts/local-smoke-test.ps1`
+requires lockstep updates to `qa/bruno/environments/qa-local.bru` and `scripts/local-smoke-test.ps1`
 (`$Qa` hash) — see [docs/qa/README.md](../../docs/qa/README.md).

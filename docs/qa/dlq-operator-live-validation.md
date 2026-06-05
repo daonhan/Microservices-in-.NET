@@ -105,7 +105,7 @@ Check the CI-pending boxes and close the issues:
 | --- | --- | --- |
 | #326 | 1 seeder + login + list | clean-stack `POST /login` + newman folder-06 Phase-1 |
 | #327 | 2 four endpoints | full `RESET=1` run, folder 06 all green |
-| #328 | 3 Bruno + CI | `npx @usebruno/cli run qa/bruno/dlq-operator --env-file qa/bruno/qa-local.bru` green |
+| #328 | 3 Bruno + CI | `npx @usebruno/cli run qa/bruno/dlq-operator --env qa-local` green |
 | #330 | 5 config + docs + ADR | full `RESET=1` run green end-to-end |
 
 The same validation runs automatically on CI via `.github/workflows/smoke-test.yml` once the branch is merged / a PR is opened — that CI smoke pass is the canonical close-out.

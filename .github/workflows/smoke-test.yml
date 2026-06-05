@@ -151,7 +151,7 @@ jobs:
           $brunoVersion = '3.3.0'
           $collectionRoot = Join-Path $env:RUNNER_TEMP 'bruno-smoke'
           $reportRoot = Join-Path $env:RUNNER_TEMP 'bruno-reports'
-          $envFile = Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/qa-local.bru'
+          $envFile = Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/environments/qa-local.bru'
 
           New-Item -ItemType Directory -Force $collectionRoot, $reportRoot | Out-Null
           Copy-Item (Join-Path $env:GITHUB_WORKSPACE 'qa/bruno/bruno.json') $collectionRoot

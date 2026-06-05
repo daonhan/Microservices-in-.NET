@@ -44,8 +44,8 @@ Default warehouse: `DEFAULT` (`1`).
 Pricing convention: scenarios that should succeed use `*.00` prices. Payment-decline scenarios use `*.99`, matching the `InMemoryPaymentGateway` decline rule (cents == 99).
 
 Run the Bruno collection from `qa/bruno` with the `qa-local` environment after the stack is healthy.
-For Bruno CLI, run from a collection copy/root and pass `--env-file qa-local.bru`;
-the desktop app can use the `qa-local` environment directly.
+The environment lives at `qa/bruno/environments/qa-local.bru`, so Bruno CLI resolves it
+with `--env qa-local` and the desktop app lists it directly.
 
 ## Local Bruno CLI smoke run
 
@@ -90,14 +90,14 @@ foreach ($port in $ports) {
 }
 ```
 
-For CLI runs, copy the collection to a temporary root like CI does. Do not run
-directly from `qa/bruno` with `qa-local.bru` in the same folder; Bruno CLI may
-try to parse `qa-local.bru` as a request and print `parseBruRequest error`.
+With the environment under `qa/bruno/environments/`, you can run directly from
+`qa/bruno` with `--env qa-local` (no stray request-parse warning). The temp-root
+copy below mirrors CI exactly and is optional.
 
 ```powershell
 $repo = Resolve-Path .
 $collectionRoot = Join-Path $env:TEMP "bruno-smoke-local"
-$envFile = Join-Path $repo "qa\bruno\qa-local.bru"
+$envFile = Join-Path $repo "qa\bruno\environments\qa-local.bru"
 
 Remove-Item $collectionRoot -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $collectionRoot | Out-Null
@@ -179,7 +179,7 @@ do {
 $shipmentId = $shipment.shipmentId
 ```
 
-During the Bruno smoke soak, keep `qa/bruno/qa-local.bru`,
+During the Bruno smoke soak, keep `qa/bruno/environments/qa-local.bru`,
 `qa/postman/qa-local.postman_environment.json`, and the `$Qa` hash in
 `scripts/local-smoke-test.ps1` in lockstep. Any PR that changes persona emails,
 passwords, product IDs, customer IDs, or seeded shipment IDs must update all
