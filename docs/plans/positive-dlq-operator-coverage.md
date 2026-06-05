@@ -84,10 +84,10 @@ Rename the folder `06 DLQ Operator`; update its description to drop "positive co
 
 ### Acceptance criteria
 
-- [ ] `npx --yes @usebruno/cli@3.3.0 run qa/bruno/dlq-operator --env-file qa/bruno/qa-local.bru` is green on a freshly booted stack.
+- [ ] `npx --yes @usebruno/cli@3.3.0 run qa/bruno/dlq-operator --env-file qa/bruno/environments/qa-local.bru` is green on a freshly booted stack.
 - [ ] `.github/workflows/smoke-test.yml` lists `dlq-operator` in the `Copy-Item` block and runs it as an `Invoke-Bruno` batch.
 - [ ] `bruno-smoke` step summary shows a passing `dlq-operator` batch.
-- [ ] `qa/bruno/qa-local.bru` mirrors the seven new vars key-for-key with the Postman env.
+- [ ] `qa/bruno/environments/qa-local.bru` mirrors the seven new vars key-for-key with the Postman env.
 
 ---
 
