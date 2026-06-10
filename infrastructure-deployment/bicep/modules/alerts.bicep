@@ -4,18 +4,24 @@
 // (observability/alerts.yaml) as Azure Monitor alerts, now that AKS ships
 // metrics to App Insights rather than Prometheus.
 //
-// This module currently emits the HTTP error-rate + latency alerts (issue #336)
-// and the Inventory low-stock / reservation-failure alert (issue #337). The
-// service-down (#338) rule extends this module in its own slice once the shared
-// action group (#335) lands.
+// This module emits the HTTP error-rate + latency alerts (issue #336), the
+// Inventory low-stock / reservation-failure alert (issue #337), and the
+// service-down alert (issue #338).
 //
-// The HTTP alerts query the App Insights `requests` table; the low-stock alert
-// queries the `customMetrics` table. All are grouped per service by
-// `cloud_RoleName` (the App Insights equivalent of the local `service_name`
-// Prometheus label), so a single rule pages for whichever service regresses.
+// The HTTP alerts query the App Insights `requests` table and the low-stock alert
+// queries the `customMetrics` table — all three scoped to the App Insights
+// component and grouped per service by `cloud_RoleName` (the App Insights
+// equivalent of the local `service_name` Prometheus label). ServiceDown instead
+// queries the Container Insights `KubePodInventory` table in the Log Analytics
+// workspace (so it also covers the event-driven services that serve no HTTP and
+// never appear in the `requests` table), grouped per workload by `ControllerName`.
+// Each rule pages for whichever service regresses.
 
-@description('Resource ID of the Application Insights component the alerts query (appinsights.bicep → appInsightsId).')
+@description('Resource ID of the Application Insights component the HTTP + low-stock alerts query (appinsights.bicep → appInsightsId).')
 param appInsightsId string
+
+@description('Resource ID of the Log Analytics workspace the ServiceDown alert queries for Container Insights KubePodInventory (monitor.bicep → workspaceId).')
+param workspaceId string
 
 @description('Resource ID of the action group notified when an alert fires (action-group module → #335).')
 param actionGroupId string
@@ -38,6 +44,10 @@ param latencyP95MillisecondsThreshold int = 1000
 @description('Stock-reservation failures (summed over 5 minutes) above which LowStockAlert fires. Default 0 = any failure pages, mirroring the local LowStockAlert Prometheus rule.')
 @minValue(0)
 param reservationFailuresThreshold int = 0
+
+@description('Unhealthy (not-running / not-ready / crashing) pods per workload above which ServiceDown fires. Default 0 = any unhealthy pod pages, mirroring the local ServiceDown Prometheus rule (up == 0).')
+@minValue(0)
+param serviceDownUnhealthyPodThreshold int = 0
 
 @description('Resource tags.')
 param tags object = {}
@@ -195,6 +205,60 @@ resource lowStockAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15' = {
   }
 }
 
+// A workload has one or more pods that are not running/ready or are crash-looping
+// over the trailing 5 minutes. Mirrors the local ServiceDown Prometheus rule
+// (up == 0, severity: critical → Sev 0). Queries the Container Insights
+// `KubePodInventory` table (populated by the AKS omsagent addon) in the Log
+// Analytics workspace rather than App Insights, so it also covers the event-driven
+// services that serve no HTTP and never appear in the `requests` table. Grouped
+// per workload by `ControllerName`.
+resource serviceDown 'Microsoft.Insights/scheduledQueryRules@2023-03-15' = {
+  name: '${namePrefix}-service-down'
+  location: location
+  tags: tags
+  kind: 'LogAlert'
+  properties: {
+    description: 'A service has one or more pods that are not running/ready or are crash-looping over the last 5 minutes.'
+    severity: 0
+    enabled: true
+    scopes: [
+      workspaceId
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: 'KubePodInventory\n| where Namespace startswith "ecommerce"\n| summarize arg_max(TimeGenerated, PodStatus, ContainerStatus) by Name, ControllerName\n| summarize UnhealthyPods = countif(PodStatus !in~ ("Running", "Succeeded") or ContainerStatus !~ "running") by ControllerName\n| project ControllerName, UnhealthyPods'
+          timeAggregation: 'Average'
+          metricMeasureColumn: 'UnhealthyPods'
+          operator: 'GreaterThan'
+          threshold: serviceDownUnhealthyPodThreshold
+          dimensions: [
+            {
+              name: 'ControllerName'
+              operator: 'Include'
+              values: [
+                '*'
+              ]
+            }
+          ]
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    autoMitigate: true
+    actions: {
+      actionGroups: [
+        actionGroupId
+      ]
+    }
+  }
+}
+
 @description('Resource ID of the HighHttpErrorRate alert rule.')
 output highHttpErrorRateId string = highHttpErrorRate.id
 
@@ -203,3 +267,6 @@ output highHttpLatencyP95Id string = highHttpLatencyP95.id
 
 @description('Resource ID of the LowStockAlert alert rule.')
 output lowStockAlertId string = lowStockAlert.id
+
+@description('Resource ID of the ServiceDown alert rule.')
+output serviceDownId string = serviceDown.id

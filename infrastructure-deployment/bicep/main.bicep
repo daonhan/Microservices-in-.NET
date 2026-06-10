@@ -338,14 +338,16 @@ module actionGroup 'modules/actiongroup.bicep' = if (isStagingOrProd) {
   }
 }
 
-// Azure Monitor alert rules over Application Insights: HTTP error-rate + latency
-// (#336) and the Inventory low-stock / reservation-failure rule (#337). Gated to
-// staging/prod, mirroring the action group's own gate so dev/sandbox provision no
-// non-notifying alerts.
+// Azure Monitor alert rules: HTTP error-rate + latency (#336) and the Inventory
+// low-stock / reservation-failure rule (#337) over Application Insights, plus the
+// ServiceDown rule (#338) over the Container Insights KubePodInventory table in
+// the Log Analytics workspace. Gated to staging/prod, mirroring the action
+// group's own gate so dev/sandbox provision no non-notifying alerts.
 module alerts 'modules/alerts.bicep' = if (isStagingOrProd) {
   name: 'alerts-deploy'
   params: {
     appInsightsId: appInsights.outputs.appInsightsId
+    workspaceId: monitor.outputs.workspaceId
     // Both modules share the isStagingOrProd guard; safe-access satisfies the analyzer.
     actionGroupId: actionGroup.?outputs.actionGroupId ?? ''
     location: location
