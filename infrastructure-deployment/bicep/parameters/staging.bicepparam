@@ -37,3 +37,7 @@ param logRetentionDays = 60
 
 // ── Service Bus ───────────────────────────────────────────────────────────────
 param serviceBusSku = 'Standard'
+
+// ── Alerting ──────────────────────────────────────────────────────────────────
+// Replace the placeholder with the real staging on-call distribution before deploying.
+param onCallEmails = ['oncall-staging@example.com']
