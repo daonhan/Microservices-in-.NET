@@ -4,12 +4,14 @@
 // (observability/alerts.yaml) as Azure Monitor alerts, now that AKS ships
 // metrics to App Insights rather than Prometheus.
 //
-// This module currently emits the HTTP error-rate + latency alerts (issue #336).
-// The low-stock (#337) and service-down (#338) rules extend this module in their
-// own slices once the shared action group (#335) lands.
+// This module currently emits the HTTP error-rate + latency alerts (issue #336)
+// and the Inventory low-stock / reservation-failure alert (issue #337). The
+// service-down (#338) rule extends this module in its own slice once the shared
+// action group (#335) lands.
 //
-// Both alerts query the App Insights `requests` table and are grouped per service
-// by `cloud_RoleName` (the App Insights equivalent of the local `service_name`
+// The HTTP alerts query the App Insights `requests` table; the low-stock alert
+// queries the `customMetrics` table. All are grouped per service by
+// `cloud_RoleName` (the App Insights equivalent of the local `service_name`
 // Prometheus label), so a single rule pages for whichever service regresses.
 
 @description('Resource ID of the Application Insights component the alerts query (appinsights.bicep → appInsightsId).')
@@ -32,6 +34,10 @@ param errorRatePercentThreshold int = 5
 @description('p95 request duration in milliseconds (per service, over 5 minutes) above which HighHttpLatencyP95 fires.')
 @minValue(1)
 param latencyP95MillisecondsThreshold int = 1000
+
+@description('Stock-reservation failures (summed over 5 minutes) above which LowStockAlert fires. Default 0 = any failure pages, mirroring the local LowStockAlert Prometheus rule.')
+@minValue(0)
+param reservationFailuresThreshold int = 0
 
 @description('Resource tags.')
 param tags object = {}
@@ -136,8 +142,64 @@ resource highHttpLatencyP95 'Microsoft.Insights/scheduledQueryRules@2023-03-15' 
   }
 }
 
+// Inventory rejecting stock reservations over the trailing 5 minutes.
+// Mirrors the local LowStockAlert Prometheus rule (severity: warning → Sev 2).
+// Inventory increments the `stock-reservations-failed` counter (dash-cased, the
+// App Insights `customMetrics.name`, not the Prometheus `stock_reservations_failed_total`
+// form) on each rejected reservation; summing it over the window detects depleted
+// stock from telemetry rather than from customer reports.
+resource lowStockAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15' = {
+  name: '${namePrefix}-low-stock'
+  location: location
+  tags: tags
+  kind: 'LogAlert'
+  properties: {
+    description: 'Inventory is rejecting stock reservations over the last 5 minutes (likely low/depleted stock).'
+    severity: 2
+    enabled: true
+    scopes: [
+      appInsightsId
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: 'customMetrics\n| where name == "stock-reservations-failed"\n| summarize FailedReservations = sum(valueSum) by cloud_RoleName\n| project cloud_RoleName, FailedReservations'
+          timeAggregation: 'Average'
+          metricMeasureColumn: 'FailedReservations'
+          operator: 'GreaterThan'
+          threshold: reservationFailuresThreshold
+          dimensions: [
+            {
+              name: 'cloud_RoleName'
+              operator: 'Include'
+              values: [
+                '*'
+              ]
+            }
+          ]
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    autoMitigate: true
+    actions: {
+      actionGroups: [
+        actionGroupId
+      ]
+    }
+  }
+}
+
 @description('Resource ID of the HighHttpErrorRate alert rule.')
 output highHttpErrorRateId string = highHttpErrorRate.id
 
 @description('Resource ID of the HighHttpLatencyP95 alert rule.')
 output highHttpLatencyP95Id string = highHttpLatencyP95.id
+
+@description('Resource ID of the LowStockAlert alert rule.')
+output lowStockAlertId string = lowStockAlert.id
