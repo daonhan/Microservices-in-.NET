@@ -7,10 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ECommerce.Shared.EventBus" Version="3.1.0" />
-    <PackageReference Include="ECommerce.Shared.Messaging" Version="3.1.0" />
-    <PackageReference Include="ECommerce.Shared.Platform" Version="3.1.0" />
-    <PackageReference Include="ECommerce.Shared.Testing.Qa" Version="3.1.0" />
+    <PackageReference Include="ECommerce.Shared.EventBus" Version="3.2.0" />
+    <PackageReference Include="ECommerce.Shared.Messaging" Version="3.2.0" />
+    <PackageReference Include="ECommerce.Shared.Platform" Version="3.2.0" />
+    <PackageReference Include="ECommerce.Shared.Testing.Qa" Version="3.2.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.5" />
   </ItemGroup>
 
