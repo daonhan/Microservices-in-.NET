@@ -338,6 +338,22 @@ module actionGroup 'modules/actiongroup.bicep' = if (isStagingOrProd) {
   }
 }
 
+// Azure Monitor alert rules over Application Insights: HTTP error-rate + latency
+// (#336) and the Inventory low-stock / reservation-failure rule (#337). Gated to
+// staging/prod, mirroring the action group's own gate so dev/sandbox provision no
+// non-notifying alerts.
+module alerts 'modules/alerts.bicep' = if (isStagingOrProd) {
+  name: 'alerts-deploy'
+  params: {
+    appInsightsId: appInsights.outputs.appInsightsId
+    // Both modules share the isStagingOrProd guard; safe-access satisfies the analyzer.
+    actionGroupId: actionGroup.?outputs.actionGroupId ?? ''
+    location: location
+    namePrefix: '${workload}-${environment}'
+    tags: commonTags
+  }
+}
+
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
 @description('Resource ID of the deployed VNet.')
