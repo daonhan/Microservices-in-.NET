@@ -229,7 +229,7 @@ resource serviceDown 'Microsoft.Insights/scheduledQueryRules@2023-03-15' = {
     criteria: {
       allOf: [
         {
-          query: 'KubePodInventory\n| where Namespace startswith "ecommerce"\n| summarize arg_max(TimeGenerated, PodStatus, ContainerStatus) by Name, ControllerName\n| summarize UnhealthyPods = countif(PodStatus !in~ ("Running", "Succeeded") or ContainerStatus !~ "running") by ControllerName\n| project ControllerName, UnhealthyPods'
+          query: 'KubePodInventory\n| where Namespace startswith "ecommerce"\n| summarize arg_max(TimeGenerated, PodStatus, ContainerStatus) by Name, ControllerName\n| summarize UnhealthyPods = countif(PodStatus !in~ ("Running", "Succeeded") or ContainerStatus =~ "waiting") by ControllerName\n| project ControllerName, UnhealthyPods'
           timeAggregation: 'Average'
           metricMeasureColumn: 'UnhealthyPods'
           operator: 'GreaterThan'
