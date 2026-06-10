@@ -27,7 +27,7 @@ This ADR named managed APM out of scope but "kept as a swap option since the OTE
 
 The default `Otlp` branch — and therefore the entire local Jaeger/Prometheus/Loki/Grafana stack described above — is unchanged. This is a config-gated, cloud-only change; local development is untouched.
 
-Because the distro owns metrics in the cloud, in-cluster Prometheus is dropped there (metrics flow to App Insights only) and the five local Prometheus rules in [`observability/alerts.yaml`](../../observability/alerts.yaml) (now marked local-only) are re-created as Azure Monitor alerts in Bicep: `HighHttpErrorRate` / `HighHttpLatencyP95` / `LowStockAlert` over App Insights telemetry, and `ServiceDown` over Container Insights.
+Because the distro owns metrics in the cloud, in-cluster Prometheus is dropped there (metrics flow to App Insights only) and four of the five local Prometheus rules in [`observability/alerts.yaml`](../../observability/alerts.yaml) (now marked local-only) are re-created as Azure Monitor alerts in Bicep: `HighHttpErrorRate` / `HighHttpLatencyP95` / `LowStockAlert` over App Insights telemetry, and `ServiceDown` over Container Insights. The fifth rule, `RabbitMqQueueBacklog`, is deferred (see below).
 
 Rollout is tracked as children of PRD #332: composition refactor (#333), action group (#335), and the alert slices (#336–#338).
 
