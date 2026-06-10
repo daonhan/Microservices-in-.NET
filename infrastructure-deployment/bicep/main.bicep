@@ -211,6 +211,7 @@ module aks 'modules/aks.bicep' = {
     dnsPrefix: aksDnsPrefix
     kubernetesVersion: kubernetesVersion
     aksSubnetId: vnet.outputs.aksSubnetId
+    workspaceId: monitor.outputs.workspaceId
     systemNodeCount: aksSystemNodeCount
     systemNodeVmSize: aksSystemNodeVmSize
     serviceCidr: serviceCidr
