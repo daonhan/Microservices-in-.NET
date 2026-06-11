@@ -1,3 +1,8 @@
+# LOCAL-ONLY. These Prometheus alert rules drive the local observability stack
+# (Prometheus/Alertmanager started via the root docker-compose.yaml). They are NOT
+# used in the cloud: AKS ships metrics to Application Insights, not Prometheus, so
+# these rules are superseded there by the Azure Monitor alerts defined in Bicep
+# (infrastructure-deployment/bicep), landing in later phases.
 groups:
   - name: microservice-http
     rules:

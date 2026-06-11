@@ -16,10 +16,6 @@ spec:
       labels:
         app: sagaservice
         environment: dev
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/path: "/metrics"
-        prometheus.io/port: "8080"
     spec:
       imagePullSecrets:
         - name: acr-pull-secret

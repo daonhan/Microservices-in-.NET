@@ -157,6 +157,18 @@ param budgetContactEmails array = [
 @maxValue(1000)
 param budgetFirstThresholdPercent int = 80
 
+// ── Alerting (staging/prod only) ──────────────────────────────────────────────
+
+@description('On-call email addresses for the Azure Monitor action group that backs the platform alert rules. Only used when environment is staging/prod; the placeholder default must be replaced with the real on-call distribution list per environment.')
+@minLength(1)
+param onCallEmails array = [
+  'oncall@example.com'
+]
+
+@description('Short name (max 12 chars) shown as the sender label on alert notifications from the action group.')
+@maxLength(12)
+param actionGroupShortName string = 'ecomalerts'
+
 var commonTags = {
   workload: workload
   environment: environment
@@ -173,8 +185,10 @@ var logWorkspaceName = '${workload}-${environment}-logs'
 var appInsightsName = '${workload}-${environment}-ai'
 var serviceBusName = '${workload}-${environment}-sb'
 var budgetName = '${workload}-${environment}-budget'
+var actionGroupName = '${workload}-${environment}-ag'
 
 var isSandbox = environment == 'sandbox'
+var isStagingOrProd = environment == 'staging' || environment == 'prod'
 
 module vnet 'modules/vnet.bicep' = {
   name: 'vnet-deploy'
@@ -211,6 +225,7 @@ module aks 'modules/aks.bicep' = {
     dnsPrefix: aksDnsPrefix
     kubernetesVersion: kubernetesVersion
     aksSubnetId: vnet.outputs.aksSubnetId
+    workspaceId: monitor.outputs.workspaceId
     systemNodeCount: aksSystemNodeCount
     systemNodeVmSize: aksSystemNodeVmSize
     serviceCidr: serviceCidr
@@ -311,6 +326,36 @@ module budget 'modules/budget.bicep' = if (isSandbox) {
   }
 }
 
+// Shared notification target for the Azure Monitor alert rules. Provisioned only
+// for staging/prod; dev/sandbox deploy no action group (no alert rules consume it).
+module actionGroup 'modules/actiongroup.bicep' = if (isStagingOrProd) {
+  name: 'actiongroup-deploy'
+  params: {
+    actionGroupName: actionGroupName
+    groupShortName: actionGroupShortName
+    emailAddresses: onCallEmails
+    tags: commonTags
+  }
+}
+
+// Azure Monitor alert rules: HTTP error-rate + latency (#336) and the Inventory
+// low-stock / reservation-failure rule (#337) over Application Insights, plus the
+// ServiceDown rule (#338) over the Container Insights KubePodInventory table in
+// the Log Analytics workspace. Gated to staging/prod, mirroring the action
+// group's own gate so dev/sandbox provision no non-notifying alerts.
+module alerts 'modules/alerts.bicep' = if (isStagingOrProd) {
+  name: 'alerts-deploy'
+  params: {
+    appInsightsId: appInsights.outputs.appInsightsId
+    workspaceId: monitor.outputs.workspaceId
+    // Both modules share the isStagingOrProd guard; safe-access satisfies the analyzer.
+    actionGroupId: actionGroup.?outputs.actionGroupId ?? ''
+    location: location
+    namePrefix: '${workload}-${environment}'
+    tags: commonTags
+  }
+}
+
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
 @description('Resource ID of the deployed VNet.')
@@ -353,3 +398,6 @@ output appInsightsConnectionString string = appInsights.outputs.connectionString
 @description('Service Bus primary connection string.')
 @secure()
 output serviceBusConnectionString string = serviceBus.outputs.primaryConnectionString
+
+@description('Resource ID of the Azure Monitor action group consumed by the alert rules. Empty unless environment is staging/prod.')
+output actionGroupId string = actionGroup.?outputs.actionGroupId ?? ''

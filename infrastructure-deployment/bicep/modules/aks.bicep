@@ -13,6 +13,9 @@ param kubernetesVersion string = ''
 @description('Resource ID of the subnet where AKS nodes will be deployed.')
 param aksSubnetId string
 
+@description('Resource ID of the Log Analytics workspace backing the Container Insights monitoring addon.')
+param workspaceId string
+
 @description('Number of nodes in the system node pool.')
 @minValue(1)
 @maxValue(100)
@@ -86,6 +89,14 @@ resource aks 'Microsoft.ContainerService/managedClusters@2024-05-01' = {
     }
     apiServerAccessProfile: {
       enablePrivateCluster: false
+    }
+    addonProfiles: {
+      omsagent: {
+        enabled: true
+        config: {
+          logAnalyticsWorkspaceResourceID: workspaceId
+        }
+      }
     }
   }
 }

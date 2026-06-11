@@ -37,3 +37,7 @@ param logRetentionDays = 90
 
 // ── Service Bus ───────────────────────────────────────────────────────────────
 param serviceBusSku = 'Standard'
+
+// ── Alerting ──────────────────────────────────────────────────────────────────
+// Replace the placeholder with the real prod on-call distribution before deploying.
+param onCallEmails = ['oncall-prod@example.com']
