@@ -103,8 +103,8 @@ resource highHttpErrorRate 'Microsoft.Insights/scheduledQueryRules@2023-03-15' =
 
 // p95 request duration above the threshold per service over the trailing 5 minutes.
 // Mirrors the local HighHttpLatencyP95 Prometheus rule (severity: warning → Sev 2).
-// App Insights `requests.duration` is in milliseconds, so the 1s local threshold
-// maps to 1000ms by default.
+// App Insights `requests.duration` is a timespan. Convert it to numeric
+// milliseconds first so the percentile output is comparable to the ms threshold.
 resource highHttpLatencyP95 'Microsoft.Insights/scheduledQueryRules@2023-03-15' = {
   name: '${namePrefix}-high-http-latency-p95'
   location: location
@@ -122,7 +122,7 @@ resource highHttpLatencyP95 'Microsoft.Insights/scheduledQueryRules@2023-03-15' 
     criteria: {
       allOf: [
         {
-          query: 'requests\n| summarize P95DurationMs = percentile(duration, 95) by cloud_RoleName\n| project cloud_RoleName, P95DurationMs'
+          query: 'requests\n| extend DurationMs = todouble(duration / 1ms)\n| summarize P95DurationMs = percentile(DurationMs, 95) by cloud_RoleName\n| project cloud_RoleName, P95DurationMs'
           timeAggregation: 'Average'
           metricMeasureColumn: 'P95DurationMs'
           operator: 'GreaterThan'
