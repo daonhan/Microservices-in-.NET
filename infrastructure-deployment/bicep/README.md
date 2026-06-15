@@ -52,6 +52,10 @@ az deployment group create \
 
 The same three-line command pattern works for `staging` and `prod` by changing `ENV`.
 
+## Drift detection
+
+[`pipelines/ops/iac-drift.yml`](../pipelines/ops/iac-drift.yml) runs the read-only `what-if` (step 3 above) for every environment nightly and fails when the live resource group no longer matches these templates — surfacing out-of-band portal changes. It never applies anything. Setup (per-env service connections + KV-linked variable groups) is documented in the pipeline header.
+
 ## Notes
 
 - **ACR names are globally unique.** Override `acrName` on the command line if the default in the bicepparam file is taken: `--parameters acrName=mycustomacr1234`.

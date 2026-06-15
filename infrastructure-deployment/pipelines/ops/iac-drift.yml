@@ -1,0 +1,120 @@
+# Nightly IaC drift detection (Phase B3).
+#
+# Runs `az deployment group what-if` against each environment's resource group
+# every night and FAILS when the live infrastructure no longer matches the
+# Bicep templates — surfacing out-of-band portal changes. It is strictly
+# READ-ONLY: it never runs `az deployment group create`, so it can never apply
+# or revert anything.
+#
+# A failed scheduled run is the alert: Azure DevOps emails the pipeline failure
+# to the configured notification subscribers. The run goes green again on the
+# next night once the drift is reverted (or the templates are updated to match).
+#
+# Each environment is an independent job, so dev/staging/prod drift are reported
+# separately and one env's drift never masks another's.
+#
+# ── Required setup (HITL) ─────────────────────────────────────────────────────
+# Per-environment variable groups (Pipelines > Library), one per env, supplying
+# the same three names so this pipeline stays env-agnostic. These are the same
+# dedicated infra connections + KV-linked groups provisioned by Phases B1/B2 —
+# reuse them here; do not point this drift check at the app-deploy connections.
+#
+#   Variable group   Variables
+#   ───────────────  ──────────────────────────────────────────────────────────
+#   iac-dev          IAC_SERVICE_CONNECTION  dev ARM service connection name
+#                                            (Contributor + UAA, workload identity
+#                                            federation — same connection as B1)
+#                    IAC_RESOURCE_GROUP      dev resource group (e.g. rg-ecommerce-dev-eastus)
+#                    sqlAdminPassword        secret, linked from the bootstrap Key Vault
+#   iac-staging      IAC_SERVICE_CONNECTION / IAC_RESOURCE_GROUP / sqlAdminPassword (staging)
+#   iac-prod         IAC_SERVICE_CONNECTION / IAC_RESOURCE_GROUP / sqlAdminPassword (prod)
+#
+# Each group is linked at job scope, so `sqlAdminPassword` (a Key Vault secret
+# exposed under its KV secret name) never collides across environments.
+#
+# Authorize this pipeline to use each environment's service connection
+# (connection > Security, or "Grant access to all pipelines").
+
+trigger: none
+pr: none
+
+schedules:
+  - cron: "0 3 * * *"
+    displayName: Nightly IaC drift check at 03:00 UTC
+    branches:
+      include:
+        - main
+    always: true
+
+parameters:
+  - name: environments
+    type: object
+    default:
+      - name: dev
+        variableGroup: iac-dev
+      - name: staging
+        variableGroup: iac-staging
+      - name: prod
+        variableGroup: iac-prod
+
+jobs:
+  - ${{ each env in parameters.environments }}:
+      - job: drift_${{ env.name }}
+        displayName: Drift check - ${{ env.name }}
+        pool:
+          vmImage: ubuntu-latest
+        variables:
+          - group: ${{ env.variableGroup }}
+        steps:
+          - checkout: self
+            displayName: Checkout templates
+
+          - task: AzureCLI@2
+            displayName: what-if ${{ env.name }} (read-only)
+            inputs:
+              azureSubscription: $(IAC_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+
+                out="$(mktemp)"
+                trap 'rm -f "${out}"' EXIT
+
+                echo "Running read-only what-if for '${ENVIRONMENT}' against resource group '${RG}'..."
+                az deployment group what-if \
+                  --resource-group "${RG}" \
+                  --template-file "${TEMPLATE}" \
+                  --parameters "${PARAMS}" \
+                  --parameters sqlAdminPassword="${SQL_ADMIN_PASSWORD}" \
+                  --no-pretty-print \
+                  --only-show-errors \
+                  --output json > "${out}"
+
+                # Drift = managed resources whose live state differs from the
+                # templates. Count Create/Modify/Delete changes and exclude the
+                # ephemeral Microsoft.Resources/deployments resources that
+                # what-if reports as new on every run (module deployments).
+                read -r -d '' FILTER <<'JQ' || true
+                .changes[]?
+                | select((((.changeType // "") | ascii_downcase)) as $t | ($t == "create" or $t == "modify" or $t == "delete"))
+                | select((((.resourceId // "") | ascii_downcase) | contains("/microsoft.resources/deployments/")) | not)
+                JQ
+
+                drift="$(jq "[ ${FILTER} ] | length" "${out}")"
+
+                echo "Drift-relevant changes in ${ENVIRONMENT}: ${drift}"
+                jq -r "${FILTER} | \"  [\(.changeType)] \(.resourceId)\"" "${out}" || true
+
+                if [ "${drift}" -gt 0 ]; then
+                  echo "##vso[task.logissue type=error]Configuration drift detected in ${ENVIRONMENT}: ${drift} managed resource(s) differ from the Bicep templates. Review the what-if output above."
+                  exit 1
+                fi
+
+                echo "No drift detected in ${ENVIRONMENT}: live infrastructure matches the templates."
+            env:
+              ENVIRONMENT: ${{ env.name }}
+              RG: $(IAC_RESOURCE_GROUP)
+              TEMPLATE: $(Build.SourcesDirectory)/infrastructure-deployment/bicep/main.bicep
+              PARAMS: $(Build.SourcesDirectory)/infrastructure-deployment/bicep/parameters/${{ env.name }}.bicepparam
+              SQL_ADMIN_PASSWORD: $(sqlAdminPassword)
