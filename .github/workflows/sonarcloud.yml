@@ -1,0 +1,171 @@
+name: SonarCloud
+
+# Workstream A (A2): per-service SonarCloud analysis on PRs, fanned out across
+# every service via path filters, with a single aggregator check.
+#
+# Report-only: the `sonar-gate` aggregator surfaces the combined result but is
+# NOT a required check yet (that is A3 / #346). The workflow is a no-op (green)
+# until a human finishes the SonarCloud setup: create one project per service
+# (key `<org>_<slug>`, e.g. `myorg_basket`) with the "Sonar way" / new-code
+# gate, set the `SONAR_ORGANIZATION` Actions variable, and add the
+# `SONAR_TOKEN` secret. See docs/runbooks/sonarcloud-quality-gate.md.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonarcloud-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Path filter: emit a matrix of only the services touched by this PR, so a PR
+  # that changes one service runs only that service's analysis and never sits
+  # pending on checks for services it did not touch.
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.filter.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        name: Select changed services
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # One entry per SonarCloud project: the eight services + api-gateway
+          # + shared-libs. `slug` is the project-key suffix; `path` is the path
+          # filter; `solution` is the .slnx analysed.
+          services='[
+            {"slug":"basket",     "name":"Basket",      "path":"basket-microservice",    "solution":"basket-microservice/Basket.Service.slnx"},
+            {"slug":"order",      "name":"Order",       "path":"order-microservice",     "solution":"order-microservice/Order.Service.slnx"},
+            {"slug":"product",    "name":"Product",     "path":"product-microservice",   "solution":"product-microservice/Product.Service.slnx"},
+            {"slug":"auth",       "name":"Auth",        "path":"auth-microservice",      "solution":"auth-microservice/Auth.Service.slnx"},
+            {"slug":"inventory",  "name":"Inventory",   "path":"inventory-microservice", "solution":"inventory-microservice/Inventory.Service.slnx"},
+            {"slug":"shipping",   "name":"Shipping",    "path":"shipping-microservice",  "solution":"shipping-microservice/Shipping.Service.slnx"},
+            {"slug":"payment",    "name":"Payment",     "path":"payment-microservice",   "solution":"payment-microservice/Payment.Service.slnx"},
+            {"slug":"saga",       "name":"Saga",        "path":"saga-microservice",      "solution":"saga-microservice/Saga.Service.slnx"},
+            {"slug":"api-gateway","name":"ApiGateway",  "path":"api-gateway",            "solution":"api-gateway/ApiGateway.slnx"},
+            {"slug":"shared-libs","name":"SharedLibs",  "path":"shared-libs",            "solution":"shared-libs/ECommerce.Shared.slnx"}
+          ]'
+
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          changed="$(git diff --name-only "origin/$BASE_REF" HEAD)"
+          echo "Changed files:"
+          echo "$changed"
+
+          matrix="$(jq -cn \
+            --argjson services "$services" \
+            --arg changed "$changed" '
+              ($changed | split("\n") | map(select(length > 0))) as $files
+              | [ $services[]
+                  | . as $svc
+                  | select($files | any(startswith($svc.path + "/"))) ]
+            ')"
+
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "Selected services: $matrix"
+
+  # Per-service analysis. Skipped entirely when nothing relevant changed or when
+  # SonarCloud is not configured yet, keeping the aggregator green pre-setup.
+  analyze:
+    needs: detect
+    if: ${{ needs.detect.outputs.matrix != '[]' && vars.SONAR_ORGANIZATION != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.detect.outputs.matrix) }}
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_ORG: ${{ vars.SONAR_ORGANIZATION }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Set up JDK (required by the Sonar scanner)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dotnet-sonarscanner
+        run: |
+          dotnet tool install --global dotnet-sonarscanner
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Pack shared library to local feed
+        run: |
+          mkdir -p local-nuget-packages
+          dotnet pack shared-libs/ECommerce.Shared.slnx \
+            --configuration Release --output local-nuget-packages
+
+      - name: Analyze ${{ matrix.service.name }}
+        env:
+          PR_KEY: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.head_ref }}
+          PR_BASE: ${{ github.base_ref }}
+        run: |
+          dotnet sonarscanner begin \
+            /k:"${SONAR_ORG}_${{ matrix.service.slug }}" \
+            /o:"${SONAR_ORG}" \
+            /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.token="${SONAR_TOKEN}" \
+            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
+            /d:sonar.exclusions="**/Migrations/**,**/obj/**,**/bin/**,**/*.Tests/**" \
+            /d:sonar.coverage.exclusions="**/Migrations/**" \
+            /d:sonar.pullrequest.key="${PR_KEY}" \
+            /d:sonar.pullrequest.branch="${PR_BRANCH}" \
+            /d:sonar.pullrequest.base="${PR_BASE}"
+
+          dotnet build "${{ matrix.service.solution }}" --configuration Release
+
+          dotnet test "${{ matrix.service.solution }}" \
+            --configuration Release --no-build \
+            --collect:"XPlat Code Coverage;Format=opencover"
+
+          dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
+
+  # Single consolidated status check. Always runs, so a path-filtered PR that
+  # skips some (or all) services still reports exactly one Sonar result instead
+  # of leaving a required check pending. This is the check A3 makes required.
+  sonar-gate:
+    needs: [detect, analyze]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consolidate analysis results
+        env:
+          DETECT_RESULT: ${{ needs.detect.result }}
+          ANALYZE_RESULT: ${{ needs.analyze.result }}
+        run: |
+          echo "Change detection: $DETECT_RESULT | Per-service analysis: $ANALYZE_RESULT"
+          if [ "$DETECT_RESULT" != "success" ]; then
+            echo "::error::Change detection failed; cannot determine quality gate status"
+            exit 1
+          fi
+          # 'skipped' = nothing relevant changed (or SonarCloud not configured yet).
+          case "$ANALYZE_RESULT" in
+            success|skipped)
+              echo "Quality gate: PASS"
+              ;;
+            *)
+              echo "::error::One or more service analyses failed the SonarCloud quality gate"
+              exit 1
+              ;;
+          esac
