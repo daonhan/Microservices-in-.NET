@@ -18,9 +18,13 @@ terraform/
 ├── providers.tf           # provider azurerm (auth via ARM_* env vars)
 ├── locals.tf              # naming + common_tags (env=sbx2 / managedBy=terraform)
 ├── variables.tf           # location / workload / environment
-├── main.tf                # azurerm_resource_group (Phase 1 tracer)
-├── outputs.tf             # resource group name / id / location
+├── main.tf                # resource group (Phase 1) + network/aks/registry modules (Phase 2)
+├── outputs.tf             # resource group + compute (vnet / aks / acr) outputs
 ├── .terraform.lock.hcl    # committed, multi-platform provider hashes
+├── modules/               # child modules per concern (Phase 2: network/aks/registry)
+│   ├── network/           # VNet 10.50.0.0/16 + aks/private-endpoints/agents subnets
+│   ├── aks/               # AKS (system MI, single burstable node) + Log Analytics
+│   └── registry/          # ACR + AcrPull role assignment for the kubelet identity
 ├── environments/
 │   ├── sbx2.tfvars        # per-env values (mirrors the .bicepparam convention)
 │   └── sbx2.backend.hcl   # state backend coordinates for `init`
@@ -28,8 +32,8 @@ terraform/
     └── bootstrap-tfstate.sh   # one-time hardened state-account bootstrap
 ```
 
-Later phases add child modules per concern (network, aks, registry, sql, redis,
-servicebus, keyvault) under this same root.
+Later phases add the remaining child modules per concern (sql, redis, servicebus,
+keyvault) under this same root.
 
 ## CI vs CD split
 

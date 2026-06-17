@@ -3,6 +3,12 @@ locals {
   # the Terraform-owned parallel of Bicep's ecom-sandbox-rg).
   resource_group_name = "${var.workload}-${var.environment}-rg"
 
+  # Shared "${workload}-${environment}" stem for the module-provisioned resources.
+  name_prefix = "${var.workload}-${var.environment}"
+
+  # ACR names are globally unique and alphanumeric only (no hyphens): ecomsbx2acr.
+  acr_name = "${var.workload}${var.environment}acr"
+
   # azurerm has no provider-level default tags, so Terraform-owned resources carry
   # this common set (env=sbx2 / managedBy=terraform makes the lane obvious in the
   # portal). Merge into each resource's `tags`.
