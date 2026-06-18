@@ -13,18 +13,22 @@ decision (Phase 6).
 
 ```
 terraform/
-├── versions.tf            # required_version (~> 1.9) + azurerm (~> 4.0), pinned
+├── versions.tf            # required_version (~> 1.9) + azurerm (~> 4.0) + random (~> 3.6), pinned
 ├── backend.tf             # azurerm backend (partial; coordinates via -backend-config)
 ├── providers.tf           # provider azurerm (auth via ARM_* env vars)
 ├── locals.tf              # naming + common_tags (env=sbx2 / managedBy=terraform)
 ├── variables.tf           # location / workload / environment
-├── main.tf                # resource group (Phase 1) + network/aks/registry modules (Phase 2)
-├── outputs.tf             # resource group + compute (vnet / aks / acr) outputs
+├── main.tf                # RG (P1) + network/aks/registry (P2) + sql/redis/servicebus/keyvault (P3)
+├── outputs.tf             # RG + compute (vnet / aks / acr) + data-plane (sql/redis/sb/kv) outputs
 ├── .terraform.lock.hcl    # committed, multi-platform provider hashes
-├── modules/               # child modules per concern (Phase 2: network/aks/registry)
+├── modules/               # child modules per concern (P2: network/aks/registry; P3: sql/redis/servicebus/keyvault)
 │   ├── network/           # VNet 10.50.0.0/16 + aks/private-endpoints/agents subnets
 │   ├── aks/               # AKS (system MI, single burstable node) + Log Analytics
-│   └── registry/          # ACR + AcrPull role assignment for the kubelet identity
+│   ├── registry/          # ACR + AcrPull role assignment for the kubelet identity
+│   ├── sql/               # SQL Server + 7 serverless databases (random_password admin)
+│   ├── redis/             # Azure Cache for Redis (Basic C0)
+│   ├── servicebus/        # Service Bus namespace + 11 integration-event topics
+│   └── keyvault/          # Key Vault (RBAC auth, provisioned-but-unwired)
 ├── environments/
 │   ├── sbx2.tfvars        # per-env values (mirrors the .bicepparam convention)
 │   └── sbx2.backend.hcl   # state backend coordinates for `init`
@@ -32,8 +36,8 @@ terraform/
     └── bootstrap-tfstate.sh   # one-time hardened state-account bootstrap
 ```
 
-Later phases add the remaining child modules per concern (sql, redis, servicebus,
-keyvault) under this same root.
+Phase 3 added the data-plane child modules (sql, redis, servicebus, keyvault)
+under this same root, completing the self-contained `sbx2` environment.
 
 ## CI vs CD split
 

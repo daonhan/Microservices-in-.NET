@@ -40,3 +40,43 @@ module "registry" {
   kubelet_identity_object_id = module.aks.kubelet_identity_object_id
   tags                       = local.common_tags
 }
+
+# Phase 3 data plane. Self-contained: SQL (7 service databases), Redis, Service
+# Bus (11 topics), and a provisioned-but-unwired Key Vault. Like the Bicep lane's
+# sandbox profile these hang off the resource group over public endpoints rather
+# than threading private endpoints through the network module.
+module "sql" {
+  source = "./modules/sql"
+
+  name                = "${local.name_prefix}-sql"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.sbx2.name
+  tags                = local.common_tags
+}
+
+module "redis" {
+  source = "./modules/redis"
+
+  name                = "${local.name_prefix}-redis"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.sbx2.name
+  tags                = local.common_tags
+}
+
+module "servicebus" {
+  source = "./modules/servicebus"
+
+  name                = "${local.name_prefix}-sb"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.sbx2.name
+  tags                = local.common_tags
+}
+
+module "keyvault" {
+  source = "./modules/keyvault"
+
+  name                = "${local.name_prefix}-kv"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.sbx2.name
+  tags                = local.common_tags
+}
