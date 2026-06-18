@@ -126,7 +126,7 @@ The approach supports a **layered learning path**:
 ## Implementation Decisions
 
 ### Azure Infrastructure (Bicep IaC)
-- Use **Bicep** (not Terraform or ARM) for all Azure resource provisioning — native Azure support, simpler syntax, good VS Code tooling
+- Use **Bicep** (not Terraform or ARM) for all Azure resource provisioning — native Azure support, simpler syntax, good VS Code tooling. _(Update: Terraform was later added as a **second, parallel** lane owning only the new `sbx2` environment — Bicep keeps dev/staging/prod/sandbox unchanged. See [ADR-0015](../adr/0015-terraform-as-azure-iac-option.md).)_
 - All Bicep templates are **parameterized by environment** (Dev/Staging/Prod) — one set of templates, different parameter files per environment
 - Resources provisioned: AKS, ACR, Azure SQL Database (per-service), Azure Cache for Redis, Azure Key Vault, VNet + Subnets, Azure Monitor / Log Analytics, Application Insights, Azure Service Bus
 - Bicep modules organized by resource type (e.g., `modules/aks.bicep`, `modules/acr.bicep`, `modules/sql.bicep`, etc.) with a main orchestration file
