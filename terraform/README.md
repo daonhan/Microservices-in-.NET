@@ -71,7 +71,7 @@ cd terraform
 terraform fmt -check -recursive
 terraform init -backend=false
 terraform validate
-tflint --init && tflint
+tflint --init && tflint --recursive
 ```
 
 ## Notes
@@ -85,4 +85,5 @@ tflint --init && tflint
   stored in the repo or the provider block.
 - **State secrets** — from Phase 3 onward the SQL admin password and key outputs
   land in state; the hardened `azurerm` backend (TLS1.2, versioning, soft-delete,
-  access-controlled) is the mitigation. Acceptable for a sandbox.
+  shared-key access disabled — AAD/RBAC only) is the mitigation. Acceptable for a
+  sandbox.

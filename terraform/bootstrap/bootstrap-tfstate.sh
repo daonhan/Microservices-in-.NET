@@ -45,8 +45,11 @@ az group create \
   --tags managedBy=bootstrap purpose=tfstate env=sbx2 \
   --output none
 
-# Hardened state account: TLS1.2 floor, no public blob access, key access kept on
-# for backend auth; blob versioning + soft-delete protect state history.
+# Hardened state account: TLS1.2 floor, no public blob access, shared-key access
+# disabled (backend init/plan/apply and container ops all use AAD/OIDC, not the
+# account key); blob versioning + soft-delete protect state history.
+# NOTE: the bootstrap admin and the pipeline WIF identity each need the
+# `Storage Blob Data Contributor` role on this account for data-plane access.
 az storage account create \
   --name "${STORAGE_ACCOUNT}" \
   --resource-group "${RESOURCE_GROUP}" \
@@ -55,6 +58,7 @@ az storage account create \
   --kind StorageV2 \
   --min-tls-version TLS1_2 \
   --allow-blob-public-access false \
+  --allow-shared-key-access false \
   --tags managedBy=bootstrap purpose=tfstate env=sbx2 \
   --output none
 

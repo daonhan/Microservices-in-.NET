@@ -48,6 +48,10 @@ jobs:
           tflint_version: v0.53.0
 
       - name: TFLint
+        env:
+          # Recursive mode chdir's into each module; point every invocation at the
+          # one root config so the azurerm ruleset lints all modules, not just root.
+          TFLINT_CONFIG_FILE: ${{ github.workspace }}/terraform/.tflint.hcl
         run: |
           tflint --init
-          tflint --no-color
+          tflint --recursive --no-color

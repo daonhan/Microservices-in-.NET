@@ -36,8 +36,12 @@ resource "azurerm_kubernetes_cluster" "this" {
     type = "SystemAssigned"
   }
 
+  # network_policy must be set at create time — adding it later forces a cluster
+  # replace. "azure" is free on the Free tier and enables NetworkPolicy enforcement
+  # so a compromised pod cannot reach all services unrestricted.
   network_profile {
     network_plugin    = "azure"
+    network_policy    = "azure"
     load_balancer_sku = "standard"
     service_cidr      = var.service_cidr
     dns_service_ip    = var.dns_service_ip
