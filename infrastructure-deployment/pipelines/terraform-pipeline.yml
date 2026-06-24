@@ -1,0 +1,158 @@
+# terraform-pipeline.yml — CD lane for the Terraform-owned sbx2 environment.
+#
+# CI vs CD split (mirrors the kubeconform-gate / Azure-Pipelines-deploy boundary
+# in the rest of the repo): PR-time static checks run credential-free in GitHub
+# Actions (.github/workflows/terraform-ci.yml); this pipeline owns the
+# credentialed plan/apply. It authenticates via a dedicated Workload Identity
+# Federation service connection (no stored secret) and gates `apply` on the
+# tf-sbx2 Azure DevOps Environment approval, so the reviewed plan is the applied
+# plan with no drift window. IaC and app deploy stay decoupled — this pipeline
+# never triggers an app deployment.
+#
+# AUTHORING ONLY: live execution requires the Azure/ADO prerequisites in #350 —
+# the WIF service connection (Contributor + User Access Administrator on the
+# sbx2 subscription), the SBX2_ variable group, and the tf-sbx2 Environment with
+# a required-reviewer approval.
+#
+# Required variables (supplied via the SBX2_ variable group):
+#   TF_SERVICE_CONNECTION  WIF ARM service connection scoped to sbx2
+#   TF_STATE_RG            state resource group (rg-tfstate)
+#   TF_STATE_SA            state storage account (bootstrap output)
+#   TF_STATE_CONTAINER     state container (tfstate)
+
+trigger:
+  branches:
+    include: [main]
+  paths:
+    include: [terraform/*]
+
+pr: none
+
+variables:
+  - group: SBX2_
+  - name: TF_VERSION
+    value: 1.9.8
+  - name: TF_ROOT
+    value: terraform
+  - name: STATE_KEY
+    value: sbx2.tfstate
+
+stages:
+  - stage: Validate
+    displayName: Validate (fmt + validate)
+    jobs:
+      - job: validate
+        displayName: Static validation (no Azure credentials)
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+          - task: TerraformInstaller@1
+            displayName: Install Terraform $(TF_VERSION)
+            inputs:
+              terraformVersion: $(TF_VERSION)
+          - bash: |
+              set -euo pipefail
+              terraform fmt -check -recursive -diff
+              terraform init -backend=false -input=false
+              terraform validate -no-color
+            workingDirectory: $(TF_ROOT)
+            displayName: terraform fmt / init / validate
+
+  - stage: Plan
+    displayName: Plan (publish tfplan artifact)
+    dependsOn: Validate
+    condition: succeeded()
+    jobs:
+      - job: plan
+        displayName: terraform plan -out=tfplan
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+          - task: TerraformInstaller@1
+            displayName: Install Terraform $(TF_VERSION)
+            inputs:
+              terraformVersion: $(TF_VERSION)
+          - task: AzureCLI@2
+            displayName: terraform init + plan
+            inputs:
+              azureSubscription: $(TF_SERVICE_CONNECTION)
+              scriptType: bash
+              scriptLocation: inlineScript
+              addSpnToEnvironment: true
+              workingDirectory: $(TF_ROOT)
+              inlineScript: |
+                set -euo pipefail
+                # azurerm provider auth from the WIF service connection (no secret).
+                export ARM_USE_OIDC=true
+                export ARM_CLIENT_ID="$servicePrincipalId"
+                export ARM_OIDC_TOKEN="$idToken"
+                export ARM_TENANT_ID="$tenantId"
+                export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+
+                terraform init -input=false \
+                  -backend-config="resource_group_name=$(TF_STATE_RG)" \
+                  -backend-config="storage_account_name=$(TF_STATE_SA)" \
+                  -backend-config="container_name=$(TF_STATE_CONTAINER)" \
+                  -backend-config="key=$(STATE_KEY)" \
+                  -backend-config="use_azuread_auth=true" \
+                  -backend-config="use_oidc=true"
+
+                terraform plan -input=false \
+                  -var-file=environments/sbx2.tfvars \
+                  -out=tfplan
+          - publish: $(TF_ROOT)/tfplan
+            artifact: tfplan
+            displayName: Publish tfplan artifact
+
+  - stage: Apply
+    displayName: Apply (approved tfplan)
+    dependsOn: Plan
+    condition: succeeded()
+    jobs:
+      - deployment: apply
+        displayName: terraform apply tfplan
+        pool:
+          vmImage: ubuntu-latest
+        # The tf-sbx2 Environment carries the required-reviewer approval; this
+        # deployment job pauses here until a human approves the published plan.
+        environment: tf-sbx2
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - download: current
+                  artifact: tfplan
+                  displayName: Download tfplan artifact
+                - task: TerraformInstaller@1
+                  displayName: Install Terraform $(TF_VERSION)
+                  inputs:
+                    terraformVersion: $(TF_VERSION)
+                - task: AzureCLI@2
+                  displayName: terraform init + apply tfplan
+                  inputs:
+                    azureSubscription: $(TF_SERVICE_CONNECTION)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    addSpnToEnvironment: true
+                    workingDirectory: $(TF_ROOT)
+                    inlineScript: |
+                      set -euo pipefail
+                      export ARM_USE_OIDC=true
+                      export ARM_CLIENT_ID="$servicePrincipalId"
+                      export ARM_OIDC_TOKEN="$idToken"
+                      export ARM_TENANT_ID="$tenantId"
+                      export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+
+                      terraform init -input=false \
+                        -backend-config="resource_group_name=$(TF_STATE_RG)" \
+                        -backend-config="storage_account_name=$(TF_STATE_SA)" \
+                        -backend-config="container_name=$(TF_STATE_CONTAINER)" \
+                        -backend-config="key=$(STATE_KEY)" \
+                        -backend-config="use_azuread_auth=true" \
+                        -backend-config="use_oidc=true"
+
+                      # Apply the exact reviewed plan downloaded from the artifact.
+                      terraform apply -input=false "$(Pipeline.Workspace)/tfplan/tfplan"

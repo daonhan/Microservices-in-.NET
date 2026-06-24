@@ -1,0 +1,19 @@
+# Local Terraform working dirs and provider caches
+.terraform/
+.terraform.tfstate.lock.info
+
+# State (lives in the azurerm backend, never in git)
+*.tfstate
+*.tfstate.*
+
+# Saved plans (published as pipeline artifacts, not committed)
+tfplan
+*.tfplan
+
+# Crash logs and local var overrides
+crash.log
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
