@@ -1,7 +1,9 @@
 using System.Transactions;
+using ECommerce.Shared.Infrastructure.EventBus;
 using Microsoft.EntityFrameworkCore;
 using Order.Service.Domain;
 using Order.Service.Domain.Abstractions;
+using Order.Service.Domain.Events;
 using Order.Service.Infrastructure.Outbox;
 
 namespace Order.Service.Infrastructure.Data.EntityFramework;
@@ -58,23 +60,42 @@ internal class OrderContext : DbContext, IOrderStore
                 "OrderContext was constructed without a DomainEventOutboxInterceptor; ExecuteAsync requires the runtime constructor.");
         }
 
+        ArgumentNullException.ThrowIfNull(unitOfWork);
+        if (Transaction.Current is not null || Database.CurrentTransaction is not null)
+        {
+            throw new InvalidOperationException("ExecuteAsync must own the transaction so events are acknowledged only after commit.");
+        }
+
         var strategy = Database.CreateExecutionStrategy();
+        // Prepare the command once. Retry its tracked writes and the same mapped
+        // event IDs, rather than replaying arbitrary mutations on tracked entities.
+        List<(Entity Entity, IReadOnlyList<IDomainEvent> Events)>? captured = null;
+        IReadOnlyList<Event>? integrationEvents = null;
         await strategy.ExecuteAsync(async () =>
         {
             using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
 
-            await unitOfWork();
-
-            var domainEvents = ChangeTracker.Entries<Entity>()
-                .SelectMany(e => e.Entity.DequeueDomainEvents())
-                .ToList();
+            if (integrationEvents is null)
+            {
+                await unitOfWork();
+                captured = ChangeTracker.Entries<Entity>()
+                    .Select(e => (e.Entity, (IReadOnlyList<IDomainEvent>)e.Entity.DomainEvents.ToList()))
+                    .ToList();
+                integrationEvents = _outboxInterceptor.Map(captured.SelectMany(e => e.Events));
+            }
 
             await SaveChangesAsync(acceptAllChangesOnSuccess: false);
 
-            await _outboxInterceptor.PublishAsync(domainEvents);
+            await _outboxInterceptor.PublishMappedAsync(integrationEvents);
 
-            ChangeTracker.AcceptAllChanges();
             scope.Complete();
         });
+
+        // TransactionScope.Dispose commits and may throw, even after Complete.
+        ChangeTracker.AcceptAllChanges();
+        foreach (var (entity, events) in captured!)
+        {
+            entity.RemoveDomainEvents(events);
+        }
     }
 }

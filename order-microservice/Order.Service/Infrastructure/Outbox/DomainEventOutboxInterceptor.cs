@@ -1,3 +1,4 @@
+using ECommerce.Shared.Infrastructure.EventBus;
 using ECommerce.Shared.Infrastructure.Outbox;
 using Order.Service.Domain.Events;
 
@@ -14,8 +15,11 @@ internal sealed class DomainEventOutboxInterceptor
         _outboxStore = outboxStore;
     }
 
-    public async Task PublishAsync(IEnumerable<IDomainEvent> domainEvents)
+    public Task PublishAsync(IEnumerable<IDomainEvent> domainEvents) => PublishMappedAsync(Map(domainEvents));
+
+    public IReadOnlyList<Event> Map(IEnumerable<IDomainEvent> domainEvents)
     {
+        var events = new List<Event>();
         foreach (var domainEvent in domainEvents)
         {
             if (!_maps.TryGetValue(domainEvent.GetType(), out var map))
@@ -24,7 +28,17 @@ internal sealed class DomainEventOutboxInterceptor
                     $"No integration-event translation registered for domain event {domainEvent.GetType().Name}");
             }
 
-            await _outboxStore.AddOutboxEvent(map.Map(domainEvent));
+            events.Add(map.Map(domainEvent));
+        }
+
+        return events;
+    }
+
+    public async Task PublishMappedAsync(IReadOnlyList<Event> events)
+    {
+        foreach (var @event in events)
+        {
+            await _outboxStore.AddOutboxEvent(@event);
         }
     }
 }

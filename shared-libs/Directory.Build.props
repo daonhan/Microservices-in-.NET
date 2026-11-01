@@ -3,7 +3,10 @@
   <Import Project="..\Directory.Build.props" />
 
   <PropertyGroup>
-    <Version>3.2.0</Version>
+    <Version>3.2.1</Version>
+    <!-- Outbox EventType persists assembly-qualified names. Keep this patch's
+         assembly identity compatible with 3.2.0, including on rollback. -->
+    <AssemblyVersion>3.2.0.0</AssemblyVersion>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

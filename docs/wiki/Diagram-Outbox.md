@@ -27,13 +27,16 @@ flowchart LR
     Q --> L{rows?}
     L -- no --> T
     L -- yes --> F[foreach row]
-    F --> PUB[eventBus.PublishAsync]
-    PUB -->|ok| M[MarkAsPublished]
-    PUB -->|throw| E[RecordPublishFailure<br/>Attempts++]
-    M --> F
+    F --> LOCK[SQL transaction + pending-row update lock]
+    LOCK --> PUB[eventBus.PublishAsync + broker confirmation]
+    PUB -->|ok| M[Set Sent = true]
+    PUB -->|throw| E[Record failure<br/>Attempts++]
+    M --> COMMIT[Commit dispatch transaction]
+    COMMIT --> F
     E --> CHK{Attempts >= MaxAttempts?}
-    CHK -- no --> F
+    CHK -- no --> COMMIT
     CHK -- yes --> DEAD[(status=Failed<br/>visible at /internal/outbox/failed)]
+    DEAD --> COMMIT
     DEAD --> POLL[Gateway DLQ poller]
     POLL --> OPS[(dead_letter_messages<br/>operator API)]
 
@@ -66,6 +69,14 @@ sequenceDiagram
 
 ## Source
 
-- [`shared-libs/.../Outbox/OutboxBackgroundService.cs`](https://github.com/daonhan/Microservices-in-.NET/blob/main/shared-libs/ECommerce.Shared/Infrastructure/Outbox/OutboxBackgroundService.cs) — poller loop
-- [`shared-libs/.../Outbox/OutboxContext.cs`](https://github.com/daonhan/Microservices-in-.NET/blob/main/shared-libs/ECommerce.Shared/Infrastructure/Outbox/OutboxContext.cs) — EF schema
-- [`api-gateway/.../OutboxPolling/OutboxFailurePoller.cs`](https://github.com/daonhan/Microservices-in-.NET/blob/main/api-gateway/ApiGateway/Operator/OutboxPolling/OutboxFailurePoller.cs) — gateway-side ingest
+- [`shared-libs/.../Outbox/OutboxBackgroundService.cs`](https://github.com/daonhan/Microservices-in-.NET/blob/main/shared-libs/ECommerce.Shared.EventBus/Impl/Outbox/OutboxBackgroundService.cs) — poller loop
+- [`shared-libs/.../Outbox/OutboxContext.cs`](https://github.com/daonhan/Microservices-in-.NET/blob/main/shared-libs/ECommerce.Shared.EventBus/Impl/Outbox/OutboxContext.cs) — EF schema
+- [`api-gateway/.../OutboxPolling/OutboxFailurePoller.cs`](https://github.com/daonhan/Microservices-in-.NET/blob/main/api-gateway/ApiGateway/Infrastructure/Polling/OutboxFailurePoller.cs) — gateway-side ingest
+
+## Replica coordination and deployment
+
+SQL dispatch rechecks each candidate under an update lock held through publish and
+state commit; competing replicas skip owned rows. RabbitMQ publishes are persistent,
+mandatory, and confirmed. Delivery remains at least once. See the
+[reliability deployment runbook](../runbooks/outbox-delivery-reliability.md) for
+rollback/retry behavior, topology compatibility, rollout ordering, and tests.
