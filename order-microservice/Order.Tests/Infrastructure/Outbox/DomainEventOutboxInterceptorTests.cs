@@ -74,6 +74,38 @@ public class DomainEventOutboxInterceptorTests
 
     private sealed record UnmappedDomainEvent : IDomainEvent;
 
+    [Fact]
+    public async Task Given_unmapped_event_after_valid_event_When_translating_Then_no_partial_outbox_write_occurs()
+    {
+        var store = new CapturingOutboxStore();
+        var interceptor = new DomainEventOutboxInterceptor([new OrderCreatedIntegrationMap()], store);
+        var created = new OrderCreatedDomainEvent(Guid.NewGuid(), "customer", [], "USD");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => interceptor.PublishAsync([created, new UnmappedDomainEvent()]));
+
+        Assert.Empty(store.Events);
+    }
+
+    [Fact]
+    public void Given_equal_events_raised_after_capture_When_acknowledging_Then_only_captured_instances_are_removed()
+    {
+        var entity = new TestEntity();
+        entity.Add(new UnmappedDomainEvent());
+        var captured = entity.DomainEvents.ToList();
+        entity.Add(new UnmappedDomainEvent());
+        Assert.Equal(captured[0], entity.DomainEvents.Last());
+
+        entity.RemoveDomainEvents(captured);
+
+        var remaining = Assert.Single(entity.DomainEvents);
+        Assert.NotSame(captured[0], remaining);
+    }
+
+    private sealed class TestEntity : Service.Domain.Entity
+    {
+        public void Add(IDomainEvent domainEvent) => Raise(domainEvent);
+    }
+
     private sealed class CapturingOutboxStore : IOutboxStore
     {
         public List<Event> Events { get; } = [];

@@ -19,14 +19,35 @@ public sealed class OutboxFailureTrackingTests : IDisposable
     public OutboxFailureTrackingTests()
     {
         var services = new ServiceCollection();
+        var databaseName = $"outbox-{Guid.NewGuid():N}";
         services.AddDbContext<OutboxContext>(options =>
-            options.UseInMemoryDatabase($"outbox-{Guid.NewGuid():N}"));
+            options.UseInMemoryDatabase(databaseName));
         services.AddScoped<IOutboxStore>(sp => sp.GetRequiredService<OutboxContext>());
         _provider = services.BuildServiceProvider();
         _context = _provider.GetRequiredService<OutboxContext>();
     }
 
     public void Dispose() => _provider.Dispose();
+
+    [Fact]
+    public async Task Given_outbox_insert_no_longer_in_database_When_same_context_retries_Then_event_is_reinserted()
+    {
+        var @event = new SampleEvent();
+        await _context.AddOutboxEvent(@event);
+        // Simulate the persisted row disappearing after an ambient rollback,
+        // without changing the original context's identity map.
+        using (var scope = _provider.CreateScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<OutboxContext>();
+            database.OutboxEvents.Remove((await database.OutboxEvents.FindAsync(@event.Id))!);
+            await database.SaveChangesAsync();
+        }
+
+        await _context.AddOutboxEvent(@event);
+        using var verification = _provider.CreateScope();
+        var persisted = verification.ServiceProvider.GetRequiredService<OutboxContext>();
+        Assert.True(await persisted.OutboxEvents.AnyAsync(row => row.Id == @event.Id));
+    }
 
     [Fact]
     public async Task Given_pending_event_When_RecordPublishFailure_called_Then_attempts_incremented_and_error_recorded()
@@ -143,6 +164,40 @@ public sealed class OutboxFailureTrackingTests : IDisposable
 
         await store.Received().RecordPublishFailure(id, Arg.Is<string>(s => s.Contains("broker down")), 3);
         await store.DidNotReceive().MarkOutboxEventAsPublished(Arg.Any<Guid>());
+    }
+
+    [Fact]
+    public async Task Given_poll_failure_When_next_tick_arrives_Then_background_dispatch_recovers()
+    {
+        var recovered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        var store = Substitute.For<IOutboxStore>();
+        store.GetUnpublishedOutboxEvents().Returns(_ =>
+        {
+            if (Interlocked.Increment(ref calls) == 1)
+            {
+                throw new InvalidOperationException("database unavailable");
+            }
+            recovered.TrySetResult();
+            return Task.FromResult(new List<OutboxEvent>());
+        });
+        var services = new ServiceCollection();
+        services.AddSingleton(store);
+        services.AddSingleton(Substitute.For<IEventBus>());
+        await using var provider = services.BuildServiceProvider();
+        using var service = new OutboxBackgroundService(provider.GetRequiredService<IServiceScopeFactory>(),
+            Options.Create(new OutboxOptions { PublishIntervalInSeconds = 1 }),
+            NullLogger<OutboxBackgroundService>.Instance);
+        await service.StartAsync(CancellationToken.None);
+        try
+        {
+            await recovered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.False(service.ExecuteTask!.IsFaulted);
+        }
+        finally
+        {
+            await service.StopAsync(CancellationToken.None);
+        }
     }
 
     [Fact]

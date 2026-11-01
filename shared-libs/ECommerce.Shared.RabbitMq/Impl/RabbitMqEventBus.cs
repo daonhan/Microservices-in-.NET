@@ -38,6 +38,9 @@ public class RabbitMqEventBus : IEventBus
         return _pipeline.Execute(() =>
         {
             using var channel = _rabbitMqConnection.Connection.CreateModel();
+            channel.ConfirmSelect();
+            var returned = false;
+            channel.BasicReturn += (_, _) => Volatile.Write(ref returned, true);
 
             var activityName = $"{OpenTelemetryMessagingConventions.PublishOperation} {routingKey}";
             using var activity = _activitySource.StartActivity(activityName, ActivityKind.Client);
@@ -49,6 +52,10 @@ public class RabbitMqEventBus : IEventBus
             }
 
             var properties = channel.CreateBasicProperties();
+            properties.Persistent = true;
+            properties.MessageId = @event.Id.ToString();
+            properties.ContentType = "application/json";
+            properties.Type = routingKey;
             _propagator.Inject(new PropagationContext(activityContextToInject, Baggage.Current), properties,
                 (properties, key, value) =>
                 {
@@ -79,9 +86,17 @@ public class RabbitMqEventBus : IEventBus
             channel.BasicPublish(
                 exchange: ExchangeName,
                 routingKey: routingKey,
-                mandatory: false,
+                mandatory: true,
                 basicProperties: properties,
                 body: body);
+
+            // Confirms cover broker acceptance, while BasicReturn detects an
+            // unroutable mandatory publish (which can still receive an ack).
+            channel.WaitForConfirmsOrDie(TimeSpan.FromSeconds(10));
+            if (Volatile.Read(ref returned))
+            {
+                throw new InvalidOperationException($"RabbitMQ returned unroutable event {@event.Id} ({routingKey}).");
+            }
 
             return Task.CompletedTask;
         });

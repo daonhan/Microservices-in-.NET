@@ -31,43 +31,86 @@ public partial class OutboxBackgroundService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested && await timer.WaitForNextTickAsync(stoppingToken))
         {
-            LogRetrievingEvents(_logger);
-
-            using var serviceScope = _serviceScopeFactory.CreateScope();
-
-            var outboxStore = serviceScope.ServiceProvider.GetRequiredService<IOutboxStore>();
-            var eventBus = serviceScope.ServiceProvider.GetRequiredService<IEventBus>();
-
-            var unpublishedEvents = await outboxStore.GetUnpublishedOutboxEvents();
-
-            foreach (var unpublishedEvent in unpublishedEvents)
+            try
             {
-                try
-                {
-                    var @event = JsonSerializer.Deserialize(unpublishedEvent.Data,
-                        Type.GetType(unpublishedEvent.EventType)!) as Event;
-
-                    await eventBus.PublishAsync(@event!);
-
-                    await outboxStore.MarkOutboxEventAsPublished(unpublishedEvent.Id);
-                }
-                catch (Exception ex)
-                {
-                    LogPublishFailure(_logger, unpublishedEvent.Id, ex);
-                    await outboxStore.RecordPublishFailure(unpublishedEvent.Id, ex.ToString(), _maxAttempts);
-                }
+                await DispatchPendingAsync(stoppingToken);
             }
-
-            if (unpublishedEvents.Count != 0)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
-                LogEventsSent(_logger);
+                break;
             }
-            else
+            catch (Exception ex)
             {
-                LogNoEvents(_logger);
+                // A transient database/poll failure must not kill the host.
+                LogDispatchFailure(_logger, ex);
             }
         }
     }
+
+    private async Task DispatchPendingAsync(CancellationToken stoppingToken)
+    {
+        LogRetrievingEvents(_logger);
+
+        using var serviceScope = _serviceScopeFactory.CreateScope();
+
+        var outboxStore = serviceScope.ServiceProvider.GetRequiredService<IOutboxStore>();
+        var eventBus = serviceScope.ServiceProvider.GetRequiredService<IEventBus>();
+
+        var unpublishedEvents = await outboxStore.GetUnpublishedOutboxEvents();
+
+        foreach (var unpublishedEvent in unpublishedEvents)
+        {
+            stoppingToken.ThrowIfCancellationRequested();
+            if (outboxStore is IOutboxDispatchStore dispatcher)
+            {
+                await dispatcher.DispatchAsync(unpublishedEvent.Id, async row =>
+                {
+                    try
+                    {
+                        await PublishAsync(row, eventBus);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogPublishFailure(_logger, row.Id, ex);
+                        throw;
+                    }
+                }, _maxAttempts, stoppingToken);
+                continue;
+            }
+
+            try
+            {
+                await PublishAsync(unpublishedEvent, eventBus);
+
+                await outboxStore.MarkOutboxEventAsPublished(unpublishedEvent.Id);
+            }
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                LogPublishFailure(_logger, unpublishedEvent.Id, ex);
+                await outboxStore.RecordPublishFailure(unpublishedEvent.Id, ex.ToString(), _maxAttempts);
+            }
+        }
+
+        if (unpublishedEvents.Count != 0)
+        {
+            LogEventsSent(_logger);
+        }
+        else
+        {
+            LogNoEvents(_logger);
+        }
+    }
+
+    private static Task PublishAsync(Models.OutboxEvent row, IEventBus eventBus)
+    {
+        var type = Type.GetType(row.EventType, throwOnError: true)!;
+        var @event = JsonSerializer.Deserialize(row.Data, type) as Event
+            ?? throw new InvalidOperationException($"Outbox event {row.Id} did not deserialize to an Event.");
+        return eventBus.PublishAsync(@event);
+    }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Outbox dispatch failed; retrying on the next poll")]
+    private static partial void LogDispatchFailure(ILogger logger, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Retrieving unpublished outbox events")]
     private static partial void LogRetrievingEvents(ILogger logger);
